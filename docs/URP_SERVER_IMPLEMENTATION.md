@@ -229,6 +229,35 @@ app.post('/api/urp', async (req, res) => {
 app.listen(3000, () => console.log('URP Server running on port 3000'));
 ```
 
-## Troubleshooting
+## 5. Streaming Support (Optional)
+
+MAST supports real-time streaming of text and thinking tokens. When the client wants a stream, it sends `"stream": true` in the request body and expects an `Accept: text/event-stream` response.
+
+### Stream Chunk Schema
+Each chunk in the stream should be a JSON object on a new line (NDJSON) or prefixed with `data: ` (SSE).
+
+```json
+// Text delta
+{ "type": "text_delta", "delta": " Hello" }
+
+// Thinking/Reasoning delta
+{ "type": "thinking", "delta": "Searching for weather data..." }
+
+// Tool call (emitted once at the end of the stream if no text was sent)
+{
+  "type": "tool_call",
+  "tool_call": {
+    "id": "call_123",
+    "name": "get_weather",
+    "arguments": { "location": "London" }
+  }
+}
+```
+
+### Protocol Details
+- **NDJSON:** Send one JSON object per line.
+- **SSE:** Send `data: <json>\n\n`. You can optionally send `data: [DONE]\n\n` to terminate the stream.
+
+## 6. Troubleshooting
 - **CORS:** Remember, if your server runs on a different domain/port than the browser app, you *must* enable Cross-Origin Resource Sharing (CORS) on your server.
 - **IDs:** Always echo the `id` from a `tool_call` back to the LLM exactly as the LLM provided it, as the client will use this ID to match the result.
