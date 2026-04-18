@@ -1,0 +1,15 @@
+[package]
+name = "demo-rust-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.8", features = ["json"] }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tower-http = { version = "0.6", features = ["cors"] }
+reqwest = { version = "0.12", features = ["json"] }
+anyhow = "1.0"
+dotenvy = "0.15"
+rand = "0.8"
