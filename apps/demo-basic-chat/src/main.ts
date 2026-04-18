@@ -1,8 +1,15 @@
 import './style.css'
-import { VERSION, ToolRegistry, HttpTransport } from '@mast-ai/core';
-import type { Tool, ToolContext } from '@mast-ai/core';
+import {
+  VERSION,
+  ToolRegistry,
+  HttpTransport,
+  AgentRunner,
+  UrpAdapter,
+  createAgent
+} from '@mast-ai/core';
+import type { Tool, ToolContext, Message } from '@mast-ai/core';
 
-// 1. Stub out a basic tool
+// --- Tools ---
 class GetCurrentTimeTool implements Tool {
   definition() {
     return {
@@ -21,77 +28,175 @@ class GetCurrentTimeTool implements Tool {
   }
 }
 
-// 2. Initialize the registry
-const registry = new ToolRegistry();
-registry.register(new GetCurrentTimeTool());
+class CalculatorTool implements Tool {
+  definition() {
+    return {
+      name: 'calculate',
+      description: 'Evaluates a mathematical expression (e.g., "2 + 2").',
+      parameters: {
+        type: 'object',
+        properties: {
+          expression: { type: 'string' }
+        },
+        required: ['expression']
+      }
+    };
+  }
 
+  async call(args: any, _context: ToolContext): Promise<{ result: number }> {
+    try {
+      // Basic safe evaluation for demo purposes
+      const result = new Function(`return ${args.expression}`)();
+      return { result };
+    } catch (err) {
+      throw new Error(`Failed to evaluate expression: ${args.expression}`);
+    }
+  }
+}
+
+// --- Setup ---
+const registry = new ToolRegistry()
+  .register(new GetCurrentTimeTool())
+  .register(new CalculatorTool());
+
+const agentConfig = createAgent({
+  name: 'DemoAssistant',
+  instructions: 'You are a helpful assistant. Use tools when necessary to answer user questions accurately.',
+  tools: ['getCurrentTime', 'calculate']
+});
+
+// --- UI Framework ---
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<div style="padding: 2rem; max-width: 800px; margin: 0 auto; font-family: system-ui, sans-serif;">
-  <h1>MAST Demo: Basic Chat</h1>
+<div class="app-container">
+  <div class="sidebar">
+    <h2>MAST Demo <small>v${VERSION}</small></h2>
 
-  <div style="background: #f4f4f5; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e4e4e7;">
-    <h2 style="margin-top: 0; font-size: 1.25rem;">Core Status</h2>
-    <p><strong>@mast-ai/core Version:</strong> <span style="font-family: monospace; background: #e4e4e7; padding: 0.2rem 0.4rem; border-radius: 4px;">${VERSION}</span></p>
-    <p><strong>Status:</strong> <span style="color: green;">✓ Loaded Successfully</span></p>
-  </div>
-
-  <div style="background: #f4f4f5; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e4e4e7;">
-    <h2 style="margin-top: 0; font-size: 1.25rem;">Remote Configuration</h2>
-    <div style="margin-bottom: 1rem;">
-      <label for="endpoint-url" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Remote Endpoint URL (URP Endpoint)</label>
-      <input type="text" id="endpoint-url" value="http://localhost:3000/api/chat" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;" />
+    <div class="config-panel">
+      <label>Remote Endpoint URL</label>
+      <input type="text" id="endpoint-url" value="http://127.0.0.1:3000/api/chat" />
     </div>
-    <button id="test-connection" style="padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">
-      Test Connection
-    </button>
-    <div id="connection-result" style="margin-top: 1rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;"></div>
+
+    <div class="tools-panel">
+      <h3>Available Tools</h3>
+      <ul>
+        ${registry.definitions().map(d => `<li><code>${d.name}</code></li>`).join('')}
+      </ul>
+    </div>
   </div>
 
-  <div style="background: #f4f4f5; padding: 1rem; border-radius: 8px; border: 1px solid #e4e4e7;">
-    <h2 style="margin-top: 0; font-size: 1.25rem;">Tool Registry Test</h2>
-    <p>Registered Tools: <strong>${registry.definitions().length}</strong></p>
-    <pre style="background: #27272a; color: #f4f4f5; padding: 1rem; border-radius: 4px; overflow-x: auto;">
-${JSON.stringify(registry.definitions(), null, 2)}
-    </pre>
-    <button id="test-tool" style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 1rem;">
-      Test getCurrentTime
-    </button>
-    <div id="tool-result" style="margin-top: 1rem; font-family: monospace;"></div>
+  <div class="chat-container">
+    <div class="message-list" id="message-list">
+      <div class="message assistant">
+        <div class="bubble">Hello! I'm ready to help. I can check the time and do math.</div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="status-indicator" id="status-indicator">Idle</div>
+      <div class="input-group">
+        <textarea id="prompt-input" placeholder="Ask something (e.g., 'What time is it?' or 'What is 54 * 23?')"></textarea>
+        <button id="send-button">Send</button>
+      </div>
+    </div>
   </div>
 </div>
 `;
 
-document.querySelector('#test-tool')?.addEventListener('click', async () => {
-  const tool = registry.get('getCurrentTime');
-  const resultElement = document.querySelector('#tool-result');
+// --- Chat Logic ---
+const messageList = document.querySelector('#message-list')!;
+const promptInput = document.querySelector<HTMLTextAreaElement>('#prompt-input')!;
+const sendButton = document.querySelector<HTMLButtonElement>('#send-button')!;
+const endpointInput = document.querySelector<HTMLInputElement>('#endpoint-url')!;
+const statusIndicator = document.querySelector('#status-indicator')!;
 
-  if (tool && resultElement) {
-    resultElement.textContent = 'Executing...';
-    try {
-      const result = await tool.call({}, {});
-      resultElement.innerHTML = `<span style="color: green;">Result:</span> ${JSON.stringify(result)}`;
-    } catch (error) {
-      resultElement.innerHTML = `<span style="color: red;">Error:</span> ${error}`;
-    }
-  }
-});
+let history: Message[] = [];
 
-document.querySelector('#test-connection')?.addEventListener('click', async () => {
-  const urlInput = document.querySelector<HTMLInputElement>('#endpoint-url');
-  const resultElement = document.querySelector('#connection-result');
-  if (!urlInput || !resultElement) return;
+function appendMessage(role: 'user' | 'assistant', content: string): HTMLElement {
+  const msgEl = document.createElement('div');
+  msgEl.className = `message ${role}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = content;
+  msgEl.appendChild(bubble);
+  messageList.appendChild(msgEl);
+  messageList.scrollTop = messageList.scrollHeight;
+  return bubble;
+}
 
-  resultElement.innerHTML = '<span style="color: #6b7280;">Testing connection...</span>';
+function appendSystemMessage(content: string, type: 'tool' | 'thinking' | 'error' = 'tool'): HTMLElement {
+  const msgEl = document.createElement('div');
+  msgEl.className = `message system ${type}`;
+  msgEl.innerHTML = `<small>${content}</small>`;
+  messageList.appendChild(msgEl);
+  messageList.scrollTop = messageList.scrollHeight;
+  return msgEl;
+}
 
-  const transport = new HttpTransport({ url: urlInput.value });
+async function handleSend() {
+  const text = promptInput.value.trim();
+  if (!text) return;
+
+  promptInput.value = '';
+  promptInput.disabled = true;
+  sendButton.disabled = true;
+
+  appendMessage('user', text);
+
+  const transport = new HttpTransport({ url: endpointInput.value });
+  const adapter = new UrpAdapter(transport);
+  const runner = new AgentRunner(adapter, registry);
+
+  statusIndicator.textContent = 'Running...';
+  statusIndicator.className = 'status-indicator running';
+
+  let currentAssistantBubble: HTMLElement | null = null;
+  let currentThinkingBubble: HTMLElement | null = null;
 
   try {
-    const response = await transport.send({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Ping' } }],
-      available_tools: registry.definitions()
-    });
-    resultElement.innerHTML = `<span style="color: green;">Success:</span>\n${JSON.stringify(response, null, 2)}`;
+    const stream = runner.runBuilder(agentConfig).history(history).runStream(text);
+
+    for await (const event of stream) {
+      if (event.type === 'thinking') {
+        if (!currentThinkingBubble) {
+           currentThinkingBubble = appendSystemMessage('🤔 Thinking: ' + event.delta, 'thinking');
+        } else {
+           currentThinkingBubble.querySelector('small')!.textContent += event.delta;
+        }
+      } else if (event.type === 'text_delta') {
+        if (!currentAssistantBubble) {
+          currentAssistantBubble = appendMessage('assistant', '');
+        }
+        currentAssistantBubble.textContent += event.delta;
+      } else if (event.type === 'tool_call_started') {
+        currentThinkingBubble = null; // Reset thinking
+        appendSystemMessage(`🔧 Executing: ${event.name}(${JSON.stringify(event.args)})`, 'tool');
+      } else if (event.type === 'tool_call_completed') {
+        appendSystemMessage(`✅ Result: ${JSON.stringify(event.result)}`, 'tool');
+      } else if (event.type === 'done') {
+        history.push({ role: 'user', content: { type: 'text', text } });
+        // Instead of manually pushing history, ideally the runner yields a final state,
+        // but for now we reconstruct it. We will just pass the runner's internal state
+        // via a more complete run() method or handle it on the outside.
+        // For simplicity in this demo, history is only appended on success.
+        history.push({ role: 'assistant', content: { type: 'text', text: event.output } });
+      }
+    }
   } catch (error) {
-    resultElement.innerHTML = `<span style="color: red;">Error:</span>\n${error instanceof Error ? error.message : String(error)}`;
+    console.error(error);
+    appendSystemMessage(`❌ Error: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  } finally {
+    promptInput.disabled = false;
+    sendButton.disabled = false;
+    promptInput.focus();
+    statusIndicator.textContent = 'Idle';
+    statusIndicator.className = 'status-indicator';
+  }
+}
+
+sendButton.addEventListener('click', handleSend);
+promptInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
   }
 });
