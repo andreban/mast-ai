@@ -1,5 +1,5 @@
 import './style.css'
-import { VERSION, ToolRegistry } from '@mast-ai/core';
+import { VERSION, ToolRegistry, HttpTransport } from '@mast-ai/core';
 import type { Tool, ToolContext } from '@mast-ai/core';
 
 // 1. Stub out a basic tool
@@ -35,6 +35,18 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <p><strong>Status:</strong> <span style="color: green;">✓ Loaded Successfully</span></p>
   </div>
 
+  <div style="background: #f4f4f5; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #e4e4e7;">
+    <h2 style="margin-top: 0; font-size: 1.25rem;">Remote Configuration</h2>
+    <div style="margin-bottom: 1rem;">
+      <label for="endpoint-url" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Remote Endpoint URL (URP Endpoint)</label>
+      <input type="text" id="endpoint-url" value="http://localhost:3000/api/chat" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;" />
+    </div>
+    <button id="test-connection" style="padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">
+      Test Connection
+    </button>
+    <div id="connection-result" style="margin-top: 1rem; font-family: monospace; white-space: pre-wrap; word-break: break-all;"></div>
+  </div>
+
   <div style="background: #f4f4f5; padding: 1rem; border-radius: 8px; border: 1px solid #e4e4e7;">
     <h2 style="margin-top: 0; font-size: 1.25rem;">Tool Registry Test</h2>
     <p>Registered Tools: <strong>${registry.definitions().length}</strong></p>
@@ -61,5 +73,25 @@ document.querySelector('#test-tool')?.addEventListener('click', async () => {
     } catch (error) {
       resultElement.innerHTML = `<span style="color: red;">Error:</span> ${error}`;
     }
+  }
+});
+
+document.querySelector('#test-connection')?.addEventListener('click', async () => {
+  const urlInput = document.querySelector<HTMLInputElement>('#endpoint-url');
+  const resultElement = document.querySelector('#connection-result');
+  if (!urlInput || !resultElement) return;
+
+  resultElement.innerHTML = '<span style="color: #6b7280;">Testing connection...</span>';
+
+  const transport = new HttpTransport({ url: urlInput.value });
+
+  try {
+    const response = await transport.send({
+      messages: [{ role: 'user', content: { type: 'text', text: 'Ping' } }],
+      available_tools: registry.definitions()
+    });
+    resultElement.innerHTML = `<span style="color: green;">Success:</span>\n${JSON.stringify(response, null, 2)}`;
+  } catch (error) {
+    resultElement.innerHTML = `<span style="color: red;">Error:</span>\n${error instanceof Error ? error.message : String(error)}`;
   }
 });
