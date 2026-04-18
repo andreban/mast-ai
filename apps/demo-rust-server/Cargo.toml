@@ -9,7 +9,10 @@ tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tower-http = { version = "0.6", features = ["cors"] }
-reqwest = { version = "0.12", features = ["json"] }
 anyhow = "1.0"
 dotenvy = "0.15"
-rand = "0.8"
+agent-rig = { git = "https://github.com/andreban/agent-rig.git", version = "0.1.0", features = ["full"] }
+async-stream = "0.3.6"
+futures-util = "0.3.32"
+rand = "0.10.1"
+tokio-stream = { version = "0.1.18", features = ["sync"] }
