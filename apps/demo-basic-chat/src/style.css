@@ -211,3 +211,11 @@ button:disabled {
   background-color: #93c5fd;
   cursor: not-allowed;
 }
+
+.stop-button {
+  background-color: #ef4444;
+}
+
+.stop-button:hover {
+  background-color: #dc2626;
+}

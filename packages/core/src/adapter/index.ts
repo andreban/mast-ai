@@ -15,6 +15,7 @@ export interface AdapterRequest {
   tools: ToolDefinition[];
   outputSchema?: Record<string, unknown>;  // JSON Schema
   config?: ModelConfig;
+  signal?: AbortSignal;
 }
 
 export interface AdapterResponse {
@@ -22,11 +23,10 @@ export interface AdapterResponse {
   toolCalls: ToolCall[];    // empty on a final text response
 }
 
-export interface AdapterStreamChunk {
-  type: 'text_delta' | 'tool_call' | 'thinking';
-  delta?: string;           // present when type === 'text_delta' or 'thinking'
-  toolCall?: ToolCall;      // present when type === 'tool_call'
-}
+export type AdapterStreamChunk =
+  | { type: 'text_delta'; delta: string }
+  | { type: 'thinking';   delta: string }
+  | { type: 'tool_call';  toolCall: ToolCall };
 
 export interface LlmAdapter {
   generate(request: AdapterRequest): Promise<AdapterResponse>;

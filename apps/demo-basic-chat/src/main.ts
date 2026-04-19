@@ -7,52 +7,9 @@ import {
   UrpAdapter,
   createAgent
 } from '@mast-ai/core';
-import type { Tool, ToolContext, Message } from '@mast-ai/core';
-
-// --- Tools ---
-class GetCurrentTimeTool implements Tool {
-  definition() {
-    return {
-      name: 'getCurrentTime',
-      description: 'Returns the current local time as a string.',
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: []
-      }
-    };
-  }
-
-  async call(_args: unknown, _context: ToolContext): Promise<{ time: string }> {
-    return { time: new Date().toISOString() };
-  }
-}
-
-class CalculatorTool implements Tool {
-  definition() {
-    return {
-      name: 'calculate',
-      description: 'Evaluates a mathematical expression (e.g., "2 + 2").',
-      parameters: {
-        type: 'object',
-        properties: {
-          expression: { type: 'string' }
-        },
-        required: ['expression']
-      }
-    };
-  }
-
-  async call(args: any, _context: ToolContext): Promise<{ result: number }> {
-    try {
-      // Basic safe evaluation for demo purposes
-      const result = new Function(`return ${args.expression}`)();
-      return { result };
-    } catch (err) {
-      throw new Error(`Failed to evaluate expression: ${args.expression}`);
-    }
-  }
-}
+import type { Message } from '@mast-ai/core';
+import { GetCurrentTimeTool } from './tools/getCurrentTime';
+import { CalculatorTool } from './tools/calculate';
 
 // --- Setup ---
 const registry = new ToolRegistry()
@@ -64,6 +21,7 @@ const agentConfig = createAgent({
   instructions: 'You are a helpful assistant. Use tools when necessary to answer user questions accurately.',
   tools: ['getCurrentTime', 'calculate']
 });
+
 
 // --- UI Framework ---
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
@@ -96,6 +54,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div class="input-group">
         <textarea id="prompt-input" placeholder="Ask something (e.g., 'What time is it?' or 'What is 54 * 23?')"></textarea>
         <button id="send-button">Send</button>
+        <button id="stop-button" class="stop-button" hidden>Stop</button>
       </div>
     </div>
   </div>
@@ -106,10 +65,19 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 const messageList = document.querySelector('#message-list')!;
 const promptInput = document.querySelector<HTMLTextAreaElement>('#prompt-input')!;
 const sendButton = document.querySelector<HTMLButtonElement>('#send-button')!;
+const stopButton = document.querySelector<HTMLButtonElement>('#stop-button')!;
 const endpointInput = document.querySelector<HTMLInputElement>('#endpoint-url')!;
 const statusIndicator = document.querySelector('#status-indicator')!;
 
+function buildRunner(): AgentRunner {
+  return new AgentRunner(new UrpAdapter(new HttpTransport({ url: endpointInput.value })), registry);
+}
+
+let runner = buildRunner();
+endpointInput.addEventListener('change', () => { runner = buildRunner(); });
+
 let history: Message[] = [];
+let currentController: AbortController | null = null;
 
 function appendMessage(role: 'user' | 'assistant', content: string): HTMLElement {
   const msgEl = document.createElement('div');
@@ -126,25 +94,29 @@ function appendMessage(role: 'user' | 'assistant', content: string): HTMLElement
 function appendSystemMessage(content: string, type: 'tool' | 'thinking' | 'error' = 'tool'): HTMLElement {
   const msgEl = document.createElement('div');
   msgEl.className = `message system ${type}`;
-  msgEl.innerHTML = `<small>${content}</small>`;
+  const small = document.createElement('small');
+  small.textContent = content;
+  msgEl.appendChild(small);
   messageList.appendChild(msgEl);
   messageList.scrollTop = messageList.scrollHeight;
   return msgEl;
 }
 
 async function handleSend() {
+  if (currentController) return;
+
   const text = promptInput.value.trim();
   if (!text) return;
 
   promptInput.value = '';
   promptInput.disabled = true;
   sendButton.disabled = true;
+  stopButton.hidden = false;
 
   appendMessage('user', text);
 
-  const transport = new HttpTransport({ url: endpointInput.value });
-  const adapter = new UrpAdapter(transport);
-  const runner = new AgentRunner(adapter, registry);
+  const controller = new AbortController();
+  currentController = controller;
 
   statusIndicator.textContent = 'Running...';
   statusIndicator.className = 'status-indicator running';
@@ -153,14 +125,14 @@ async function handleSend() {
   let currentThinkingBubble: HTMLElement | null = null;
 
   try {
-    const stream = runner.runBuilder(agentConfig).history(history).runStream(text);
+    const stream = runner.runBuilder(agentConfig).history(history).signal(controller.signal).runStream(text);
 
     for await (const event of stream) {
       if (event.type === 'thinking') {
         if (!currentThinkingBubble) {
-           currentThinkingBubble = appendSystemMessage('🤔 Thinking: ' + event.delta, 'thinking');
+          currentThinkingBubble = appendSystemMessage('🤔 Thinking: ' + event.delta, 'thinking');
         } else {
-           currentThinkingBubble.querySelector('small')!.textContent += event.delta;
+          currentThinkingBubble.querySelector('small')!.textContent += event.delta;
         }
       } else if (event.type === 'text_delta') {
         if (!currentAssistantBubble) {
@@ -174,19 +146,19 @@ async function handleSend() {
         appendSystemMessage(`✅ Result: ${JSON.stringify(event.result)}`, 'tool');
       } else if (event.type === 'done') {
         history.push({ role: 'user', content: { type: 'text', text } });
-        // Instead of manually pushing history, ideally the runner yields a final state,
-        // but for now we reconstruct it. We will just pass the runner's internal state
-        // via a more complete run() method or handle it on the outside.
-        // For simplicity in this demo, history is only appended on success.
         history.push({ role: 'assistant', content: { type: 'text', text: event.output } });
       }
     }
   } catch (error) {
-    console.error(error);
-    appendSystemMessage(`❌ Error: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    if (!controller.signal.aborted) {
+      console.error(error);
+      appendSystemMessage(`❌ Error: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    }
   } finally {
+    currentController = null;
     promptInput.disabled = false;
     sendButton.disabled = false;
+    stopButton.hidden = true;
     promptInput.focus();
     statusIndicator.textContent = 'Idle';
     statusIndicator.className = 'status-indicator';
@@ -194,6 +166,7 @@ async function handleSend() {
 }
 
 sendButton.addEventListener('click', handleSend);
+stopButton.addEventListener('click', () => currentController?.abort());
 promptInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();

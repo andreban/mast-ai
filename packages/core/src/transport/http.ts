@@ -4,13 +4,12 @@ import { AdapterError } from '../error';
 export interface HttpTransportOptions {
   url: string;
   headers?: Record<string, string>;
-  signal?: AbortSignal;
 }
 
 export class HttpTransport implements UrpTransport {
   constructor(private options: HttpTransportOptions) {}
 
-  async send(request: UrpRequest): Promise<UrpResponse> {
+  async send(request: UrpRequest, signal?: AbortSignal): Promise<UrpResponse> {
     try {
       const response = await fetch(this.options.url, {
         method: 'POST',
@@ -19,7 +18,7 @@ export class HttpTransport implements UrpTransport {
           ...(this.options.headers || {}),
         },
         body: JSON.stringify(request),
-        signal: this.options.signal,
+        signal,
       });
 
       if (!response.ok) {
@@ -43,17 +42,26 @@ export class HttpTransport implements UrpTransport {
     }
   }
 
-  async *sendStream(request: UrpRequest): AsyncIterable<UrpStreamChunk> {
-    const response = await fetch(this.options.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream, application/x-ndjson, application/json',
-        ...(this.options.headers || {}),
-      },
-      body: JSON.stringify({ ...request, stream: true }),
-      signal: this.options.signal,
-    });
+  async *sendStream(request: UrpRequest, signal?: AbortSignal): AsyncIterable<UrpStreamChunk> {
+    let response: Response;
+    try {
+      response = await fetch(this.options.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream, application/x-ndjson, application/json',
+          ...(this.options.headers || {}),
+        },
+        body: JSON.stringify({ ...request, stream: true }),
+        signal,
+      });
+    } catch (error) {
+      throw new AdapterError(
+        `Failed to send streaming request: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        error
+      );
+    }
 
     if (!response.ok) {
       throw new AdapterError(
@@ -90,7 +98,7 @@ export class HttpTransport implements UrpTransport {
           try {
             yield JSON.parse(jsonStr) as UrpStreamChunk;
           } catch (e) {
-            console.warn('Failed to parse URP stream chunk:', jsonStr, e);
+            throw new AdapterError(`Failed to parse URP stream chunk: ${jsonStr}`, undefined, e);
           }
         }
       }
@@ -103,7 +111,7 @@ export class HttpTransport implements UrpTransport {
           try {
             yield JSON.parse(jsonStr) as UrpStreamChunk;
           } catch (e) {
-            console.warn('Failed to parse final URP stream chunk:', jsonStr, e);
+            throw new AdapterError(`Failed to parse URP stream chunk: ${jsonStr}`, undefined, e);
           }
         }
       }

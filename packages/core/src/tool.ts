@@ -17,7 +17,11 @@ export class ToolRegistry {
   private _tools = new Map<string, Tool>();
 
   register(tool: Tool): this {
-    this._tools.set(tool.definition().name, tool);
+    const name = tool.definition().name;
+    if (this._tools.has(name)) {
+      throw new Error(`Tool '${name}' is already registered.`);
+    }
+    this._tools.set(name, tool);
     return this;
   }
 
