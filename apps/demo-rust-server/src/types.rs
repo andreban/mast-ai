@@ -6,6 +6,7 @@ use serde_json::Value;
 pub struct UrpRequest {
     pub messages: Vec<UrpMessage>,
     pub available_tools: Option<Vec<ToolDefinition>>,
+    // Accepted for protocol compatibility but not used by this backend.
     #[allow(dead_code)]
     pub configuration: Option<Value>,
     #[serde(default)]
@@ -21,6 +22,8 @@ pub enum UrpStreamChunk {
     Thinking { delta: String },
     #[serde(rename = "tool_call")]
     ToolCall { tool_call: UrpToolCall },
+    #[serde(rename = "error")]
+    Error { message: String },
 }
 
 #[derive(Deserialize, Debug)]
@@ -38,7 +41,6 @@ pub enum UrpMessageContent {
     ToolCalls { calls: Vec<UrpToolCall> },
     #[serde(rename = "tool_result")]
     ToolResult {
-        #[allow(dead_code)]
         id: String,
         name: String,
         result: Value,

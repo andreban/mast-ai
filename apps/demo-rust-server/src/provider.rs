@@ -2,6 +2,7 @@ use crate::types::{UrpMessageContent, UrpRequest, UrpResponse, UrpStreamChunk, U
 use agent_rig::model::{
     LlmModel, Message, MessageContent, ModelRequest, ModelStreamChunk, Role, ToolCall,
 };
+use async_stream::stream;
 use axum::{
     http::StatusCode,
     response::{
@@ -13,18 +14,23 @@ use axum::{
 use futures_util::StreamExt;
 use std::convert::Infallible;
 use std::sync::Arc;
-use tokio::sync::mpsc;
-use tokio_stream::wrappers::ReceiverStream;
 
 pub async fn handle_urp_request(
-    model: Arc<Box<dyn LlmModel>>,
+    model: Arc<dyn LlmModel>,
     payload: UrpRequest,
 ) -> Result<Response, (StatusCode, String)> {
-    // 1. Identify the system prompt if present in messages and map URP messages
+    let (request, is_streaming) = build_model_request(payload)?;
+
+    if is_streaming {
+        handle_streaming(model, request).await
+    } else {
+        handle_non_streaming(model, request).await
+    }
+}
+
+fn build_model_request(payload: UrpRequest) -> Result<(ModelRequest, bool), (StatusCode, String)> {
     let mut rig_messages = Vec::new();
     let mut system_prompt = None;
-
-    let is_streaming = payload.stream;
 
     for msg in payload.messages {
         let role = match msg.role.as_str() {
@@ -34,9 +40,14 @@ pub async fn handle_urp_request(
                 if let UrpMessageContent::Text { text } = msg.content {
                     system_prompt = Some(text);
                 }
-                continue; // System prompt handled separately, skip adding to general history
+                continue;
             }
-            _ => Role::User, // Fallback
+            other => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    format!("Unknown message role: {other}"),
+                ));
+            }
         };
 
         match msg.content {
@@ -62,7 +73,6 @@ pub async fn handle_urp_request(
         }
     }
 
-    // 2. Build ModelRequest
     let request = ModelRequest {
         messages: rig_messages,
         system: system_prompt,
@@ -70,69 +80,61 @@ pub async fn handle_urp_request(
         output_schema: None,
     };
 
-    // 3. Initialize and run generic model
-    if is_streaming {
-        let (tx, rx) = mpsc::channel(100);
+    Ok((request, payload.stream))
+}
 
-        tokio::spawn(async move {
-            let mut response_stream = model.generate_stream(request);
+async fn handle_streaming(
+    model: Arc<dyn LlmModel>,
+    request: ModelRequest,
+) -> Result<Response, (StatusCode, String)> {
+    let sse_stream = stream! {
+        let mut response_stream = model.generate_stream(request);
 
-            while let Some(event) = response_stream.next().await {
-                let chunk = match event {
-                    Ok(ModelStreamChunk::TextDelta(delta)) => {
-                        Some(UrpStreamChunk::TextDelta { delta })
-                    }
-                    Ok(ModelStreamChunk::Thinking(delta)) => {
-                        Some(UrpStreamChunk::Thinking { delta })
-                    }
-                    Ok(ModelStreamChunk::ToolCall(tc)) => Some(UrpStreamChunk::ToolCall {
-                        tool_call: UrpToolCall {
-                            id: tc.id,
-                            name: tc.name,
-                            arguments: tc.args,
-                        },
-                    }),
-                    _ => None, // Ignore errors or other types for simplicity
-                };
-                if let Some(c) = chunk {
-                    let json_str = serde_json::to_string(&c).unwrap();
-                    if tx
-                        .send(Ok::<_, Infallible>(Event::default().data(json_str)))
-                        .await
-                        .is_err()
-                    {
-                        break; // Receiver dropped
-                    }
+        while let Some(event) = response_stream.next().await {
+            let chunk = match event {
+                Ok(ModelStreamChunk::TextDelta(delta)) => UrpStreamChunk::TextDelta { delta },
+                Ok(ModelStreamChunk::Thinking(delta)) => UrpStreamChunk::Thinking { delta },
+                Ok(ModelStreamChunk::ToolCall(tc)) => UrpStreamChunk::ToolCall {
+                    tool_call: UrpToolCall {
+                        id: tc.id,
+                        name: tc.name,
+                        arguments: tc.args,
+                    },
+                },
+                Err(e) => {
+                    eprintln!("Stream error: {:?}", e);
+                    UrpStreamChunk::Error { message: e.to_string() }
                 }
+            };
+
+            match serde_json::to_string(&chunk) {
+                Ok(json) => yield Ok::<_, Infallible>(Event::default().data(json)),
+                Err(e) => eprintln!("Failed to serialize stream chunk: {:?}", e),
             }
-            // Signal the end of the stream for the client parser
-            let _ = tx
-                .send(Ok::<_, Infallible>(Event::default().data("[DONE]")))
-                .await;
-        });
+        }
 
-        Ok(Sse::new(ReceiverStream::new(rx)).into_response())
-    } else {
-        let response = model.generate(request).await.map_err(|e| {
-            eprintln!("Model execution failed: {:?}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Model execution failed: {}", e),
-            )
-        })?;
+        yield Ok::<_, Infallible>(Event::default().data("[DONE]"));
+    };
 
-        let urp_tool_calls: Vec<agent_rig::model::ToolCall> = response
-            .tool_calls
-            .into_iter()
-            .map(|c| agent_rig::model::ToolCall::new(c.id, c.name, c.args))
-            .collect();
+    Ok(Sse::new(sse_stream).into_response())
+}
 
-        // 4. Map Agent-Rig Response -> URP Response
-        Ok(Json(UrpResponse {
-            text_content: response.text,
-            tool_calls: urp_tool_calls,
-            usage_metrics: None,
-        })
-        .into_response())
-    }
+async fn handle_non_streaming(
+    model: Arc<dyn LlmModel>,
+    request: ModelRequest,
+) -> Result<Response, (StatusCode, String)> {
+    let response = model.generate(request).await.map_err(|e| {
+        eprintln!("Model execution failed: {:?}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Model execution failed: {}", e),
+        )
+    })?;
+
+    Ok(Json(UrpResponse {
+        text_content: response.text,
+        tool_calls: response.tool_calls,
+        usage_metrics: None,
+    })
+    .into_response())
 }

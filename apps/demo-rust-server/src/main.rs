@@ -18,12 +18,8 @@ use crate::types::UrpRequest;
 
 use axum::response::Response;
 
-// -----------------------------------------------------------------------------
-// Server Logic
-// -----------------------------------------------------------------------------
-
 struct AppState {
-    model: Arc<Box<dyn LlmModel>>,
+    model: Arc<dyn LlmModel>,
 }
 
 async fn handle_urp(
@@ -41,16 +37,15 @@ async fn main() {
     let api_key = env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set in .env");
 
     println!("Initializing URP Server with Gemini (gemini-2.5-flash)");
-    let model: Box<dyn LlmModel> = Box::new(
+    let model: Arc<dyn LlmModel> = Arc::new(
         GeminiModel::builder(api_key, "gemini-2.5-flash")
             .temperature(0.7)
             .build(),
     );
 
-    let state = Arc::new(AppState {
-        model: Arc::new(model),
-    });
+    let state = Arc::new(AppState { model });
 
+    // Dev-only: allow all origins. Restrict this before any network-accessible deployment.
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::POST])
