@@ -351,6 +351,7 @@ dependencies = [
  "axum",
  "dotenvy",
  "futures-util",
+ "geologia",
  "serde",
  "serde_json",
  "tokio",
@@ -522,7 +523,7 @@ dependencies = [
 [[package]]
 name = "geologia"
 version = "0.1.0"
-source = "git+https://github.com/andreban/geologia#08ad998601db705bda409a445a83251c462597d3"
+source = "git+https://github.com/andreban/geologia.git#08ad998601db705bda409a445a83251c462597d3"
 dependencies = [
  "reqwest",
  "serde",
