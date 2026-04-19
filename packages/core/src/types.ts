@@ -36,7 +36,7 @@ export type AgentEvent =
   | { type: 'tool_call_completed'; name: string; result: unknown }
   | { type: 'text_delta';          delta: string }
   | { type: 'thinking';            delta: string }
-  | { type: 'done';                output: string };
+  | { type: 'done';                output: string; history: Message[] };
 
 /**
  * Pure data blueprint for an agent.

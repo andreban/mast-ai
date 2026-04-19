@@ -145,8 +145,7 @@ async function handleSend() {
       } else if (event.type === 'tool_call_completed') {
         appendSystemMessage(`✅ Result: ${JSON.stringify(event.result)}`, 'tool');
       } else if (event.type === 'done') {
-        history.push({ role: 'user', content: { type: 'text', text } });
-        history.push({ role: 'assistant', content: { type: 'text', text: event.output } });
+        history = event.history;
       }
     }
   } catch (error) {
