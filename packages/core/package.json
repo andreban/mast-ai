@@ -6,6 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
+    "prepare": "bun run build",
     "build": "bun run build.ts",
     "test": "bun test",
     "dev": "bun run --watch src/index.ts"
