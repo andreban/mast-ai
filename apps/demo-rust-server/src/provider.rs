@@ -1,3 +1,6 @@
+// Copyright 2026 Andre Cipriani Bandarra
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::types::{UrpMessageContent, UrpRequest, UrpResponse, UrpStreamChunk, UrpToolCall};
 use agent_rig::model::{
     LlmModel, Message, MessageContent, ModelRequest, ModelStreamChunk, Role, ToolCall,

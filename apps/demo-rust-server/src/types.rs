@@ -1,3 +1,6 @@
+// Copyright 2026 Andre Cipriani Bandarra
+// SPDX-License-Identifier: Apache-2.0
+
 use agent_rig::tool::ToolDefinition;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
