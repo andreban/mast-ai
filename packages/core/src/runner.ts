@@ -180,7 +180,8 @@ export class AgentRunner {
         continue;
       }
 
-      yield { type: 'done', output: finalOutput };
+      currentHistory.push({ role: 'assistant', content: { type: 'text', text: finalOutput } });
+      yield { type: 'done', output: finalOutput, history: currentHistory };
       return;
     }
   }
