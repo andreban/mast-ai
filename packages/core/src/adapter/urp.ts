@@ -28,8 +28,8 @@ export interface UrpStreamChunk {
 }
 
 export interface UrpTransport {
-  send(request: UrpRequest): Promise<UrpResponse>;
-  sendStream?(request: UrpRequest): AsyncIterable<UrpStreamChunk>;
+  send(request: UrpRequest, signal?: AbortSignal): Promise<UrpResponse>;
+  sendStream?(request: UrpRequest, signal?: AbortSignal): AsyncIterable<UrpStreamChunk>;
 }
 
 export class UrpAdapter implements LlmAdapter {
@@ -46,6 +46,7 @@ export class UrpAdapter implements LlmAdapter {
       urpRequest.configuration = request.config;
     }
 
+    // URP has no dedicated system field; inject instructions as a leading user message.
     if (request.system) {
       urpRequest.messages = [
         { role: 'user', content: { type: 'text', text: request.system } },
@@ -58,7 +59,7 @@ export class UrpAdapter implements LlmAdapter {
 
   async generate(request: AdapterRequest): Promise<AdapterResponse> {
     const urpRequest = this.prepareRequest(request, false);
-    const response = await this.transport.send(urpRequest);
+    const response = await this.transport.send(urpRequest, request.signal);
 
     return {
       text: response.text_content,
@@ -84,10 +85,10 @@ export class UrpAdapter implements LlmAdapter {
     }
 
     const urpRequest = this.prepareRequest(request, true);
-    for await (const chunk of this.transport.sendStream(urpRequest)) {
-      if (chunk.type === 'text_delta') {
+    for await (const chunk of this.transport.sendStream(urpRequest, request.signal)) {
+      if (chunk.type === 'text_delta' && chunk.delta !== undefined) {
         yield { type: 'text_delta', delta: chunk.delta };
-      } else if (chunk.type === 'thinking') {
+      } else if (chunk.type === 'thinking' && chunk.delta !== undefined) {
         yield { type: 'thinking', delta: chunk.delta };
       } else if (chunk.type === 'tool_call' && chunk.tool_call) {
         yield {
