@@ -14,6 +14,7 @@ Existing agent frameworks are server-centric, which presents three major hurdles
 * **Environment Agnostic Inference:** Allow the client to use any backend (Python, Go, Rust, Ruby) for LLM reasoning.
 * **Recursive Sub-Agents:** Enable agents to call other agents as tools. Each sub-agent may run in any execution mode — client-side, server-side, or hybrid — independently of its parent.
 * **Native Tool Integration:** Provide a seamless way to wrap TypeScript functions and Browser APIs as agent tools.
+* **Automatic History Management:** Provide a `Conversation` abstraction that tracks conversation history automatically across turns, so developers building multi-turn chatbots do not need to maintain a `Message[]` array manually.
 
 ---
 

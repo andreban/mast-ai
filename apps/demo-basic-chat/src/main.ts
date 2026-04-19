@@ -5,9 +5,9 @@ import {
   HttpTransport,
   AgentRunner,
   UrpAdapter,
-  createAgent
+  createAgent,
+  Conversation
 } from '@mast-ai/core';
-import type { Message } from '@mast-ai/core';
 import { GetCurrentTimeTool } from './tools/getCurrentTime';
 import { CalculatorTool } from './tools/calculate';
 
@@ -69,14 +69,14 @@ const stopButton = document.querySelector<HTMLButtonElement>('#stop-button')!;
 const endpointInput = document.querySelector<HTMLInputElement>('#endpoint-url')!;
 const statusIndicator = document.querySelector('#status-indicator')!;
 
-function buildRunner(): AgentRunner {
-  return new AgentRunner(new UrpAdapter(new HttpTransport({ url: endpointInput.value })), registry);
+function buildConversation(): Conversation {
+  const runner = new AgentRunner(new UrpAdapter(new HttpTransport({ url: endpointInput.value })), registry);
+  return runner.conversation(agentConfig);
 }
 
-let runner = buildRunner();
-endpointInput.addEventListener('change', () => { runner = buildRunner(); });
+let conversation = buildConversation();
+endpointInput.addEventListener('change', () => { conversation = buildConversation(); });
 
-let history: Message[] = [];
 let currentController: AbortController | null = null;
 
 function appendMessage(role: 'user' | 'assistant', content: string): HTMLElement {
@@ -125,7 +125,7 @@ async function handleSend() {
   let currentThinkingBubble: HTMLElement | null = null;
 
   try {
-    const stream = runner.runBuilder(agentConfig).history(history).signal(controller.signal).runStream(text);
+    const stream = conversation.runStream(text, controller.signal);
 
     for await (const event of stream) {
       if (event.type === 'thinking') {
@@ -144,8 +144,6 @@ async function handleSend() {
         appendSystemMessage(`🔧 Executing: ${event.name}(${JSON.stringify(event.args)})`, 'tool');
       } else if (event.type === 'tool_call_completed') {
         appendSystemMessage(`✅ Result: ${JSON.stringify(event.result)}`, 'tool');
-      } else if (event.type === 'done') {
-        history = event.history;
       }
     }
   } catch (error) {

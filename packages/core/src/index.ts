@@ -5,6 +5,7 @@ export * from './error';
 export * from './tool';
 export * from './agent';
 export * from './runner';
+export * from './conversation';
 
 export * from './adapter/index';
 export * from './adapter/urp';

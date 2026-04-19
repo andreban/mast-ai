@@ -36,16 +36,18 @@ This document outlines the phased implementation of the MAST library and its int
   - Implement a "Connection Test" button that uses the `HttpTransport`.
 - **Success Criteria:** Demo can successfully "ping" a URP-compatible endpoint (even if mocked).
 
-## Phase 3: The Agent Runner & The Loop (PR #3)
+## Phase 3: The Agent Runner & The Loop (PR #3) - COMPLETED
 **Goal:** Implement the "Thinking" loop and tool execution logic.
 
 - **Library Tasks:**
   - Implement `AgentRunner` to manage conversation history and the execution loop.
   - Handle `tool_calls` by automatically invoking tools from the `ToolRegistry`.
   - Implement `RunBuilder` for a fluent API.
+  - Implement `Conversation` for automatic multi-turn history management (`runner.conversation(agent)`).
 - **Demo Tasks (`apps/demo-basic-chat`):**
   - Build a chat interface that uses `AgentRunner`.
   - Visualize the loop states: `Thinking` (including streaming reasoning tokens) -> `Executing Tool` -> `Responding`.
+  - Migrate demo to use `Conversation` instead of manual history tracking.
 - **Success Criteria:** A user can "chat" with a remote LLM and see local tools being triggered in the console/UI.
 
 ## Phase 4: Client-Side Mode (Chrome Prompt API) (PR #4)
