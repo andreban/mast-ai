@@ -12,6 +12,7 @@ tower-http = { version = "0.6", features = ["cors"] }
 anyhow = "1.0"
 dotenvy = "0.15"
 agent-rig = { git = "https://github.com/andreban/agent-rig.git", version = "0.1.0", features = ["full"] }
+geologia = { git = "https://github.com/andreban/geologia.git", version = "0.1.0" }
 async-stream = "0.3.6"
 futures-util = "0.3.32"
 tokio-stream = { version = "0.1.18", features = ["sync"] }

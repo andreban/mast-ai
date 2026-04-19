@@ -10,6 +10,7 @@ use axum::{
     Json, Router,
 };
 use dotenvy::dotenv;
+use geologia::prelude::{ThinkingConfig, ThinkingLevel};
 use std::{env, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 
@@ -36,9 +37,14 @@ async fn main() {
 
     let api_key = env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set in .env");
 
-    println!("Initializing URP Server with Gemini (gemini-2.5-flash)");
+    println!("Initializing URP Server with Gemini (gemini-3.1-flash-lite-preview)");
     let model: Arc<dyn LlmModel> = Arc::new(
-        GeminiModel::builder(api_key, "gemini-2.5-flash")
+        GeminiModel::builder(api_key, "gemini-3.1-flash-lite-preview")
+            .thinking_config(ThinkingConfig {
+                include_thoughts: true,
+                thinking_level: Some(ThinkingLevel::High),
+                ..Default::default()
+            })
             .temperature(0.7)
             .build(),
     );
