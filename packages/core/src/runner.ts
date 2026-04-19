@@ -2,6 +2,7 @@ import type { AgentConfig, AgentEvent, AgentResult, Message, ToolCall } from './
 import type { LlmAdapter, AdapterRequest } from './adapter/index';
 import { ToolRegistry } from './tool';
 import { AgentError } from './error';
+import { Conversation } from './conversation';
 
 type StreamExecutor = (input: string, history: Message[], signal?: AbortSignal) => AsyncIterable<AgentEvent>;
 
@@ -55,6 +56,11 @@ export class AgentRunner {
     public readonly adapter: LlmAdapter,
     public readonly registry: ToolRegistry = new ToolRegistry()
   ) {}
+
+  /** Creates a Conversation that automatically tracks history across turns. */
+  conversation(agent: AgentConfig): Conversation {
+    return new Conversation(this, agent);
+  }
 
   /** Primary entry point for multi-turn use. */
   runBuilder(agent: AgentConfig): RunBuilder {
