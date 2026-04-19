@@ -1,3 +1,6 @@
+// Copyright 2026 Andre Cipriani Bandarra
+// SPDX-License-Identifier: Apache-2.0
+
 export interface ToolDefinition {
   name: string;
   description: string;

@@ -1,3 +1,6 @@
+// Copyright 2026 Andre Cipriani Bandarra
+// SPDX-License-Identifier: Apache-2.0
+
 import type { LlmAdapter, AdapterRequest, AdapterResponse, AdapterStreamChunk } from './index';
 import type { Message } from '../types';
 import type { ToolDefinition } from '../tool';

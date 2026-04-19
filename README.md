@@ -92,3 +92,9 @@ For deep dives into the architecture and protocol definitions, please see our te
 * [Technical Specification](./docs/SPEC.md)
 * [Implementation Plan](./docs/PLAN.md)
 * [URP Server Implementation Guide](./docs/URP_SERVER_IMPLEMENTATION.md)
+
+## License
+
+Copyright 2026 Andre Cipriani Bandarra
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](./LICENSE) for details.
