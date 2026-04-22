@@ -5,6 +5,7 @@ import type { LlmAdapter, AdapterRequest, AdapterResponse, AdapterStreamChunk } 
 import type { Message } from '../types';
 import type { ToolDefinition } from '../tool';
 
+/** Wire format for a request sent over the Universal Runtime Protocol (URP). */
 export interface UrpRequest {
   messages: Message[];
   available_tools: ToolDefinition[];
@@ -12,29 +13,45 @@ export interface UrpRequest {
   stream?: boolean;
 }
 
+/** A tool call as represented in the URP wire format. */
 export interface UrpToolCall {
   id: string;
   name: string;
   arguments: unknown;
 }
 
+/** Wire format for a non-streaming URP response. */
 export interface UrpResponse {
   text_content?: string;
   tool_calls: UrpToolCall[];
   usage_metrics?: Record<string, unknown>;
 }
 
+/** A single chunk emitted by a streaming URP response. */
 export interface UrpStreamChunk {
   type: 'text_delta' | 'tool_call' | 'thinking';
   delta?: string;
   tool_call?: UrpToolCall;
 }
 
+/**
+ * Low-level transport abstraction for the Universal Runtime Protocol.
+ *
+ * Implement this to connect `UrpAdapter` to a custom backend (e.g. `HttpTransport`).
+ */
 export interface UrpTransport {
+  /** Sends a non-streaming request and returns the full response. */
   send(request: UrpRequest, signal?: AbortSignal): Promise<UrpResponse>;
+  /** Sends a streaming request and yields response chunks. Optional. */
   sendStream?(request: UrpRequest, signal?: AbortSignal): AsyncIterable<UrpStreamChunk>;
 }
 
+/**
+ * {@link LlmAdapter} implementation backed by any {@link UrpTransport}.
+ *
+ * Translates between the normalised {@link AdapterRequest}/{@link AdapterResponse} types
+ * and the URP wire format.
+ */
 export class UrpAdapter implements LlmAdapter {
   constructor(private transport: UrpTransport) {}
 
@@ -60,6 +77,7 @@ export class UrpAdapter implements LlmAdapter {
     return urpRequest;
   }
 
+  /** {@inheritDoc LlmAdapter.generate} */
   async generate(request: AdapterRequest): Promise<AdapterResponse> {
     const urpRequest = this.prepareRequest(request, false);
     const response = await this.transport.send(urpRequest, request.signal);
@@ -74,6 +92,7 @@ export class UrpAdapter implements LlmAdapter {
     };
   }
 
+  /** {@inheritDoc LlmAdapter.generateStream} */
   async *generateStream(request: AdapterRequest): AsyncIterable<AdapterStreamChunk> {
     if (!this.transport.sendStream) {
       // Fallback to non-streaming if transport doesn't support it

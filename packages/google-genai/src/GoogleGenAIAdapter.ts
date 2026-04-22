@@ -13,17 +13,29 @@ import type {
   ToolCall,
 } from "@mast-ai/core";
 
+/** Token-usage statistics reported by the Gemini API. */
 export interface UsageMetadata {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
   totalTokenCount?: number;
 }
 
+/**
+ * {@link LlmAdapter} implementation backed by the Google Gemini API via `@google/genai`.
+ *
+ * Supports tool calling, structured output, and streaming. Thinking mode is
+ * enabled by default (`ThinkingLevel.HIGH`).
+ */
 export class GoogleGenAIAdapter implements LlmAdapter {
   private client: GoogleGenAI;
   private modelName: string;
   private onUsageUpdate?: (usage: UsageMetadata) => void;
 
+  /**
+   * @param apiKey - Google AI API key.
+   * @param modelName - Gemini model identifier (defaults to `"gemini-3.1-flash-lite-preview"`).
+   * @param onUsageUpdate - Optional callback invoked with token-usage data after each response.
+   */
   constructor(
     apiKey: string,
     modelName: string = "gemini-3.1-flash-lite-preview",
@@ -34,6 +46,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
     this.onUsageUpdate = onUsageUpdate;
   }
 
+  /** {@inheritDoc LlmAdapter.generate} */
   async generate(request: AdapterRequest): Promise<AdapterResponse> {
     const contents = this.mapMessages(request.messages);
     const systemInstruction = this.mapSystemInstruction(request.system);
@@ -97,6 +110,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
     };
   }
 
+  /** {@inheritDoc LlmAdapter.generateStream} */
   async *generateStream(
     request: AdapterRequest,
   ): AsyncIterable<AdapterStreamChunk> {

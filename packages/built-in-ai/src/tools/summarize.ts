@@ -10,15 +10,20 @@ import type {
   SummarizerLength,
 } from "../types.js";
 
+/** Arguments passed by the model when invoking the `summarize` tool. */
 export interface SummarizeArgs {
+  /** The full text to summarize. */
   text: string;
   type?: SummarizerType;
   format?: SummarizerFormat;
   length?: SummarizerLength;
+  /** Optional hint to guide the summarization (e.g. `"meeting transcript"`). */
   context?: string;
 }
 
+/** Options for {@link SummarizeTool}. */
 export interface SummarizeToolOptions {
+  /** Called during model download with bytes loaded and total bytes. */
   onDownloadProgress?: (progress: { loaded: number; total: number }) => void;
 }
 
@@ -29,9 +34,22 @@ interface CachedInstance {
   length: SummarizerLength | undefined;
 }
 
+/**
+ * {@link Tool} that condenses text using the browser's Summarizer API.
+ *
+ * Use {@link SummarizeTool.addToRegistry} to register the tool — direct
+ * construction is not recommended because the session is created asynchronously.
+ */
 export class SummarizeTool implements Tool<SummarizeArgs, string> {
   private cached: CachedInstance | null = null;
 
+  /**
+   * Registers a `SummarizeTool` instance into `registry` once the underlying
+   * Summarizer session is ready.
+   *
+   * Throws immediately if the Summarizer API is unsupported or unavailable.
+   * The tool is silently skipped if background session creation fails.
+   */
   static async addToRegistry(
     registry: ToolRegistry,
     options?: SummarizeToolOptions,
@@ -67,6 +85,7 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
     });
   }
 
+  /** {@inheritDoc Tool.definition} */
   definition(): ToolDefinition {
     return {
       name: "summarize",
@@ -117,6 +136,7 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
     };
   }
 
+  /** {@inheritDoc Tool.call} */
   async call(args: SummarizeArgs, context: ToolContext): Promise<string> {
     if (typeof Summarizer === "undefined") {
       throw new AdapterError("Summarizer API is not supported in this browser.");
