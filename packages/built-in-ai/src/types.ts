@@ -110,3 +110,50 @@ declare global {
     create(options?: SummarizerCreateOptions): Promise<SummarizerSession>;
   };
 }
+
+/**
+ * Availability status of the on-device Language Detector API.
+ *
+ * - `"readily"` — ready to use immediately.
+ * - `"after-download"` — must be downloaded before use.
+ * - `"downloading"` — download is in progress.
+ * - `"unavailable"` — not supported on this device or browser.
+ */
+export type LanguageDetectorAvailability =
+  | "readily"
+  | "after-download"
+  | "downloading"
+  | "unavailable";
+
+/** Options accepted by `LanguageDetector.create`. */
+export interface LanguageDetectorCreateOptions {
+  signal?: AbortSignal;
+  /** Callback invoked with a download progress monitor target. */
+  monitor?: (monitor: EventTarget) => void;
+}
+
+/** A single language detection result. */
+export interface LanguageDetectionResult {
+  /** BCP 47 language tag (e.g. `"en"`, `"fr"`), or `null` if undetermined. */
+  detectedLanguage: string | null;
+  /** Confidence score in the range [0, 1]. */
+  confidence: number;
+}
+
+/** Per-call options passed to `LanguageDetectorSession.detect`. */
+export interface LanguageDetectorCallOptions {
+  signal?: AbortSignal;
+}
+
+/** A live session obtained from `LanguageDetector.create`. */
+export interface LanguageDetectorSession {
+  detect(text: string, options?: LanguageDetectorCallOptions): Promise<LanguageDetectionResult[]>;
+  destroy(): void;
+}
+
+declare global {
+  const LanguageDetector: {
+    availability(options?: Partial<LanguageDetectorCreateOptions>): Promise<LanguageDetectorAvailability>;
+    create(options?: LanguageDetectorCreateOptions): Promise<LanguageDetectorSession>;
+  };
+}
