@@ -6,11 +6,11 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "bun run build.ts",
-    "test": "bun test",
-    "dev": "bun run --watch src/index.ts"
+    "build": "tsup src/index.ts --format esm --minify --out-dir dist && tsc --emitDeclarationOnly --rootDir src --outDir dist",
+    "dev": "tsup src/index.ts --format esm --out-dir dist --watch"
   },
   "devDependencies": {
-    "bun-plugin-dts": "^0.4.0"
+    "tsup": "^8.0.0",
+    "typescript": "~6.0.2"
   }
 }

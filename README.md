@@ -13,7 +13,7 @@ Traditional agent frameworks are server-centric, making it difficult for agents 
 
 ## Monorepo Structure
 
-This project is a [Bun](https://bun.sh) workspace containing the core library and several demo applications:
+This project is an npm workspace containing the core library and several demo applications:
 
 * `packages/core/` — The main MAST TypeScript library (`AgentRunner`, `RunBuilder`, Adapters, Types).
 * `apps/demo-basic-chat/` — A Vite-powered frontend demonstrating a Hybrid Mode chat agent with local tools.
@@ -22,12 +22,12 @@ This project is a [Bun](https://bun.sh) workspace containing the core library an
 ## Getting Started
 
 ### Prerequisites
-Make sure you have [Bun](https://bun.sh/) installed.
+Make sure you have [Node.js](https://nodejs.org/) (v18+) installed.
 
 ### Installation
 Clone the repository and install dependencies from the root:
 ```bash
-bun install
+npm install
 ```
 
 ### Running the Demo
@@ -41,7 +41,7 @@ To see MAST in action, start both the Rust URP Server and the basic chat fronten
 2. **Start the frontend (in a new terminal):**
    ```bash
    cd apps/demo-basic-chat
-   bun run dev
+   npm run dev
    ```
 Open the provided `localhost` URL in your browser to interact with the agent.
 
