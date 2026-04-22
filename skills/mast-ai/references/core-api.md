@@ -77,14 +77,3 @@ const result = await conv.run('Hello!');
 // conv.history is automatically updated.
 ```
 
-## Sub-Agents (AgentTool)
-
-Wrap an entire agent as a tool using `AgentTool` and `localAgent` or `AcpAgent`.
-
-```typescript
-const childRunner = new AgentRunner(new PromptApiAdapter());
-const classifyTool = new AgentTool(
-  { name: 'classify', description: '...', parameters: { ... } },
-  localAgent(childAgentConfig, childRunner)
-);
-```
