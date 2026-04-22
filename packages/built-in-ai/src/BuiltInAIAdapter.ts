@@ -11,7 +11,9 @@ import type {
 } from "@mast-ai/core";
 import type { LanguageModelSession, LanguageModelMessage } from "./types.js";
 
+/** Options for {@link BuiltInAIAdapter}. */
 export interface BuiltInAIAdapterOptions {
+  /** Called during model download with bytes loaded and total bytes. */
   onDownloadProgress?: (progress: { loaded: number; total: number }) => void;
 }
 
@@ -26,10 +28,12 @@ export class BuiltInAIAdapter implements LlmAdapter {
   private cachedSession: LanguageModelSession | null = null;
   private cachedHistory: Message[] = [];
 
+  /** @param options - Optional configuration such as a download-progress callback. */
   constructor(options: BuiltInAIAdapterOptions = {}) {
     this.options = options;
   }
 
+  /** {@inheritDoc LlmAdapter.generate} */
   async generate(request: AdapterRequest): Promise<AdapterResponse> {
     if (request.tools.length > 0) {
       console.warn(
@@ -52,6 +56,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
     }
   }
 
+  /** {@inheritDoc LlmAdapter.generateStream} */
   async *generateStream(request: AdapterRequest): AsyncIterable<AdapterStreamChunk> {
     if (request.tools.length > 0) {
       console.warn(
@@ -181,6 +186,7 @@ function messageToString(message: Message): string {
   return "";
 }
 
+/** Returns the availability of the browser's on-device language model via `LanguageModel.availability()`. */
 export async function checkAvailability() {
   return LanguageModel.availability();
 }
