@@ -1,6 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
+/** Current version of the `@mast-ai/core` package. */
 export const VERSION = '0.1.0';
 
 export * from './types';

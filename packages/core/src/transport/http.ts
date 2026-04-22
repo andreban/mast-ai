@@ -4,14 +4,23 @@
 import type { UrpRequest, UrpResponse, UrpTransport, UrpStreamChunk } from '../adapter/urp';
 import { AdapterError } from '../error';
 
+/** Configuration for {@link HttpTransport}. */
 export interface HttpTransportOptions {
+  /** Endpoint URL that accepts URP-formatted POST requests. */
   url: string;
+  /** Additional headers merged into every request (e.g. `Authorization`). */
   headers?: Record<string, string>;
 }
 
+/**
+ * {@link UrpTransport} implementation that sends URP requests over HTTP/HTTPS.
+ *
+ * Supports both non-streaming (JSON) and streaming (NDJSON / SSE) responses.
+ */
 export class HttpTransport implements UrpTransport {
   constructor(private options: HttpTransportOptions) {}
 
+  /** {@inheritDoc UrpTransport.send} */
   async send(request: UrpRequest, signal?: AbortSignal): Promise<UrpResponse> {
     try {
       const response = await fetch(this.options.url, {
@@ -45,6 +54,7 @@ export class HttpTransport implements UrpTransport {
     }
   }
 
+  /** {@inheritDoc UrpTransport.sendStream} */
   async *sendStream(request: UrpRequest, signal?: AbortSignal): AsyncIterable<UrpStreamChunk> {
     let response: Response;
     try {

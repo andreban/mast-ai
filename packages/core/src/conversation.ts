@@ -4,6 +4,13 @@
 import type { AgentConfig, AgentEvent, AgentResult, Message } from './types';
 import type { AgentRunner } from './runner';
 
+/**
+ * Stateful wrapper around {@link AgentRunner} that automatically accumulates
+ * conversation history across multiple turns.
+ *
+ * Obtain an instance from {@link AgentRunner.conversation} rather than
+ * constructing one directly.
+ */
 export class Conversation {
   /** Full conversation history, including all turns. May be trimmed via direct mutation. */
   history: Message[] = [];
@@ -19,6 +26,7 @@ export class Conversation {
     return builder.runStream(input);
   }
 
+  /** Runs a single turn and waits for the agent to finish, then returns the result. */
   async run(input: string, signal?: AbortSignal): Promise<AgentResult> {
     let output = '';
     for await (const event of this.buildStream(input, signal)) {
@@ -32,6 +40,7 @@ export class Conversation {
     return { output };
   }
 
+  /** Runs a single turn and returns a stream of {@link AgentEvent} objects. History is updated once the stream is fully consumed. */
   runStream(input: string, signal?: AbortSignal): AsyncIterable<AgentEvent> {
     return this._streamWithHistoryUpdate(input, signal);
   }

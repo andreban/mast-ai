@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MAST — Summarizer API Demo</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="sidebar">
+        <h2>Summarizer Demo <small id="version"></small></h2>
+
+        <div class="availability-panel">
+          <h3>Model Availability</h3>
+          <div class="availability-row">
+            <span class="availability-badge checking" id="availability-badge">Checking…</span>
+            <button class="refresh-button" id="refresh-button">Refresh</button>
+          </div>
+          <p class="availability-note" id="availability-note"></p>
+        </div>
+
+        <div class="options-panel">
+          <h3>Summary Options</h3>
+
+          <label>Type
+            <select id="opt-type">
+              <option value="">default (key-points)</option>
+              <option value="key-points">key-points</option>
+              <option value="tldr">tldr</option>
+              <option value="teaser">teaser</option>
+              <option value="headline">headline</option>
+            </select>
+          </label>
+
+          <label>Format
+            <select id="opt-format">
+              <option value="">default (plain-text)</option>
+              <option value="plain-text">plain-text</option>
+              <option value="markdown">markdown</option>
+            </select>
+          </label>
+
+          <label>Length
+            <select id="opt-length">
+              <option value="">default (medium)</option>
+              <option value="short">short</option>
+              <option value="medium">medium</option>
+              <option value="long">long</option>
+            </select>
+          </label>
+
+          <label>Context hint
+            <input type="text" id="opt-context" placeholder="e.g. scientific paper" />
+          </label>
+        </div>
+
+        <div class="info-panel">
+          <h3>About</h3>
+          Uses the browser's <code>Summarizer</code> API to condense text
+          on-device — no network requests.
+        </div>
+      </div>
+
+      <div class="main-container">
+        <div class="panes">
+          <div class="pane">
+            <label class="pane-label">Input text</label>
+            <textarea id="input-text" placeholder="Paste or type the text to summarize…"></textarea>
+          </div>
+          <div class="pane output-pane">
+            <label class="pane-label">Summary</label>
+            <div class="output-box" id="output-box">
+              <span class="placeholder">The summary will appear here.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <div class="status-indicator" id="status-indicator">Idle</div>
+          <div class="action-buttons">
+            <button id="summarize-button" disabled>Summarize</button>
+            <button id="stop-button" class="stop-button" hidden>Stop</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

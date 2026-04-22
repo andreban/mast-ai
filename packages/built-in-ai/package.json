@@ -1,5 +1,5 @@
 {
-  "name": "@mast-ai/core",
+  "name": "@mast-ai/built-in-ai",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "type": "module",
@@ -7,10 +7,15 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup src/index.ts --format esm --minify --out-dir dist && tsc --emitDeclarationOnly --rootDir src --outDir dist",
-    "dev": "tsup src/index.ts --format esm --out-dir dist --watch"
+    "dev": "tsup src/index.ts --format esm --out-dir dist --watch",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@mast-ai/core": "*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.4"
   }
 }

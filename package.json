@@ -5,8 +5,7 @@
     "packages/*",
     "apps/*"
   ],
-  "devDependencies": {
-    "@rolldown/binding-win32-arm64-msvc": "^1.0.0-rc.16",
-    "@rollup/rollup-win32-arm64-msvc": "^4.60.2"
+  "scripts": {
+    "build": "npm run build --workspaces --if-present"
   }
 }

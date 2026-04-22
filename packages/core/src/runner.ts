@@ -9,6 +9,12 @@ import { Conversation } from './conversation';
 
 type StreamExecutor = (input: string, history: Message[], signal?: AbortSignal) => AsyncIterable<AgentEvent>;
 
+/**
+ * Fluent builder for a single agent run.
+ *
+ * Obtain an instance from {@link AgentRunner.runBuilder} rather than
+ * constructing one directly.
+ */
 export class RunBuilder {
   private _history: Message[] = [];
   private _signal?: AbortSignal;
@@ -30,10 +36,12 @@ export class RunBuilder {
     return this;
   }
 
+  /** Executes the run and returns a stream of {@link AgentEvent} objects. */
   runStream(input: string): AsyncIterable<AgentEvent> {
     return this.execute(input, this._history, this._signal);
   }
 
+  /** Executes the run and returns the final text output. */
   async run(input: string): Promise<AgentResult> {
     let output = '';
     for await (const event of this.runStream(input)) {
@@ -44,6 +52,11 @@ export class RunBuilder {
     return { output };
   }
 
+  /**
+   * Executes the run and parses the final output as JSON into `T`.
+   *
+   * Throws {@link AgentError} if the output cannot be parsed.
+   */
   async runTyped<T>(input: string): Promise<T> {
     const result = await this.run(input);
     try {
@@ -54,9 +67,18 @@ export class RunBuilder {
   }
 }
 
+/**
+ * Core execution engine that drives the agent agentic loop.
+ *
+ * Pair an {@link LlmAdapter} with a {@link ToolRegistry} and use
+ * {@link AgentRunner.runBuilder} (multi-turn) or the convenience methods
+ * {@link AgentRunner.run} / {@link AgentRunner.runStream} (single-turn).
+ */
 export class AgentRunner {
   constructor(
+    /** The LLM adapter used to generate responses. */
     public readonly adapter: LlmAdapter,
+    /** Registry of tools the runner may invoke on behalf of agents. */
     public readonly registry: ToolRegistry = new ToolRegistry()
   ) {}
 
@@ -77,10 +99,16 @@ export class AgentRunner {
     return this.runBuilder(agent).runStream(input);
   }
 
+  /** Single-turn convenience method — runs the agent and returns the final text output. */
   run(agent: AgentConfig, input: string): Promise<AgentResult> {
     return this.runBuilder(agent).run(input);
   }
 
+  /**
+   * Single-turn convenience method — runs the agent and parses the output as JSON into `T`.
+   *
+   * Throws {@link AgentError} if parsing fails.
+   */
   runTyped<T>(agent: AgentConfig, input: string): Promise<T> {
     return this.runBuilder(agent).runTyped<T>(input);
   }

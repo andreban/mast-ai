@@ -1,5 +1,5 @@
 {
-  "name": "demo-basic-chat",
+  "name": "demo-summarizer",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mast-ai/built-in-ai": "*",
     "@mast-ai/core": "*"
   },
   "devDependencies": {
