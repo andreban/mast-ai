@@ -158,10 +158,10 @@ if (typeof Summarizer === 'undefined') {
 | `Summarizer.availability()` | Behaviour |
 |-----------------------------|-----------|
 | `"unavailable"` | Rejects with `AdapterError("Summarizer API is unavailable on this device.")` |
-| `"readily"` | Registers the tool immediately. The first `call()` will create the summarizer instance lazily. |
-| `"after-download"` / `"downloading"` | Calls `Summarizer.create()` with a `monitor` to await the download. Once `create()` resolves the promise, caches the resulting instance and registers the tool. |
+| `"readily"` | Calls `Summarizer.create()` with default options to prime the model into memory, caches the instance, then registers the tool. |
+| `"after-download"` / `"downloading"` | Calls `Summarizer.create()` with a `monitor` to await the download. Once `create()` resolves, caches the resulting instance and registers the tool. |
 
-The `"after-download"` / `"downloading"` path leverages the fact that `Summarizer.create()` does not resolve until the model is ready — the `monitor` callback just surfaces progress events to the caller via `onDownloadProgress`. The returned `Promise<void>` from `addToRegistry` resolves only after the tool has been added to the registry.
+In all success paths, `addToRegistry` eagerly creates a summarizer session before registering. This primes the model into memory so the first `call()` is fast. The session is created with default options (`type`/`format`/`length` all unset) — if the first call arrives with different options, the instance will be recreated, but that recreation cost is small compared to the model cold-start it avoids. The returned `Promise<void>` from `addToRegistry` resolves only after the tool has been added to the registry.
 
 ### Instance caching in `call()`
 
@@ -179,7 +179,7 @@ Cache one `SummarizerSession` alongside the creation options it was built with (
 2. If they differ — destroy the old instance and create a new one.
 3. Always destroy in a `finally` block if creation of a replacement fails.
 
-When `addToRegistry` pre-warmed an instance (download case), it is stored as the initial cache entry with default options (`type: undefined, format: undefined, length: undefined`).
+`addToRegistry` always pre-warms an instance before registering. It is stored as the initial cache entry with default options (`type: undefined, format: undefined, length: undefined`).
 
 ### AbortSignal
 
@@ -242,7 +242,7 @@ The Summarizer API only exists in supporting browsers; tests must mock it. Vites
 |------|--------------------|
 | `addToRegistry` — `Summarizer` global absent | Rejects with `AdapterError`; tool not registered |
 | `call()` — `Summarizer` global absent | Rejects with `AdapterError` |
-| `addToRegistry` — `"readily"` | Resolves; tool is registered; `Summarizer.create` not called yet |
+| `addToRegistry` — `"readily"` | `Summarizer.create` called with default options; tool is registered with pre-warmed instance |
 | `addToRegistry` — `"after-download"` | `Summarizer.create` called with monitor; resolves after mock create resolves; tool registered |
 | `addToRegistry` — `"downloading"` | Same as `"after-download"` |
 | `addToRegistry` — `"unavailable"` | Rejects with `AdapterError`; tool not registered |
