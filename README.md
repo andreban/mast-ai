@@ -16,7 +16,10 @@ Traditional agent frameworks are server-centric, making it difficult for agents 
 This project is an npm workspace containing the core library and several demo applications:
 
 * `packages/core/` — The main MAST TypeScript library (`AgentRunner`, `RunBuilder`, Adapters, Types).
+* `packages/google-genai/` — `LlmAdapter` backed by the Google Generative AI SDK (Gemini models).
+* `packages/built-in-ai/` — `LlmAdapter` backed by the browser's Prompt API for fully on-device inference (no network requests).
 * `apps/demo-basic-chat/` — A Vite-powered frontend demonstrating a Hybrid Mode chat agent with local tools.
+* `apps/demo-prompt-api/` — A Vite-powered frontend demonstrating on-device inference via the browser Prompt API.
 * `apps/demo-rust-server/` — A sample URP reasoning engine backend written in Rust (Axum + async channels).
 
 ## Getting Started
@@ -30,8 +33,9 @@ Clone the repository and install dependencies from the root:
 npm install
 ```
 
-### Running the Demo
-To see MAST in action, start both the Rust URP Server and the basic chat frontend:
+### Running the Demos
+
+**Hybrid Mode** (remote reasoning backend + browser tools):
 
 1. **Start the reasoning backend (Rust):**
    ```bash
@@ -43,6 +47,16 @@ To see MAST in action, start both the Rust URP Server and the basic chat fronten
    cd apps/demo-basic-chat
    npm run dev
    ```
+
+**On-device Mode** (Prompt API — no server required):
+
+Requires Chrome with the built-in AI / Prompt API enabled.
+
+```bash
+cd apps/demo-prompt-api
+npm run dev
+```
+
 Open the provided `localhost` URL in your browser to interact with the agent.
 
 ## Basic Usage
