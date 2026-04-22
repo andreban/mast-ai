@@ -119,16 +119,18 @@ export class AgentRunner {
     history: Message[],
     signal?: AbortSignal
   ): AsyncIterable<AgentEvent> {
-    // Validate that all names in agent.tools exist in the registry.
-    const tools = agent.tools || [];
-    const toolDefinitions = [];
-    for (const toolName of tools) {
-      const tool = this.registry.get(toolName);
-      if (!tool) {
-        throw new AgentError(`Tool '${toolName}' requested by agent '${agent.name}' is not registered.`);
-      }
-      toolDefinitions.push(tool.definition());
-    }
+    // Use the explicit tool list when provided; otherwise expose all registered tools.
+    const toolDefinitions = agent.tools
+      ? agent.tools.map((toolName) => {
+          const tool = this.registry.get(toolName);
+          if (!tool) {
+            throw new AgentError(
+              `Tool '${toolName}' requested by agent '${agent.name}' is not registered.`,
+            );
+          }
+          return tool.definition();
+        })
+      : this.registry.definitions();
 
     // Clone history and add new user message
     const currentHistory: Message[] = [
