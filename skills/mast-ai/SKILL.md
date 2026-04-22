@@ -13,16 +13,17 @@ This skill provides expert guidance for implementing AI agents using the MAST li
 - **ToolRegistry**: Registers standard TypeScript functions that have direct, synchronous access to the browser's DOM, `localStorage`, etc.
 - **Adapters**: Connect the agent to a reasoning engine. 
   - `UrpAdapter` connects to a remote backend (Hybrid Mode).
-  - **Planned**: `PromptApiAdapter` for the Chrome Prompt API.
-  - **Custom**: Implement `LlmAdapter` for Google AI SDK, Transformers.js, etc.
+  - `GoogleGenAIAdapter` (`@mast-ai/google-genai`) calls the Gemini API directly with tool calling, streaming, and thinking mode.
+  - `BuiltInAIAdapter` (`@mast-ai/built-in-ai`) runs inference fully on-device via the browser Prompt API (no tool calling).
+  - **Custom**: Implement `LlmAdapter` for other providers (Transformers.js, MediaPipe, etc.).
 
 ## Component References
 
 When implementing MAST features, consult these references for API details and patterns:
 
 - **Core API & Agent Configuration**: See [references/core-api.md](references/core-api.md) for `AgentConfig`, `AgentRunner`, `ToolRegistry`, and `Conversation`.
-- **Adapters (URP & Custom)**: See [references/adapters.md](references/adapters.md) for configuring HTTP/WebSocket transports and information on custom implementations.
-- **Custom Adapters**: See [references/custom-adapters.md](references/custom-adapters.md) for implementing your own `LlmAdapter` using Google AI SDK, Transformers.js, etc.
+- **Adapters**: See [references/adapters.md](references/adapters.md) for `UrpAdapter` (HTTP transport), `GoogleGenAIAdapter`, and `BuiltInAIAdapter` with its built-in browser tools.
+- **Custom Adapters**: See [references/custom-adapters.md](references/custom-adapters.md) for implementing your own `LlmAdapter` using Transformers.js, MediaPipe, etc.
 - **Protocols (URP & ACP)**: See [references/protocols.md](references/protocols.md) if implementing a backend reasoning engine in Rust, Go, or Python.
 
 ## Installation

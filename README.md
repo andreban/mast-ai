@@ -15,11 +15,13 @@ Traditional agent frameworks are server-centric, making it difficult for agents 
 
 This project is an npm workspace containing the core library and several demo applications:
 
-* `packages/core/` — The main MAST TypeScript library (`AgentRunner`, `RunBuilder`, Adapters, Types).
-* `packages/google-genai/` — `LlmAdapter` backed by the Google Generative AI SDK (Gemini models).
-* `packages/built-in-ai/` — `LlmAdapter` backed by the browser's Prompt API for fully on-device inference (no network requests).
+* `packages/core/` — The main MAST TypeScript library (`AgentRunner`, `RunBuilder`, `Conversation`, Adapters, Types).
+* `packages/google-genai/` — `LlmAdapter` backed by the Google Generative AI SDK (`GoogleGenAIAdapter` for Gemini models with tool calling, streaming, and thinking mode).
+* `packages/built-in-ai/` — `LlmAdapter` for fully on-device inference via the browser Prompt API (`BuiltInAIAdapter`), plus browser-native tools: `SummarizeTool`, `DetectLanguageTool`, and `TranslateTool`.
 * `apps/demo-basic-chat/` — A Vite-powered frontend demonstrating a Hybrid Mode chat agent with local tools.
 * `apps/demo-prompt-api/` — A Vite-powered frontend demonstrating on-device inference via the browser Prompt API.
+* `apps/demo-summarizer/` — A Vite-powered frontend demonstrating the `SummarizeTool` backed by the browser Summarizer API.
+* `apps/demo-translate/` — A Vite-powered frontend demonstrating the `TranslateTool` backed by the browser Translator API.
 * `apps/demo-rust-server/` — A sample URP reasoning engine backend written in Rust (Axum + async channels).
 
 ## Getting Started
