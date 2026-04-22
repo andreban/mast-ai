@@ -1,7 +1,6 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import './style.css'
 import {
   VERSION,
   ToolRegistry,
@@ -25,44 +24,15 @@ const agentConfig = createAgent({
   tools: ['getCurrentTime', 'calculate']
 });
 
-
-// --- UI Framework ---
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<div class="app-container">
-  <div class="sidebar">
-    <h2>MAST Demo <small>v${VERSION}</small></h2>
-
-    <div class="config-panel">
-      <label>Remote Endpoint URL</label>
-      <input type="text" id="endpoint-url" value="http://127.0.0.1:3000/api/chat" />
-    </div>
-
-    <div class="tools-panel">
-      <h3>Available Tools</h3>
-      <ul>
-        ${registry.definitions().map(d => `<li><code>${d.name}</code></li>`).join('')}
-      </ul>
-    </div>
-  </div>
-
-  <div class="chat-container">
-    <div class="message-list" id="message-list">
-      <div class="message assistant">
-        <div class="bubble">Hello! I'm ready to help. I can check the time and do math.</div>
-      </div>
-    </div>
-
-    <div class="input-area">
-      <div class="status-indicator" id="status-indicator">Idle</div>
-      <div class="input-group">
-        <textarea id="prompt-input" placeholder="Ask something (e.g., 'What time is it?' or 'What is 54 * 23?')"></textarea>
-        <button id="send-button">Send</button>
-        <button id="stop-button" class="stop-button" hidden>Stop</button>
-      </div>
-    </div>
-  </div>
-</div>
-`;
+document.querySelector<HTMLElement>('#version')!.textContent = `v${VERSION}`;
+const toolsList = document.querySelector<HTMLUListElement>('#tools-list')!;
+for (const { name } of registry.definitions()) {
+  const li = document.createElement('li');
+  const code = document.createElement('code');
+  code.textContent = name;
+  li.appendChild(code);
+  toolsList.appendChild(li);
+}
 
 // --- Chat Logic ---
 const messageList = document.querySelector('#message-list')!;

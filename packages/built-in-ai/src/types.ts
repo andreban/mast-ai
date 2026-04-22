@@ -41,3 +41,40 @@ declare global {
     create(options?: LanguageModelCreateOptions): Promise<LanguageModelSession>;
   };
 }
+
+export type SummarizerAvailability =
+  | "readily"
+  | "after-download"
+  | "downloading"
+  | "unavailable";
+
+export type SummarizerType = "key-points" | "tldr" | "teaser" | "headline";
+export type SummarizerFormat = "plain-text" | "markdown";
+export type SummarizerLength = "short" | "medium" | "long";
+
+export interface SummarizerCreateOptions {
+  type?: SummarizerType;
+  format?: SummarizerFormat;
+  length?: SummarizerLength;
+  sharedContext?: string;
+  signal?: AbortSignal;
+  monitor?: (monitor: EventTarget) => void;
+}
+
+export interface SummarizerCallOptions {
+  context?: string;
+  signal?: AbortSignal;
+}
+
+export interface SummarizerSession {
+  summarize(text: string, options?: SummarizerCallOptions): Promise<string>;
+  summarizeStreaming(text: string, options?: SummarizerCallOptions): ReadableStream<string>;
+  destroy(): void;
+}
+
+declare global {
+  const Summarizer: {
+    availability(options?: Partial<SummarizerCreateOptions>): Promise<SummarizerAvailability>;
+    create(options?: SummarizerCreateOptions): Promise<SummarizerSession>;
+  };
+}

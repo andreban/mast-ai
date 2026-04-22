@@ -1,11 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import './style.css';
 import { marked } from 'marked';
 import { VERSION, ToolRegistry, AgentRunner, createAgent, Conversation } from '@mast-ai/core';
 import { BuiltInAIAdapter, checkAvailability } from '@mast-ai/built-in-ai';
 import type { LanguageModelAvailability } from '@mast-ai/built-in-ai';
+
+document.querySelector<HTMLElement>('#version')!.textContent = `v${VERSION}`;
 
 // --- Setup ---
 const agentConfig = createAgent({
@@ -13,48 +14,6 @@ const agentConfig = createAgent({
   instructions: 'You are a helpful assistant running entirely on-device via the browser Prompt API.',
   tools: [],
 });
-
-// --- UI ---
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<div class="app-container">
-  <div class="sidebar">
-    <h2>Prompt API Demo <small>v${VERSION}</small></h2>
-
-    <div class="availability-panel">
-      <h3>Model Availability</h3>
-      <div class="availability-row">
-        <span class="availability-badge checking" id="availability-badge">Checking…</span>
-        <button class="refresh-button" id="refresh-button">Refresh</button>
-      </div>
-      <p class="availability-note" id="availability-note"></p>
-    </div>
-
-    <div class="info-panel">
-      <h3>About</h3>
-      Uses the browser's <code>LanguageModel</code> Prompt API to run an
-      on-device model — no network requests. Tool calling is not supported
-      by this adapter.
-    </div>
-  </div>
-
-  <div class="chat-container">
-    <div class="message-list" id="message-list">
-      <div class="message assistant">
-        <div class="bubble">Hello! I'm running on-device via the Prompt API. How can I help?</div>
-      </div>
-    </div>
-
-    <div class="input-area">
-      <div class="status-indicator" id="status-indicator">Idle</div>
-      <div class="input-group">
-        <textarea id="prompt-input" placeholder="Ask something…"></textarea>
-        <button id="send-button" disabled>Send</button>
-        <button id="stop-button" class="stop-button" hidden>Stop</button>
-      </div>
-    </div>
-  </div>
-</div>
-`;
 
 // --- Availability ---
 const availabilityBadge = document.querySelector<HTMLElement>('#availability-badge')!;
