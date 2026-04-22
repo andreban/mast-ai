@@ -71,6 +71,19 @@ describe("BuiltInAIAdapter", () => {
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("tool calling is not supported"));
     });
 
+    it("throws AdapterError when Prompt API is not supported", async () => {
+      vi.stubGlobal("LanguageModel", undefined);
+
+      await expect(
+        adapter.generate({
+          messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+          tools: [],
+        }),
+      ).rejects.toThrow("not supported in this browser");
+
+      vi.stubGlobal("LanguageModel", { create: mockCreate, availability: mockAvailability });
+    });
+
     it("throws AdapterError when model is unavailable", async () => {
       mockAvailability.mockResolvedValue("unavailable");
 
