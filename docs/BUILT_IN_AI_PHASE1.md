@@ -161,8 +161,8 @@ interface LanguageModelCreateOptions {
   // systemPrompt exists in the spec but is not used — system prompt is
   // injected as a { role: "system" } entry in initialPrompts instead.
   monitor?: (monitor: EventTarget) => void;
-  temperature?: number;
-  topK?: number;
+  // temperature and topK are only available in the Chrome extension version
+  // of the Prompt API and have been removed from the browser version — omitted.
 }
 
 interface LanguageModelPromptOptions {
