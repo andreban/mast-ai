@@ -101,6 +101,10 @@ export class BuiltInAIAdapter implements LlmAdapter {
 
     this.invalidateCache();
 
+    if (typeof LanguageModel === "undefined") {
+      throw new AdapterError("Prompt API is not supported in this browser.");
+    }
+
     const availability = await LanguageModel.availability();
     if (availability === "unavailable") {
       throw new AdapterError("Built-in AI model is unavailable on this device.");
