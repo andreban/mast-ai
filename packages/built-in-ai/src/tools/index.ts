@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SummarizeTool } from "./summarize.js";
+import { DetectLanguageTool } from "./detectLanguage.js";
 import type { ToolRegistry } from "@mast-ai/core";
 
 /** Options for {@link addAllBuiltInAITools}. */
@@ -24,6 +25,11 @@ export async function addAllBuiltInAITools(
     SummarizeTool.addToRegistry(registry, {
       onDownloadProgress: options?.onDownloadProgress
         ? (p) => options.onDownloadProgress!("summarize", p)
+        : undefined,
+    }),
+    DetectLanguageTool.addToRegistry(registry, {
+      onDownloadProgress: options?.onDownloadProgress
+        ? (p) => options.onDownloadProgress!("detectLanguage", p)
         : undefined,
     }),
   ]);
