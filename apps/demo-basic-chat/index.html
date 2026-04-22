@@ -5,9 +5,41 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MAST Demo</title>
+    <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="app"></div>
+    <div class="app-container">
+      <div class="sidebar">
+        <h2>MAST Demo <small id="version"></small></h2>
+
+        <div class="config-panel">
+          <label>Remote Endpoint URL</label>
+          <input type="text" id="endpoint-url" value="http://127.0.0.1:3000/api/chat" />
+        </div>
+
+        <div class="tools-panel">
+          <h3>Available Tools</h3>
+          <ul id="tools-list"></ul>
+        </div>
+      </div>
+
+      <div class="chat-container">
+        <div class="message-list" id="message-list">
+          <div class="message assistant">
+            <div class="bubble">Hello! I'm ready to help. I can check the time and do math.</div>
+          </div>
+        </div>
+
+        <div class="input-area">
+          <div class="status-indicator" id="status-indicator">Idle</div>
+          <div class="input-group">
+            <textarea id="prompt-input" placeholder="Ask something (e.g., 'What time is it?' or 'What is 54 * 23?')"></textarea>
+            <button id="send-button">Send</button>
+            <button id="stop-button" class="stop-button" hidden>Stop</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
