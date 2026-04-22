@@ -156,12 +156,17 @@ export type { BuiltInAIAdapterOptions } from './BuiltInAIAdapter.js';
 - `summarize` tool wrapping the Summarizer API
 - Availability guard and tests
 
-### Phase 3 — Translation & Language Detection Tools
-- `translate` and `detectLanguage` tools wrapping the Translator and Language Detector APIs
-- These two APIs are closely related but present different integration challenges from the Summarizer (language pair availability, detection confidence handling)
-- Availability guards and tests
+### Phase 3 — Language Detection Tool
+- `detectLanguage` tool wrapping the Language Detector API
+- Returns detected language and confidence score
+- Availability guard and tests
 
-### Phase 4 — Trial Tools
+### Phase 4 — Translation Tool
+- `translate` tool wrapping the Translator API
+- Handles language pair availability checks and related error cases
+- Availability guard and tests
+
+### Phase 5 — Trial Tools
 - `write`, `rewrite`, `proofread` tools (once APIs stabilize)
 - Update `createAllBuiltInAITools` to include them
 
