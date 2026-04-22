@@ -165,15 +165,6 @@ export type { BuiltInAIAdapterOptions } from './BuiltInAIAdapter.js';
 - `write`, `rewrite`, `proofread` tools (once APIs stabilize)
 - Update `createAllBuiltInAITools` to include them
 
-### Phase 5 — PII Redactor Tool
-A `redactPii` tool that any remote-backed agent can call to sanitize sensitive text on-device before it is processed further. Internally powered by `BuiltInAIAdapter` and `AgentRunner` — the tool spins up a local single-turn agent whose sole job is PII redaction. Raw sensitive data never leaves the browser.
-
-- Accepts a text input and returns the redacted version with PII replaced by typed placeholders (e.g. `[PERSON_NAME]`, `[EMAIL]`, `[PHONE]`, `[ADDRESS]`)
-- System prompt defines PII categories and the replacement format
-- Checks `LanguageModel` availability at call time; throws a descriptive error if unavailable
-- Exposes an optional `onDownloadProgress` callback for the model download case
-- Unit tests with mocked `LanguageModel` global
-
 ---
 
 ## Open Questions
