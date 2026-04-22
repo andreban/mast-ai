@@ -157,3 +157,50 @@ declare global {
     create(options?: LanguageDetectorCreateOptions): Promise<LanguageDetectorSession>;
   };
 }
+
+/**
+ * Availability status of the on-device Translator API for a given language pair.
+ *
+ * - `"readily"` — ready to use immediately.
+ * - `"after-download"` — must be downloaded before use.
+ * - `"downloading"` — download is in progress.
+ * - `"unavailable"` — not supported on this device or browser.
+ */
+export type TranslatorAvailability =
+  | "readily"
+  | "after-download"
+  | "downloading"
+  | "unavailable";
+
+/** Options for checking Translator availability for a specific language pair. */
+export interface TranslatorAvailabilityOptions {
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
+/** Options accepted by `Translator.create`. */
+export interface TranslatorCreateOptions {
+  sourceLanguage: string;
+  targetLanguage: string;
+  signal?: AbortSignal;
+  /** Callback invoked with a download progress monitor target. */
+  monitor?: (monitor: EventTarget) => void;
+}
+
+/** Per-call options passed to `TranslatorSession.translate`. */
+export interface TranslatorCallOptions {
+  signal?: AbortSignal;
+}
+
+/** A live session obtained from `Translator.create`. */
+export interface TranslatorSession {
+  translate(text: string, options?: TranslatorCallOptions): Promise<string>;
+  destroy(): void;
+}
+
+declare global {
+  const Translator: {
+    availability(options: TranslatorAvailabilityOptions): Promise<TranslatorAvailability>;
+    create(options: TranslatorCreateOptions): Promise<TranslatorSession>;
+  };
+}

@@ -32,5 +32,11 @@ export async function addAllBuiltInAITools(
         ? (p) => options.onDownloadProgress!("detectLanguage", p)
         : undefined,
     }),
+    // TranslateTool disabled: Translator API crashes in Chrome as of 2026-04-22.
+    // TranslateTool.addToRegistry(registry, {
+    //   onDownloadProgress: options?.onDownloadProgress
+    //     ? (p) => options.onDownloadProgress!("translate", p)
+    //     : undefined,
+    // }),
   ]);
 }
