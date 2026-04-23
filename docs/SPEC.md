@@ -124,6 +124,7 @@ export interface Tool<TArgs = unknown, TResult = unknown> {
 
 export interface ToolContext {
   signal?: AbortSignal;  // forwarded from the runner; allows long-running tools to be cancelled
+  onEvent?: (event: AgentEvent) => void;  // optional; tools wrapping sub-agents call this to surface child events
 }
 
 export class ToolRegistry {
@@ -213,7 +214,7 @@ The agentic loop lives in `RunBuilder.runStream`:
 2. Prepend `history` to the new user `Message` and construct an `AdapterRequest` with resolved `ToolDefinition`s.
 3. Call `adapter.generateStream` (or fall back to `generate`) and forward `text_delta` chunks as `AgentEvent`.
 4. Collect `tool_call` chunks. When the turn ends with tool calls, emit all `tool_call_started` events.
-5. Execute all tool calls **concurrently** using `Promise.all`. Each tool receives a `ToolContext` containing the runner's `AbortSignal`.
+5. Execute all tool calls **concurrently** using `Promise.all`. Each tool receives a `ToolContext` containing the runner's `AbortSignal` and, when registered, an `onEvent` callback that forwards child events to the `onToolEvent` handler on `RunBuilder`.
 6. Emit all `tool_call_completed` events in original call order.
 7. Append assistant tool-call message and one user tool-result message per result to the internal history.
 8. Repeat from step 3 until the model returns a text-only turn.
@@ -228,6 +229,14 @@ export class RunBuilder {
 
   /** Attach an AbortSignal to cancel the run and any in-flight tool calls. */
   signal(signal: AbortSignal): this;
+
+  /**
+   * Register a callback that receives events emitted by tools running sub-agents.
+   * `toolName` identifies which tool fired the event.
+   * Note: the convenience methods on AgentRunner do not surface tool events —
+   * use runBuilder().onToolEvent(...).runStream() for that.
+   */
+  onToolEvent(handler: (toolName: string, event: AgentEvent) => void): this;
 
   runStream(input: string): AsyncIterable<AgentEvent>;
   run(input: string): Promise<AgentResult>;

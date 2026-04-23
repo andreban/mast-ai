@@ -1,6 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
+import type { AgentEvent } from './types';
+
 /** Static description of a tool that is sent to the model so it can decide when to call it. */
 export interface ToolDefinition {
   name: string;
@@ -13,6 +15,13 @@ export interface ToolDefinition {
 export interface ToolContext {
   /** Forwarded from the runner; allows long-running tools to be cancelled. */
   signal?: AbortSignal;
+  /**
+   * Called by tools that internally run sub-agents to surface child events to
+   * the parent runner's consumer. Simple tools can ignore this entirely.
+   * Tools should filter out {@link AgentEvent} `done` events before forwarding
+   * to avoid leaking child conversation history to the parent's consumers.
+   */
+  onEvent?: (event: AgentEvent) => void;
 }
 
 /**
