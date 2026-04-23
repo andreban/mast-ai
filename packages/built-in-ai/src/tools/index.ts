@@ -3,6 +3,7 @@
 
 import { SummarizeTool } from "./summarize.js";
 import { DetectLanguageTool } from "./detectLanguage.js";
+import { ProofreadTool } from "./proofread.js";
 import type { ToolRegistry } from "@mast-ai/core";
 
 /** Options for {@link addAllBuiltInAITools}. */
@@ -38,5 +39,10 @@ export async function addAllBuiltInAITools(
     //     ? (p) => options.onDownloadProgress!("translate", p)
     //     : undefined,
     // }),
+    ProofreadTool.addToRegistry(registry, {
+      onDownloadProgress: options?.onDownloadProgress
+        ? (p) => options.onDownloadProgress!("proofread", p)
+        : undefined,
+    }),
   ]);
 }

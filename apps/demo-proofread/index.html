@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proofreader Demo — MAST Built-in AI</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="sidebar">
+        <h2>Proofreader</h2>
+        <p class="tagline">On-device spelling &amp; grammar checker powered by the browser's built-in AI.</p>
+
+        <div class="status-panel">
+          <span class="status-label">API Status</span>
+          <span id="status-badge" class="status-badge loading">Checking…</span>
+        </div>
+
+        <div class="info-panel">
+          <h3>How it works</h3>
+          <p>This demo uses the browser's <strong>Proofreader API</strong> — no network request is made. The model runs entirely on-device via <code>@mast-ai/built-in-ai</code>.</p>
+          <p>Type or paste any text, then click <strong>Proofread</strong>.</p>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <div class="editor-section">
+          <div class="editor-header">
+            <label for="input-text" class="editor-label">Input text</label>
+            <div id="status-indicator" class="status-indicator">Idle</div>
+          </div>
+          <textarea
+            id="input-text"
+            placeholder="Paste or type text with potential spelling and grammar errors…"
+            spellcheck="false"
+          ></textarea>
+          <div class="editor-controls">
+            <button id="sample-btn" class="secondary-btn">Load sample</button>
+            <button id="proofread-btn" disabled>Proofread</button>
+          </div>
+        </div>
+
+        <section id="results" class="results-section" hidden>
+          <div class="results-header">
+            <h3>Results</h3>
+            <span id="corrections-count" class="corrections-count"></span>
+          </div>
+
+          <div class="annotated-panel">
+            <div class="panel-label">Original — errors highlighted</div>
+            <div id="annotated-text" class="annotated-text"></div>
+          </div>
+
+          <div class="corrected-panel">
+            <div class="panel-label">Corrected text</div>
+            <div id="corrected-text" class="corrected-text"></div>
+          </div>
+
+          <div class="corrections-panel">
+            <div class="panel-label">Corrections</div>
+            <div id="corrections-list" class="corrections-list"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

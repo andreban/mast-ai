@@ -11,5 +11,7 @@ export { DetectLanguageTool } from './tools/detectLanguage.js';
 export type { DetectLanguageToolOptions, DetectLanguageArgs } from './tools/detectLanguage.js';
 export { TranslateTool } from './tools/translate.js';
 export type { TranslateToolOptions, TranslateArgs } from './tools/translate.js';
+export { ProofreadTool } from './tools/proofread.js';
+export type { ProofreadToolOptions, ProofreadArgs, ProofreadCorrection, ProofreadResult } from './tools/proofread.js';
 export { addAllBuiltInAITools } from './tools/index.js';
 export type { AddAllBuiltInAIToolsOptions } from './tools/index.js';
