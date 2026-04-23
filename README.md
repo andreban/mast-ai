@@ -10,6 +10,7 @@ Traditional agent frameworks are server-centric, making it difficult for agents 
 * **Native Tool Integration:** Write tools as standard TypeScript functions that have direct, synchronous access to the browser's DOM, `localStorage`, and client state.
 * **Environment Agnostic Inference:** Keep your agent logic in TypeScript, but use high-performance reasoning engines written in Go, Rust, or Python via the **Universal Remote Protocol (URP)**.
 * **Hybrid & Client-Side Modes:** Run inference remotely via a URP server, or fully locally on-device using the Chrome Prompt API (Gemini Nano).
+* **Sub-Agent Event Streaming:** Tools that run sub-agents can forward child events (thinking, text, tool calls) to the parent runner's consumer in real time via `RunBuilder.onToolEvent`, keeping the parent agent's conversation context clean.
 
 ## Monorepo Structure
 

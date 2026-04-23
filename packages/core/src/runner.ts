@@ -7,7 +7,12 @@ import { ToolRegistry } from './tool';
 import { AgentError } from './error';
 import { Conversation } from './conversation';
 
-type StreamExecutor = (input: string, history: Message[], signal?: AbortSignal) => AsyncIterable<AgentEvent>;
+type StreamExecutor = (
+  input: string,
+  history: Message[],
+  signal?: AbortSignal,
+  onToolEvent?: (toolName: string, event: AgentEvent) => void,
+) => AsyncIterable<AgentEvent>;
 
 /**
  * Fluent builder for a single agent run.
@@ -18,6 +23,7 @@ type StreamExecutor = (input: string, history: Message[], signal?: AbortSignal) 
 export class RunBuilder {
   private _history: Message[] = [];
   private _signal?: AbortSignal;
+  private _onToolEvent?: (toolName: string, event: AgentEvent) => void;
 
   constructor(
     private readonly agent: AgentConfig,
@@ -36,9 +42,20 @@ export class RunBuilder {
     return this;
   }
 
+  /**
+   * Register a callback that receives events emitted by tools running
+   * sub-agents. `toolName` identifies which tool fired the event.
+   * Note: convenience methods on {@link AgentRunner} do not surface tool
+   * events — use `runBuilder().onToolEvent(...).runStream()` for that.
+   */
+  onToolEvent(handler: (toolName: string, event: AgentEvent) => void): this {
+    this._onToolEvent = handler;
+    return this;
+  }
+
   /** Executes the run and returns a stream of {@link AgentEvent} objects. */
   runStream(input: string): AsyncIterable<AgentEvent> {
-    return this.execute(input, this._history, this._signal);
+    return this.execute(input, this._history, this._signal, this._onToolEvent);
   }
 
   /** Executes the run and returns the final text output. */
@@ -89,8 +106,8 @@ export class AgentRunner {
 
   /** Primary entry point for multi-turn use. */
   runBuilder(agent: AgentConfig): RunBuilder {
-    return new RunBuilder(agent, (input, history, signal) =>
-      this.executeStream(agent, input, history, signal)
+    return new RunBuilder(agent, (input, history, signal, onToolEvent) =>
+      this.executeStream(agent, input, history, signal, onToolEvent)
     );
   }
 
@@ -117,7 +134,8 @@ export class AgentRunner {
     agent: AgentConfig,
     input: string,
     history: Message[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onToolEvent?: (toolName: string, event: AgentEvent) => void,
   ): AsyncIterable<AgentEvent> {
     // Use the explicit tool list when provided; otherwise expose all registered tools.
     const toolDefinitions = agent.tools
@@ -192,7 +210,12 @@ export class AgentRunner {
               return { call, result: `Error: Tool '${call.name}' not found.` };
             }
             try {
-              const result = await tool.call(call.args, { signal });
+              const result = await tool.call(call.args, {
+                signal,
+                onEvent: onToolEvent
+                  ? (event) => onToolEvent(call.name, event)
+                  : undefined,
+              });
               return { call, result };
             } catch (err: any) {
               return { call, result: `Error executing tool: ${err.message}` };

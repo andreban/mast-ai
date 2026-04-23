@@ -20,9 +20,14 @@ export class Conversation {
     private readonly agent: AgentConfig
   ) {}
 
-  private buildStream(input: string, signal?: AbortSignal) {
+  private buildStream(
+    input: string,
+    signal?: AbortSignal,
+    onToolEvent?: (toolName: string, event: AgentEvent) => void
+  ) {
     const builder = this.runner.runBuilder(this.agent).history([...this.history]);
     if (signal) builder.signal(signal);
+    if (onToolEvent) builder.onToolEvent(onToolEvent);
     return builder.runStream(input);
   }
 
@@ -41,17 +46,22 @@ export class Conversation {
   }
 
   /** Runs a single turn and returns a stream of {@link AgentEvent} objects. History is updated once the stream is fully consumed. */
-  runStream(input: string, signal?: AbortSignal): AsyncIterable<AgentEvent> {
-    return this._streamWithHistoryUpdate(input, signal);
+  runStream(
+    input: string,
+    signal?: AbortSignal,
+    onToolEvent?: (toolName: string, event: AgentEvent) => void
+  ): AsyncIterable<AgentEvent> {
+    return this._streamWithHistoryUpdate(input, signal, onToolEvent);
   }
 
   private async *_streamWithHistoryUpdate(
     input: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onToolEvent?: (toolName: string, event: AgentEvent) => void
   ): AsyncIterable<AgentEvent> {
     let capturedHistory: Message[] | null = null;
 
-    const inner = this.buildStream(input, signal);
+    const inner = this.buildStream(input, signal, onToolEvent);
 
     try {
       for await (const event of inner) {
