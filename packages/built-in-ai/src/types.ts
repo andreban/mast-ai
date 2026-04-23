@@ -204,3 +204,60 @@ declare global {
     create(options: TranslatorCreateOptions): Promise<TranslatorSession>;
   };
 }
+
+/**
+ * Availability status of the on-device Proofreader API.
+ *
+ * - `"readily"` — ready to use immediately.
+ * - `"after-download"` — must be downloaded before use.
+ * - `"downloading"` — download is in progress.
+ * - `"unavailable"` — not supported on this device or browser.
+ */
+export type ProofreaderAvailability =
+  | "available"
+  | "downloadable"
+  | "downloading"
+  | "unavailable";
+
+/** Options accepted by `Proofreader.create`. */
+export interface ProofreaderCreateOptions {
+  signal?: AbortSignal;
+  /** Callback invoked with a download progress monitor target. */
+  monitor?: (monitor: EventTarget) => void;
+}
+
+/** Per-call options passed to `ProofreaderSession.proofread`. */
+export interface ProofreaderCallOptions {
+  signal?: AbortSignal;
+}
+
+/** A single correction returned by the Proofreader API. */
+export interface ProofreadCorrection {
+  /** The corrected replacement text. */
+  correction: string;
+  /** Start index of the error span in the original input (inclusive). */
+  startIndex: number;
+  /** End index of the error span in the original input (exclusive). */
+  endIndex: number;
+}
+
+/** The result returned by `ProofreaderSession.proofread`. */
+export interface ProofreadResult {
+  /** The input text with all corrections applied. */
+  correctedInput: string;
+  /** Individual corrections found in the input. */
+  corrections: ProofreadCorrection[];
+}
+
+/** A live session obtained from `Proofreader.create`. */
+export interface ProofreaderSession {
+  proofread(text: string, options?: ProofreaderCallOptions): Promise<ProofreadResult>;
+  destroy(): void;
+}
+
+declare global {
+  const Proofreader: {
+    availability(): Promise<ProofreaderAvailability>;
+    create(options?: ProofreaderCreateOptions): Promise<ProofreaderSession>;
+  };
+}

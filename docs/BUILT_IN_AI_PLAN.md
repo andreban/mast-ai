@@ -166,8 +166,15 @@ export type { BuiltInAIAdapterOptions } from './BuiltInAIAdapter.js';
 - Handles language pair availability checks and related error cases
 - Availability guard and tests
 
-### Phase 5 — Trial Tools
-- `write`, `rewrite`, `proofread` tools (once APIs stabilize)
+### Phase 5 — Proofreader Tool
+- `proofread` tool wrapping the Proofreader API
+- Availability guard and tests
+- Update `createAllBuiltInAITools` to include it
+
+### Phase 6 — Writer and Rewriter Tools
+- `write` tool wrapping the Writer API
+- `rewrite` tool wrapping the Rewriter API
+- Availability guards and tests
 - Update `createAllBuiltInAITools` to include them
 
 ---
