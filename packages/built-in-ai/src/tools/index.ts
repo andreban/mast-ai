@@ -3,6 +3,7 @@
 
 import { SummarizeTool } from "./summarize.js";
 import { DetectLanguageTool } from "./detectLanguage.js";
+import { TranslateTool } from "./translate.js";
 import { ProofreadTool } from "./proofread.js";
 import type { ToolRegistry } from "@mast-ai/core";
 
@@ -33,12 +34,11 @@ export async function addAllBuiltInAITools(
         ? (p) => options.onDownloadProgress!("detectLanguage", p)
         : undefined,
     }),
-    // TranslateTool disabled: Translator API crashes in Chrome as of 2026-04-22.
-    // TranslateTool.addToRegistry(registry, {
-    //   onDownloadProgress: options?.onDownloadProgress
-    //     ? (p) => options.onDownloadProgress!("translate", p)
-    //     : undefined,
-    // }),
+    TranslateTool.addToRegistry(registry, {
+      onDownloadProgress: options?.onDownloadProgress
+        ? (p) => options.onDownloadProgress!("translate", p)
+        : undefined,
+    }),
     ProofreadTool.addToRegistry(registry, {
       onDownloadProgress: options?.onDownloadProgress
         ? (p) => options.onDownloadProgress!("proofread", p)
