@@ -55,6 +55,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         ? [{ functionDeclarations: request.tools.map((t) => this.mapTool(t)) }]
         : undefined;
 
+    const outputSchema = request.outputSchema;
     const response = await this.client.models.generateContent({
       model: this.modelName,
       contents,
@@ -65,10 +66,18 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         maxOutputTokens: request.config?.maxTokens,
         topP: request.config?.topP,
         stopSequences: request.config?.stopSequences,
-        thinkingConfig: {
-          includeThoughts: true,
-          thinkingLevel: ThinkingLevel.HIGH,
-        },
+        ...(outputSchema
+          ? {
+              responseMimeType: "application/json",
+              responseSchema: outputSchema as Schema,
+              thinkingConfig: { thinkingBudget: 0 },
+            }
+          : {
+              thinkingConfig: {
+                includeThoughts: true,
+                thinkingLevel: ThinkingLevel.HIGH,
+              },
+            }),
       },
     });
 
