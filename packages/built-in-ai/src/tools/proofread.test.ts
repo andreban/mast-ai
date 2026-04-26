@@ -44,7 +44,7 @@ describe("ProofreadTool", () => {
       await expect(ProofreadTool.addToRegistry(registry)).rejects.toThrow(
         "not supported in this browser",
       );
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
 
       vi.stubGlobal("Proofreader", { create: mockCreate, availability: mockAvailability });
     });
@@ -55,7 +55,7 @@ describe("ProofreadTool", () => {
       await expect(ProofreadTool.addToRegistry(registry)).rejects.toThrow(
         "not available on this device",
       );
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
       expect(mockCreate).not.toHaveBeenCalled();
     });
 
@@ -63,8 +63,8 @@ describe("ProofreadTool", () => {
       await ProofreadTool.addToRegistry(registry);
 
       expect(mockCreate).toHaveBeenCalledTimes(1);
-      expect(registry.definitions()).toHaveLength(1);
-      expect(registry.definitions()[0].name).toBe("proofread");
+      expect(registry.getTools()).toHaveLength(1);
+      expect(registry.getTools()[0].name).toBe("proofread");
     });
 
     it("registers without creating a session when availability is downloadable", async () => {
@@ -73,7 +73,7 @@ describe("ProofreadTool", () => {
       await ProofreadTool.addToRegistry(registry);
 
       expect(mockCreate).not.toHaveBeenCalled();
-      expect(registry.definitions()).toHaveLength(1);
+      expect(registry.getTools()).toHaveLength(1);
     });
 
     it("registers without creating a session when availability is downloading", async () => {
@@ -82,14 +82,14 @@ describe("ProofreadTool", () => {
       await ProofreadTool.addToRegistry(registry);
 
       expect(mockCreate).not.toHaveBeenCalled();
-      expect(registry.definitions()).toHaveLength(1);
+      expect(registry.getTools()).toHaveLength(1);
     });
   });
 
   describe("call() — session created eagerly (available)", () => {
     it("rejects with AdapterError when Proofreader global is absent", async () => {
       await ProofreadTool.addToRegistry(registry);
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
 
       vi.stubGlobal("Proofreader", undefined);
       await expect(tool.call({ text: "teh cat" }, {})).rejects.toThrow(
@@ -101,7 +101,7 @@ describe("ProofreadTool", () => {
 
     it("returns ProofreadResult from session.proofread", async () => {
       await ProofreadTool.addToRegistry(registry);
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
 
       const result = await tool.call({ text: "teh cat" }, {});
       expect(result).toEqual(RESULT);
@@ -112,7 +112,7 @@ describe("ProofreadTool", () => {
       mockCreate.mockResolvedValue(makeSession({ proofread: vi.fn().mockResolvedValue(emptyResult) }));
 
       await ProofreadTool.addToRegistry(registry);
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
 
       const result = await tool.call({ text: "the cat" }, {});
       expect(result).toEqual(emptyResult);
@@ -123,7 +123,7 @@ describe("ProofreadTool", () => {
       mockCreate.mockResolvedValue(session);
 
       await ProofreadTool.addToRegistry(registry);
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
 
       const controller = new AbortController();
       await tool.call({ text: "teh cat" }, { signal: controller.signal });
@@ -141,7 +141,7 @@ describe("ProofreadTool", () => {
       mockCreate.mockResolvedValue(session);
 
       await ProofreadTool.addToRegistry(registry);
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
 
       await expect(tool.call({ text: "teh cat" }, {})).rejects.toThrow("proofread failed");
     });
@@ -151,7 +151,7 @@ describe("ProofreadTool", () => {
       mockCreate.mockResolvedValue(session);
 
       await ProofreadTool.addToRegistry(registry);
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
 
       await tool.call({ text: "teh cat" }, {});
       await tool.call({ text: "speling eror" }, {});
@@ -169,7 +169,7 @@ describe("ProofreadTool", () => {
       await ProofreadTool.addToRegistry(registry, { onDownloadProgress });
       expect(mockCreate).not.toHaveBeenCalled();
 
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
       await tool.call({ text: "teh cat" }, {});
 
       expect(mockCreate).toHaveBeenCalledTimes(1);
@@ -193,7 +193,7 @@ describe("ProofreadTool", () => {
       const onDownloadProgress = vi.fn();
       await ProofreadTool.addToRegistry(registry, { onDownloadProgress });
 
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
       await tool.call({ text: "teh cat" }, {});
 
       const evt = Object.assign(new Event("downloadprogress"), { loaded: 50, total: 100 });
@@ -208,7 +208,7 @@ describe("ProofreadTool", () => {
       mockCreate.mockResolvedValue(session);
 
       await ProofreadTool.addToRegistry(registry);
-      const tool = registry.get("proofread")!;
+      const tool = registry.getTool("proofread")!;
 
       await tool.call({ text: "teh cat" }, {});
       await tool.call({ text: "speling eror" }, {});

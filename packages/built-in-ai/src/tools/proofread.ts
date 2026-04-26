@@ -84,6 +84,7 @@ export class ProofreadTool implements Tool<ProofreadArgs, ProofreadResult> {
         },
         required: ["text"],
       },
+      scope: 'read',
     };
   }
 

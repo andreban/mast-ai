@@ -3,7 +3,7 @@
 
 import type { AgentConfig, AgentEvent, AgentResult, Message, ToolCall } from './types';
 import type { LlmAdapter, AdapterRequest } from './adapter/index';
-import { ToolRegistry } from './tool';
+import { type ToolProvider, ToolRegistry } from './tool';
 import { AgentError } from './error';
 import { Conversation } from './conversation';
 
@@ -95,8 +95,8 @@ export class AgentRunner {
   constructor(
     /** The LLM adapter used to generate responses. */
     public readonly adapter: LlmAdapter,
-    /** Registry of tools the runner may invoke on behalf of agents. */
-    public readonly registry: ToolRegistry = new ToolRegistry()
+    /** Provider of tools the runner may invoke on behalf of agents. */
+    public readonly registry: ToolProvider = new ToolRegistry()
   ) {}
 
   /** Creates a Conversation that automatically tracks history across turns. */
@@ -140,7 +140,7 @@ export class AgentRunner {
     // Use the explicit tool list when provided; otherwise expose all registered tools.
     const toolDefinitions = agent.tools
       ? agent.tools.map((toolName) => {
-          const tool = this.registry.get(toolName);
+          const tool = this.registry.getTool(toolName);
           if (!tool) {
             throw new AgentError(
               `Tool '${toolName}' requested by agent '${agent.name}' is not registered.`,
@@ -148,7 +148,7 @@ export class AgentRunner {
           }
           return tool.definition();
         })
-      : this.registry.definitions();
+      : this.registry.getTools();
 
     // Clone history and add new user message
     const currentHistory: Message[] = [
@@ -205,7 +205,7 @@ export class AgentRunner {
 
         const toolResults = await Promise.all(
           toolCalls.map(async (call) => {
-            const tool = this.registry.get(call.name);
+            const tool = this.registry.getTool(call.name);
             if (!tool) {
               return { call, result: `Error: Tool '${call.name}' not found.` };
             }

@@ -56,7 +56,7 @@ describe("BuiltInAIAdapter", () => {
     it("always returns empty toolCalls", async () => {
       const response = await adapter.generate({
         messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
-        tools: [{ name: "myTool", description: "does stuff", parameters: {} }],
+        tools: [{ name: "myTool", description: "does stuff", parameters: {}, scope: "read" as const }],
       });
 
       expect(response.toolCalls).toEqual([]);
@@ -66,7 +66,7 @@ describe("BuiltInAIAdapter", () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       await adapter.generate({
         messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
-        tools: [{ name: "t", description: "d", parameters: {} }],
+        tools: [{ name: "t", description: "d", parameters: {}, scope: "read" as const }],
       });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("tool calling is not supported"));
     });
@@ -262,7 +262,7 @@ describe("BuiltInAIAdapter", () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       await collect({
         messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
-        tools: [{ name: "t", description: "d", parameters: {} }],
+        tools: [{ name: "t", description: "d", parameters: {}, scope: "read" as const }],
       });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("tool calling is not supported"));
     });

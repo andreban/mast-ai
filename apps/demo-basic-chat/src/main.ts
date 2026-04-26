@@ -26,7 +26,7 @@ const agentConfig = createAgent({
 
 document.querySelector<HTMLElement>('#version')!.textContent = `v${VERSION}`;
 const toolsList = document.querySelector<HTMLUListElement>('#tools-list')!;
-for (const { name } of registry.definitions()) {
+for (const { name } of registry.getTools()) {
   const li = document.createElement('li');
   const code = document.createElement('code');
   code.textContent = name;

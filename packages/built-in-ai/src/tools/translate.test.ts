@@ -39,7 +39,7 @@ describe("TranslateTool", () => {
       await expect(TranslateTool.addToRegistry(registry)).rejects.toThrow(
         "not supported in this browser",
       );
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
 
       vi.stubGlobal("Translator", { create: mockCreate, availability: mockAvailability });
     });
@@ -47,8 +47,8 @@ describe("TranslateTool", () => {
     it("registers the tool immediately without creating a session", async () => {
       await TranslateTool.addToRegistry(registry);
 
-      expect(registry.definitions()).toHaveLength(1);
-      expect(registry.definitions()[0].name).toBe("translate");
+      expect(registry.getTools()).toHaveLength(1);
+      expect(registry.getTools()[0].name).toBe("translate");
       expect(mockCreate).not.toHaveBeenCalled();
     });
   });
@@ -56,7 +56,7 @@ describe("TranslateTool", () => {
   describe("call()", () => {
     it("rejects with AdapterError when Translator global is absent", async () => {
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       vi.stubGlobal("Translator", undefined);
       await expect(
@@ -70,7 +70,7 @@ describe("TranslateTool", () => {
       mockAvailability.mockResolvedValue("unavailable");
 
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       await expect(
         tool.call({ text: "hello", sourceLanguage: "en", targetLanguage: "xx" }, {}),
@@ -83,7 +83,7 @@ describe("TranslateTool", () => {
       mockCreate.mockResolvedValue(session);
 
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       const result = await tool.call(
         { text: "hello", sourceLanguage: "en", targetLanguage: "fr" },
@@ -97,7 +97,7 @@ describe("TranslateTool", () => {
       const onDownloadProgress = vi.fn();
 
       await TranslateTool.addToRegistry(registry, { onDownloadProgress });
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       await tool.call({ text: "hello", sourceLanguage: "en", targetLanguage: "fr" }, {});
 
@@ -122,7 +122,7 @@ describe("TranslateTool", () => {
 
       const onDownloadProgress = vi.fn();
       await TranslateTool.addToRegistry(registry, { onDownloadProgress });
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       await tool.call({ text: "hello", sourceLanguage: "en", targetLanguage: "fr" }, {});
 
@@ -139,7 +139,7 @@ describe("TranslateTool", () => {
 
     it("reuses a cached session for the same language pair", async () => {
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       await tool.call({ text: "hello", sourceLanguage: "en", targetLanguage: "fr" }, {});
       await tool.call({ text: "world", sourceLanguage: "en", targetLanguage: "fr" }, {});
@@ -149,7 +149,7 @@ describe("TranslateTool", () => {
 
     it("creates separate sessions for different language pairs", async () => {
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       await tool.call({ text: "hello", sourceLanguage: "en", targetLanguage: "fr" }, {});
       await tool.call({ text: "hello", sourceLanguage: "en", targetLanguage: "ja" }, {});
@@ -170,7 +170,7 @@ describe("TranslateTool", () => {
       mockCreate.mockResolvedValue(session);
 
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       const controller = new AbortController();
       await tool.call(
@@ -192,7 +192,7 @@ describe("TranslateTool", () => {
       mockCreate.mockRejectedValue(new DOMException("Aborted", "AbortError"));
 
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       await expect(
         tool.call(
@@ -214,7 +214,7 @@ describe("TranslateTool", () => {
       mockCreate.mockResolvedValue(session);
 
       await TranslateTool.addToRegistry(registry);
-      const tool = registry.get("translate")!;
+      const tool = registry.getTool("translate")!;
 
       await expect(
         tool.call({ text: "hello", sourceLanguage: "en", targetLanguage: "fr" }, {}),

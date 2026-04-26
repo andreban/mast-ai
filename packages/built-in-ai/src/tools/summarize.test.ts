@@ -43,7 +43,7 @@ describe("SummarizeTool", () => {
       await expect(SummarizeTool.addToRegistry(registry)).rejects.toThrow(
         "not supported in this browser",
       );
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
 
       vi.stubGlobal("Summarizer", { create: mockCreate, availability: mockAvailability });
     });
@@ -53,8 +53,8 @@ describe("SummarizeTool", () => {
       await flush();
 
       expect(mockCreate).toHaveBeenCalled();
-      expect(registry.definitions()).toHaveLength(1);
-      expect(registry.definitions()[0].name).toBe("summarize");
+      expect(registry.getTools()).toHaveLength(1);
+      expect(registry.getTools()[0].name).toBe("summarize");
     });
 
     it("resolves and registers tool in background when after-download", async () => {
@@ -66,7 +66,7 @@ describe("SummarizeTool", () => {
 
       const createOpts = mockCreate.mock.calls[0][0];
       expect(typeof createOpts.monitor).toBe("function");
-      expect(registry.definitions()).toHaveLength(1);
+      expect(registry.getTools()).toHaveLength(1);
     });
 
     it("resolves and registers tool in background when downloading", async () => {
@@ -76,7 +76,7 @@ describe("SummarizeTool", () => {
       await flush();
 
       expect(mockCreate).toHaveBeenCalled();
-      expect(registry.definitions()).toHaveLength(1);
+      expect(registry.getTools()).toHaveLength(1);
     });
 
     it("rejects with AdapterError when unavailable", async () => {
@@ -85,7 +85,7 @@ describe("SummarizeTool", () => {
       await expect(SummarizeTool.addToRegistry(registry)).rejects.toThrow(
         "unavailable on this device",
       );
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
     });
 
     it("fires onDownloadProgress callback when downloadprogress event fires", async () => {
@@ -128,7 +128,7 @@ describe("SummarizeTool", () => {
     it("resolves with the summary string", async () => {
       await SummarizeTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("summarize")!;
+      const tool = registry.getTool("summarize")!;
 
       const result = await tool.call({ text: "long text" }, {});
       expect(result).toBe("summary text");
@@ -137,7 +137,7 @@ describe("SummarizeTool", () => {
     it("reuses the cached instance when options match", async () => {
       await SummarizeTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("summarize")!;
+      const tool = registry.getTool("summarize")!;
 
       await tool.call({ text: "first" }, {});
       await tool.call({ text: "second" }, {});
@@ -152,7 +152,7 @@ describe("SummarizeTool", () => {
 
       await SummarizeTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("summarize")!;
+      const tool = registry.getTool("summarize")!;
 
       await tool.call({ text: "first" }, {});
       await tool.call({ text: "second", type: "tldr" }, {});
@@ -167,7 +167,7 @@ describe("SummarizeTool", () => {
 
       await SummarizeTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("summarize")!;
+      const tool = registry.getTool("summarize")!;
 
       const controller = new AbortController();
       await tool.call({ text: "text" }, { signal: controller.signal });
@@ -186,7 +186,7 @@ describe("SummarizeTool", () => {
 
       await SummarizeTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("summarize")!;
+      const tool = registry.getTool("summarize")!;
 
       await expect(tool.call({ text: "text" }, {})).rejects.toThrow("summarize failed");
     });

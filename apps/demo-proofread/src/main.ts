@@ -40,7 +40,7 @@ async function init() {
         statusBadge.textContent = `Downloading… ${pct}%`;
       },
     });
-    proofreadTool = registry.get('proofread')!;
+    proofreadTool = registry.getTool('proofread')!;
     console.log('[proofread-demo] Ready.');
     statusBadge.textContent = 'Available';
     statusBadge.className = 'status-badge available';

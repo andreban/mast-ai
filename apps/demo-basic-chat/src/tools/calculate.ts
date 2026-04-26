@@ -14,7 +14,8 @@ export class CalculatorTool implements Tool {
           expression: { type: 'string' }
         },
         required: ['expression']
-      }
+      },
+      scope: 'read' as const
     };
   }
 
