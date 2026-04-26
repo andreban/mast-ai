@@ -133,6 +133,7 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
         },
         required: ["text"],
       },
+      scope: 'read',
     };
   }
 

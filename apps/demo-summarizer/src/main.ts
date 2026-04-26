@@ -78,7 +78,7 @@ async function startRegistration() {
 function waitForTool(): Promise<void> {
   return new Promise((resolve) => {
     function check() {
-      if (registry.get('summarize')) {
+      if (registry.getTool('summarize')) {
         resolve();
       } else {
         setTimeout(check, 50);
@@ -105,7 +105,7 @@ async function handleSummarize() {
   const text = inputText.value.trim();
   if (!text) return;
 
-  const tool = registry.get('summarize');
+  const tool = registry.getTool('summarize');
   if (!tool) return;
 
   const args: SummarizeArgs = {

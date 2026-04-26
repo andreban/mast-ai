@@ -81,6 +81,7 @@ export class TranslateTool implements Tool<TranslateArgs, string> {
         },
         required: ["text", "sourceLanguage", "targetLanguage"],
       },
+      scope: 'read',
     };
   }
 

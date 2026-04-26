@@ -12,7 +12,8 @@ export class GetCurrentTimeTool implements Tool {
         type: 'object',
         properties: {},
         required: []
-      }
+      },
+      scope: 'read' as const
     };
   }
 

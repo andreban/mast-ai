@@ -88,6 +88,7 @@ export class DetectLanguageTool implements Tool<DetectLanguageArgs, LanguageDete
         },
         required: ["text"],
       },
+      scope: 'read',
     };
   }
 

@@ -88,7 +88,7 @@ describe("GoogleGenAIAdapter", () => {
       messages: [
         { role: "user", content: { type: "text", text: "Call tool" } },
       ],
-      tools: [{ name: "testTool", description: "desc", parameters: {} }],
+      tools: [{ name: "testTool", description: "desc", parameters: {}, scope: "read" as const }],
     });
 
     expect(response.toolCalls).toHaveLength(1);
@@ -242,7 +242,7 @@ describe("GoogleGenAIAdapter", () => {
 
       const chunks = await collectChunks({
         messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
-        tools: [{ name: "read", description: "reads", parameters: {} }],
+        tools: [{ name: "read", description: "reads", parameters: {}, scope: "read" as const }],
       });
 
       expect(chunks).toHaveLength(1);

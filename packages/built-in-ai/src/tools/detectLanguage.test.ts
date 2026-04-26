@@ -42,7 +42,7 @@ describe("DetectLanguageTool", () => {
       await expect(DetectLanguageTool.addToRegistry(registry)).rejects.toThrow(
         "not supported in this browser",
       );
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
 
       vi.stubGlobal("LanguageDetector", { create: mockCreate, availability: mockAvailability });
     });
@@ -52,8 +52,8 @@ describe("DetectLanguageTool", () => {
       await flush();
 
       expect(mockCreate).toHaveBeenCalled();
-      expect(registry.definitions()).toHaveLength(1);
-      expect(registry.definitions()[0].name).toBe("detectLanguage");
+      expect(registry.getTools()).toHaveLength(1);
+      expect(registry.getTools()[0].name).toBe("detectLanguage");
     });
 
     it("resolves and registers tool in background when after-download", async () => {
@@ -65,7 +65,7 @@ describe("DetectLanguageTool", () => {
 
       const createOpts = mockCreate.mock.calls[0][0];
       expect(typeof createOpts.monitor).toBe("function");
-      expect(registry.definitions()).toHaveLength(1);
+      expect(registry.getTools()).toHaveLength(1);
     });
 
     it("resolves and registers tool in background when downloading", async () => {
@@ -75,7 +75,7 @@ describe("DetectLanguageTool", () => {
       await flush();
 
       expect(mockCreate).toHaveBeenCalled();
-      expect(registry.definitions()).toHaveLength(1);
+      expect(registry.getTools()).toHaveLength(1);
     });
 
     it("rejects with AdapterError when unavailable", async () => {
@@ -84,7 +84,7 @@ describe("DetectLanguageTool", () => {
       await expect(DetectLanguageTool.addToRegistry(registry)).rejects.toThrow(
         "unavailable on this device",
       );
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
     });
 
     it("fires onDownloadProgress callback when downloadprogress event fires", async () => {
@@ -115,7 +115,7 @@ describe("DetectLanguageTool", () => {
       await DetectLanguageTool.addToRegistry(registry);
       await flush();
 
-      expect(registry.definitions()).toHaveLength(0);
+      expect(registry.getTools()).toHaveLength(0);
     });
   });
 
@@ -134,7 +134,7 @@ describe("DetectLanguageTool", () => {
     it("resolves with the top detection result", async () => {
       await DetectLanguageTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("detectLanguage")!;
+      const tool = registry.getTool("detectLanguage")!;
 
       const result = await tool.call({ text: "Hello world" }, {});
       expect(result).toEqual({ detectedLanguage: "en", confidence: 0.97 });
@@ -143,7 +143,7 @@ describe("DetectLanguageTool", () => {
     it("reuses the cached session across calls", async () => {
       await DetectLanguageTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("detectLanguage")!;
+      const tool = registry.getTool("detectLanguage")!;
 
       await tool.call({ text: "first" }, {});
       await tool.call({ text: "second" }, {});
@@ -157,7 +157,7 @@ describe("DetectLanguageTool", () => {
 
       await DetectLanguageTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("detectLanguage")!;
+      const tool = registry.getTool("detectLanguage")!;
 
       const controller = new AbortController();
       await tool.call({ text: "text" }, { signal: controller.signal });
@@ -174,7 +174,7 @@ describe("DetectLanguageTool", () => {
 
       await DetectLanguageTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("detectLanguage")!;
+      const tool = registry.getTool("detectLanguage")!;
 
       const result = await tool.call({ text: "???" }, {});
       expect(result).toEqual({ detectedLanguage: null, confidence: 0 });
@@ -188,7 +188,7 @@ describe("DetectLanguageTool", () => {
 
       await DetectLanguageTool.addToRegistry(registry);
       await flush();
-      const tool = registry.get("detectLanguage")!;
+      const tool = registry.getTool("detectLanguage")!;
 
       await expect(tool.call({ text: "text" }, {})).rejects.toThrow("detect failed");
     });
