@@ -146,7 +146,7 @@ apps/demo-rust-server/src/
 
 Before starting work on a feature, check its subdirectory in `docs/` for context. When creating docs for a new feature, create a subdirectory under `docs/` and write a `PRD.md` and `SPEC.md` there.
 
-**PRD.md and SPEC.md must be kept up to date throughout implementation.** Any change to requirements, technical decisions, or architecture must be reflected in the relevant doc before or alongside the code change. Both files must be current before opening a pull request.
+**All PRD.md and SPEC.md files — both the library-level ones and every feature subdirectory — must be kept up to date throughout implementation.** Any change to requirements, technical decisions, or architecture must be reflected in the relevant doc before or alongside the code change. Both files must be current before opening a pull request.
 
 ## GitHub Issues
 
