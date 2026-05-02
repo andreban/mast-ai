@@ -11,6 +11,8 @@ export interface ToolDefinition {
   parameters: Record<string, unknown>;
   /** Whether the tool reads or modifies state. Used for scope-based filtering. */
   scope: 'read' | 'write';
+  /** When true, the tool author declares this tool is sensitive and requires human confirmation before executing. */
+  requiresApproval?: boolean;
 }
 
 /** Runtime context passed to every {@link Tool.call} invocation. */
