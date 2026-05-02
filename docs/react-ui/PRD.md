@@ -40,6 +40,7 @@ by hundreds of lines of app-specific boilerplate that cannot be shared.
 ## 4. User Stories
 
 ### 4.1 Zero-config chat panel
+
 > As a developer who has an `AgentRunner` and a tool registry, I want to render a full
 > chat panel by adding a single component, without configuring any styling system.
 
@@ -50,6 +51,7 @@ by hundreds of lines of app-specific boilerplate that cannot be shared.
 ```
 
 ### 4.2 Custom layout with library primitives
+
 > As a developer building a text editor, I want a floating chat sidebar that shares
 > the same message rendering logic as the default panel, but with my own layout and
 > header chrome.
@@ -64,6 +66,7 @@ by hundreds of lines of app-specific boilerplate that cannot be shared.
 ```
 
 ### 4.3 Fully headless custom UI
+
 > As a developer whose app already uses a design system, I want access to the streaming
 > state and message data via a hook so I can render everything myself without any library
 > styles conflicting with mine.
@@ -76,17 +79,17 @@ function MyAgentPanel() {
 ```
 
 ### 4.4 Custom tool call rendering
+
 > As a developer whose tools have rich results (images, charts, code diffs), I want to
 > replace the default tool call block with my own renderer while keeping everything else
 > from the library.
 
 ```tsx
-<ConversationPanel
-  renderToolCall={(toolCall) => <MyRichToolCallRenderer toolCall={toolCall} />}
-/>
+<ConversationPanel renderToolCall={(toolCall) => <MyRichToolCallRenderer toolCall={toolCall} />} />
 ```
 
 ### 4.5 Conversation persistence
+
 > As a developer building a multi-session app, I want to save the conversation after
 > each turn and restore it on the next page load so users can continue where they left off.
 
@@ -111,6 +114,7 @@ function MyAgentPanel() {
 ```
 
 ### 4.6 Approval callback
+
 > As a developer whose agent uses tools that require human confirmation, I want to
 > hook into the approval flow so I can render my own confirmation UI before the tool
 > executes.
@@ -150,9 +154,9 @@ function MyAgentPanel() {
 
 ## 6. Risks & Mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| CSS conflicts with consuming app | Namespace all default classes with `mast-` prefix; use CSS custom properties scoped to `[data-mast]` so they don't bleed |
-| `react-markdown` adds weight | Make it optional; `renderMessage` prop lets apps supply their own renderer |
-| Streaming state logic diverges from core | Keep all streaming wiring in one `useAgentStream` internal hook derived directly from `AgentEvent` types |
-| API surface locks in early design | Keep `ConversationPanel` as a thin compositor over exported primitives; breaking the top-level API is tolerable if primitives remain stable |
+| Risk                                     | Mitigation                                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSS conflicts with consuming app         | Namespace all default classes with `mast-` prefix; use CSS custom properties scoped to `[data-mast]` so they don't bleed                    |
+| `react-markdown` adds weight             | Make it optional; `renderMessage` prop lets apps supply their own renderer                                                                  |
+| Streaming state logic diverges from core | Keep all streaming wiring in one `useAgentStream` internal hook derived directly from `AgentEvent` types                                    |
+| API surface locks in early design        | Keep `ConversationPanel` as a thin compositor over exported primitives; breaking the top-level API is tolerable if primitives remain stable |

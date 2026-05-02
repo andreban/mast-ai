@@ -12,6 +12,7 @@ Set up the two new workspace members so the monorepo builds end-to-end with the 
 packages present but empty.
 
 **`packages/react-ui`**
+
 - `package.json`: name, peer deps (`react`, `react-dom`, `@mast-ai/core`,
   `@tanstack/react-virtual`), optional deps (`react-markdown`, `remark-gfm`,
   `rehype-sanitize`), dev deps (Vite, Vitest, `@testing-library/react`,
@@ -23,6 +24,7 @@ packages present but empty.
 - `styles/default.css`: empty
 
 **`apps/demo-react-ui`**
+
 - Vite + React + TypeScript app, `package.json` with workspace deps
   (`@mast-ai/react-ui`, `@mast-ai/google-genai`, `lucide-react`,
   `react-markdown`, `remark-gfm`, `rehype-sanitize`)
@@ -39,13 +41,16 @@ The streaming state machine is the heart of the library. Ship it fully tested be
 any component depends on it.
 
 **`packages/react-ui/src/types.ts`**
+
 - `ConversationEntry`, `ToolEventEntry`, `IconMap` (as specified in SPEC §3 and §6.3)
 
 **`packages/react-ui/src/hooks/useAgentStream.ts`**
+
 - Subscribes to `AgentEvent` stream from a `Conversation` instance
 - Builds and maintains `ConversationEntry[]` per the state table in SPEC §8
 
 **`src/hooks/useAgentStream.test.ts`**
+
 - All scenarios from SPEC §11.2: text streaming, thinking, tool call lifecycle,
   sub-agent thinking and text via `onToolEvent`, sub-agent `done` ignored,
   concurrent tool calls, `done`, error/cancel, new turn sequencing
@@ -61,11 +66,13 @@ No demo wiring — the hook is internal and cannot be used without `AgentProvide
 ## Issue 3 — `AgentProvider` and `useAgent` hook
 
 **`packages/react-ui/src/context.tsx`**
+
 - `AgentProvider`: creates a `Conversation` from `runner.conversation(agent)`,
   invokes `useAgentStream`, exposes state via `AgentContext`
 - `useAgent()`: reads context, throws with a clear message if called outside the provider
 
 **`src/context.test.tsx`**
+
 - `useAgent()` throws outside provider
 - `useAgent()` returns `{ messages, sendMessage, cancel, isRunning, reset }`
 - `reset()` clears entries and creates a fresh `Conversation`
@@ -73,6 +80,7 @@ No demo wiring — the hook is internal and cannot be used without `AgentProvide
 Exported from `src/index.ts`.
 
 **`apps/demo-react-ui`** — first functional wiring:
+
 - `src/tools.ts`: `get_current_time` tool (returns `new Date().toISOString()`)
 - `App.tsx`: wrap with `AgentProvider` (using `GoogleGenAIAdapter` + `VITE_GEMINI_API_KEY`),
   register `get_current_time`, render a minimal custom UI with `useAgent()`:
@@ -86,15 +94,18 @@ Exported from `src/index.ts`.
 ## Issue 4 — Icon system
 
 **`packages/react-ui/src/icons.tsx`**
+
 - Six hand-authored inline SVG components (brain, wrench, check, loader, send, stop)
 - `IconContext` and `useIcons()` internal hook
 - `IconMap` type (re-exported from `src/index.ts`)
 - `icons` prop wired into `AgentProvider` (update `AgentProviderProps`)
 
 **`src/context.test.tsx`** (extend)
+
 - Custom icon node from `icons` prop is rendered in place of bundled default
 
 **`apps/demo-react-ui`**
+
 - Pass all six `lucide-react` icon slots via the `icons` prop on `AgentProvider`
 
 **Depends on:** Issue 3
@@ -104,6 +115,7 @@ Exported from `src/index.ts`.
 ## Issue 5 — `ThinkingBlock` and `ToolCallBlock`
 
 Sub-issues:
+
 - **5a — `ThinkingBlock`**: `<details>/<summary>` element, pulsing indicator when
   `isStreaming`, uses `brain` icon from `useIcons()`. Tests: collapsed by default,
   expands on click, pulse indicator present/absent.
@@ -115,6 +127,7 @@ Sub-issues:
   tools.
 
 **`apps/demo-react-ui`**
+
 - Replace raw tool-call rendering in `App.tsx` with `ThinkingBlock` and `ToolCallBlock`
 
 **Depends on:** Issue 4
@@ -134,6 +147,7 @@ No dedicated tests beyond what Issue 5 already covers; component correctness is
 verified through `MessageList` tests in Issue 8.
 
 **`apps/demo-react-ui`**
+
 - Replace per-entry rendering in `App.tsx` with `UserMessage` and `AssistantMessage`
 
 **Depends on:** Issue 5
@@ -143,6 +157,7 @@ verified through `MessageList` tests in Issue 8.
 ## Issue 7 — `ChatInput`
 
 **`packages/react-ui/src/components/ChatInput.tsx`**
+
 - Textarea that grows with content
 - Enter submits, Shift+Enter inserts newline
 - Send button → calls `sendMessage`; swaps to cancel button while `isRunning`
@@ -150,10 +165,12 @@ verified through `MessageList` tests in Issue 8.
 - Accepts `sendLabel`, `cancelLabel`, `placeholder`, `className` props
 
 **`src/components/ChatInput.test.tsx`**
+
 - All scenarios from SPEC §11.2: Enter submits, Shift+Enter does not, cancel button
   appears while running
 
 **`apps/demo-react-ui`**
+
 - Replace the raw `<textarea>` + `<button>`s in `App.tsx` with `ChatInput`
 
 **Depends on:** Issue 4 (icons), Issue 3 (useAgent)
@@ -163,6 +180,7 @@ verified through `MessageList` tests in Issue 8.
 ## Issue 8 — `MessageList` with virtual scrolling
 
 **`packages/react-ui/src/components/MessageList.tsx`**
+
 - `useVirtualizer` from `@tanstack/react-virtual` with `measureElement` for dynamic
   item heights
 - `useEffect` that scrolls to the bottom when `entries.length` grows or the last
@@ -171,9 +189,11 @@ verified through `MessageList` tests in Issue 8.
 - Accepts `renderToolCall` and `renderMessage` override props
 
 **`src/components/MessageList.test.tsx`**
+
 - Renders user and assistant entries; scrolls to bottom on new entry
 
 **`apps/demo-react-ui`**
+
 - Replace the raw `<ul>` in `App.tsx` with `MessageList`
 
 **Depends on:** Issue 6
@@ -183,17 +203,20 @@ verified through `MessageList` tests in Issue 8.
 ## Issue 9 — `ConversationPanel` and default CSS
 
 **`packages/react-ui/src/components/ConversationPanel.tsx`**
+
 - Thin compositor: renders `MessageList` + `ChatInput` inside a `[data-mast-root]` div
 - Accepts `theme`, `className`, `renderToolCall`, `renderMessage`, `inputPlaceholder`
 - Sets `data-mast-theme` attribute from `theme` prop
 
 **`styles/default.css`**
+
 - Full light theme (CSS custom properties on `[data-mast-root]`)
 - `prefers-color-scheme: dark` block
 - `[data-mast-theme="dark"]` explicit override block
 - All `mast-*` class rules for every component
 
 **`apps/demo-react-ui`**
+
 - Replace `MessageList` + `ChatInput` in `App.tsx` with `ConversationPanel`
 - Import `@mast-ai/react-ui/styles.css`
 - Add a dark mode toggle button that sets the `theme` prop on `ConversationPanel`
@@ -236,11 +259,13 @@ needsApproval = (def.requiresApproval || overrideSet.has(name)) && !suppressSet.
 ```
 
 **`src/approval.test.tsx`**
+
 - All six scenarios from SPEC §11.2: `requiresApproval: true` triggers callback;
   callback returns `false` / `string` / `true`; `approvalOverride` adds and suppresses;
   no callback → silent execution.
 
 **`apps/demo-react-ui`**
+
 - Add `get_page_title` tool to `src/tools.ts` (returns `document.title`, marked
   `requiresApproval: true`)
 - Register `get_page_title` and wire `onApprovalRequired` to `window.confirm`
@@ -254,14 +279,17 @@ needsApproval = (def.requiresApproval || overrideSet.has(name)) && !suppressSet.
 Extends `AgentProvider` with save/load hooks.
 
 **`AgentProviderProps` additions**
+
 - `initialHistory?: Message[]` — seeds `Conversation.history` before the first turn
 - `initialEntries?: ConversationEntry[]` — seeds the UI entry list on mount
 - `onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void` — fired after each completed turn
 
 **`useAgent()` addition**
+
 - `history: Message[]` — live reference to the underlying `Conversation.history`
 
 **`src/context.test.tsx`** (extend)
+
 - `onConversationChange` fires after `done`; not fired on cancel or error
 - `initialHistory` is set on the `Conversation` before the first run
 - `initialEntries` populates `messages` immediately on mount
@@ -269,6 +297,7 @@ Extends `AgentProvider` with save/load hooks.
 - `useAgent().history` reflects current core state
 
 **`apps/demo-react-ui`**
+
 - Wire `onConversationChange` to persist `history` and `entries` to `localStorage`
 - Pass `initialHistory` and `initialEntries` loaded from `localStorage` on startup
 
@@ -295,6 +324,7 @@ polish before the library is considered complete.
 ## Issue 13 — Post-implementation deliverables
 
 Sub-issues:
+
 - **13a — Developer documentation**: `docs/react-ui/USAGE.md` covering all topics
   from SPEC §13.1
 - **13b — Skill update**: add `@mast-ai/react-ui` to `skills/mast-ai/SKILL.md`,
