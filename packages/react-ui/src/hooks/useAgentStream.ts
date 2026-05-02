@@ -10,7 +10,11 @@ import type { ConversationEntry, ToolEventEntry } from '../types';
 // Private helpers
 // ---------------------------------------------------------------------------
 
-function makeEntry(role: 'user' | 'assistant', text: string, isStreaming: boolean): ConversationEntry {
+function makeEntry(
+  role: 'user' | 'assistant',
+  text: string,
+  isStreaming: boolean,
+): ConversationEntry {
   return { id: crypto.randomUUID(), role, text, toolEvents: [], isStreaming };
 }
 
@@ -94,6 +98,15 @@ export interface UseAgentStreamReturn {
    * Has no effect when `isRunning` is false.
    */
   cancel: () => void;
+
+  /**
+   * Aborts any in-flight run and clears all conversation entries.
+   *
+   * Note that this only resets the UI rendering state owned by this hook. It
+   * does not clear the underlying `Conversation.history`; callers wanting to
+   * start a fresh conversation should also replace the `Conversation` instance.
+   */
+  reset: () => void;
 }
 
 /**
@@ -242,5 +255,12 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
     abortRef.current?.abort();
   }, []);
 
-  return { entries, isRunning, sendMessage, cancel };
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setEntries([]);
+    setIsRunning(false);
+  }, []);
+
+  return { entries, isRunning, sendMessage, cancel, reset };
 }
