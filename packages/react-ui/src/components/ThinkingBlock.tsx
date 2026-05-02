@@ -18,6 +18,13 @@ export interface ThinkingBlockProps {
   className?: string;
   /** Header label. Default: `'Thinking Process'`. */
   label?: string;
+  /**
+   * When provided, controls the `open` attribute on the root `<details>`
+   * element. Useful for auto-expanding the block while streaming and letting
+   * it collapse afterwards (e.g. inside `<ToolCallBlock>`). When omitted, the
+   * block defaults to collapsed and is toggled by the user.
+   */
+  open?: boolean;
 }
 
 /**
@@ -33,6 +40,7 @@ export function ThinkingBlock({
   isStreaming = false,
   className,
   label = 'Thinking Process',
+  open,
 }: ThinkingBlockProps) {
   const icons = useIcons();
   const rootClass = ['mast-thinking-block', className].filter(Boolean).join(' ');
@@ -42,6 +50,7 @@ export function ThinkingBlock({
       data-mast-thinking-block
       data-streaming={isStreaming ? 'true' : undefined}
       className={rootClass}
+      open={open}
     >
       <summary className="mast-thinking-block-summary">
         <span className="mast-thinking-block-icon" aria-hidden="true">

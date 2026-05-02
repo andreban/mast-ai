@@ -8,3 +8,5 @@ export { AgentProvider, useAgent } from './context';
 export type { AgentProviderProps, UseAgentReturn } from './context';
 export { ThinkingBlock } from './components/ThinkingBlock';
 export type { ThinkingBlockProps } from './components/ThinkingBlock';
+export { ToolCallBlock } from './components/ToolCallBlock';
+export type { ToolCallBlockProps } from './components/ToolCallBlock';
