@@ -8,6 +8,7 @@ export * from './types';
 export * from './error';
 export * from './tool';
 export * from './agent';
+export * from './agentTool';
 export * from './runner';
 export * from './conversation';
 
