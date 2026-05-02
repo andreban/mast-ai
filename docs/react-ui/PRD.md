@@ -86,7 +86,31 @@ function MyAgentPanel() {
 />
 ```
 
-### 4.5 Approval callback
+### 4.5 Conversation persistence
+> As a developer building a multi-session app, I want to save the conversation after
+> each turn and restore it on the next page load so users can continue where they left off.
+
+```tsx
+// Save
+<AgentProvider
+  runner={runner}
+  agent={agentConfig}
+  onConversationChange={(history, entries) => {
+    localStorage.setItem('history', JSON.stringify(history));
+    localStorage.setItem('entries', JSON.stringify(entries));
+  }}
+>
+
+// Restore
+<AgentProvider
+  runner={runner}
+  agent={agentConfig}
+  initialHistory={JSON.parse(localStorage.getItem('history') ?? '[]')}
+  initialEntries={JSON.parse(localStorage.getItem('entries') ?? '[]')}
+>
+```
+
+### 4.6 Approval callback
 > As a developer whose agent uses tools that require human confirmation, I want to
 > hook into the approval flow so I can render my own confirmation UI before the tool
 > executes.
@@ -116,8 +140,8 @@ function MyAgentPanel() {
    `ToolCallBlock`, `ChatInput`) is importable individually for compositional use.
 6. All interactive elements (send button, collapsible blocks) meet WCAG 2.1 AA
    keyboard-navigation and ARIA requirements.
-7. The streaming state machine (`useAgentStream`), approval flow, and all interactive
-   components have unit tests that pass in CI.
+7. The streaming state machine (`useAgentStream`), approval flow, conversation
+   persistence, and all interactive components have unit tests that pass in CI.
 8. A working demo app (`apps/demo-react-ui`) ships alongside the library demonstrating
    the default setup with `@mast-ai/google-genai`, custom icons via `lucide-react`, and
    at least two registered tools.

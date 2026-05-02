@@ -146,6 +146,9 @@ export interface ToolEventEntry {
   name: string;
   args?: unknown;
   result?: unknown;
+  subThinking?: string;  // accumulated thinking streamed from inside the tool/sub-agent
+  subText?: string;      // accumulated text streamed from inside the tool/sub-agent
+  isStreaming: boolean;  // true while the tool is executing
 }
 
 export interface ConversationEntry {
@@ -196,6 +199,27 @@ interface AgentProviderProps {
    * Example: approvalOverride={['extra_tool', '!safe_tool']}
    */
   approvalOverride?: string[];
+
+  /**
+   * Seed the conversation with a previously saved Message[] history.
+   * The history is set on the underlying Conversation instance before the
+   * first turn, allowing the LLM to continue from where it left off.
+   */
+  initialHistory?: Message[];
+
+  /**
+   * Seed the UI rendering state with a previously saved ConversationEntry[].
+   * Use alongside initialHistory to fully restore a prior session.
+   */
+  initialEntries?: ConversationEntry[];
+
+  /**
+   * Called after each completed turn (not during streaming) with the latest
+   * core message history and UI entry list. Use this to persist the conversation
+   * to localStorage, IndexedDB, a server, or any other storage.
+   * Not called when a run is cancelled or errors before completion.
+   */
+  onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
 }
 ```
 
@@ -329,7 +353,7 @@ interface ThinkingBlockProps {
 
 ### 4.8 `<ToolCallBlock>`
 
-Displays a single tool invocation: name, collapsible args, and result once available.
+Displays a single tool invocation with live streaming of sub-agent output.
 
 ```tsx
 interface ToolCallBlockProps {
@@ -338,11 +362,15 @@ interface ToolCallBlockProps {
 }
 ```
 
-- Pending state (no `result` yet): shows a spinner indicator and `args` collapsed.
-- Completed state (`result` present): shows a check mark; `result` available in
-  expanded view.
-- Args and result are rendered as formatted JSON in a `<pre>` block.
-- Uses `<details>/<summary>` for expand/collapse.
+- **Streaming state** (`isStreaming: true`): spinner icon; `subThinking` rendered in a
+  collapsible `<ThinkingBlock>` that auto-expands while streaming; `subText` rendered
+  as live markdown below the thinking block.
+- **Completed state** (`isStreaming: false`): check mark icon; `subThinking` and
+  `subText` remain visible (collapsed by default); `result` available in expanded view
+  as formatted JSON.
+- Tools that are not sub-agents will have no `subThinking` or `subText`; they show
+  only the spinner → check transition and args/result.
+- Uses `<details>/<summary>` for args and result expand/collapse.
 
 ### 4.9 `<ChatInput>`
 
@@ -375,10 +403,11 @@ Access agent state from any component inside `<AgentProvider>`.
 ```typescript
 interface UseAgentReturn {
   messages: ConversationEntry[];
+  history: Message[];        // raw core Message[] — read this to imperatively save state
   sendMessage: (text: string) => void;
   cancel: () => void;
   isRunning: boolean;
-  reset: () => void;   // clears entries and starts a new Conversation
+  reset: () => void;         // clears entries and history; starts a new Conversation
 }
 
 function useAgent(): UseAgentReturn;
@@ -535,10 +564,14 @@ maintains `ConversationEntry[]` as follows:
 | Run starts | Append `{ role: 'assistant', text: '', isStreaming: true }` |
 | `text_delta` | Mutate last entry: append `delta` to `text` |
 | `thinking` | Mutate last entry: append `delta` to `thinking` |
-| `tool_call_started` | Mutate last entry: push `{ type: 'tool_call_started', name, args }` to `toolEvents` |
-| `tool_call_completed` | Mutate last entry: update matching `toolEvents` entry with `result` |
+| `tool_call_started` | Mutate last entry: push `{ type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents` |
+| `onToolEvent` → `thinking` | Mutate matching `ToolEventEntry`: append `delta` to `subThinking` |
+| `onToolEvent` → `text_delta` | Mutate matching `ToolEventEntry`: append `delta` to `subText` |
+| `tool_call_completed` | Mutate matching `ToolEventEntry`: set `result`, `isStreaming: false` |
 | `done` | Mutate last entry: set `text = output`, `isStreaming = false` |
 | Error / cancel | Mutate last entry: set `isStreaming = false`; optionally append error text |
+
+`onToolEvent` events are wired by passing an `onToolEvent` handler to `RunBuilder` inside `useAgentStream`. Events are matched to the correct `ToolEventEntry` by `toolName`. The `done` event from a sub-agent is ignored — the parent's `tool_call_completed` is the authoritative signal that a tool finished.
 
 State updates use `React.useState` with structural copies to trigger re-renders. The
 last entry's `isStreaming` flag drives the pulsing indicator in `<ThinkingBlock>` and
@@ -653,8 +686,11 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 |----------|-----------------|
 | Text streaming | `text_delta` events accumulate into the last entry's `text`; `isStreaming` is true during and false after |
 | Thinking streaming | `thinking` deltas accumulate into `thinking`; co-exists with text deltas |
-| Tool call lifecycle | `tool_call_started` appends a pending `ToolEventEntry`; `tool_call_completed` updates it with `result` |
-| Multiple concurrent tool calls | Each call tracked independently by name |
+| Tool call lifecycle | `tool_call_started` appends a pending `ToolEventEntry` with `isStreaming: true`; `tool_call_completed` sets `result` and `isStreaming: false` |
+| Sub-agent thinking | `onToolEvent` → `thinking` appends to matching `ToolEventEntry.subThinking` |
+| Sub-agent text | `onToolEvent` → `text_delta` appends to matching `ToolEventEntry.subText` |
+| Sub-agent `done` ignored | `onToolEvent` → `done` does not affect parent entry's `isStreaming` |
+| Multiple concurrent tool calls | Each call tracked independently by name; sub-agent events routed to correct entry |
 | `done` event | Sets `isStreaming: false`, finalises `text` from `output` |
 | Error / cancel | Sets `isStreaming: false` on the last entry; prior entries unchanged |
 | New turn while previous is complete | Appends a new entry rather than mutating the last |
@@ -670,6 +706,17 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 | `approvalOverride` suppresses with `!` | Tool with `requiresApproval: true` executes without prompting |
 | No `onApprovalRequired` provided | Tools with `requiresApproval: true` execute silently |
 
+**Conversation persistence**
+
+| Scenario | What is verified |
+|----------|-----------------|
+| `onConversationChange` fires | Called with current `history` and `entries` after `done` event |
+| Not called on cancel/error | Callback not invoked when run ends without `done` |
+| `initialHistory` seeds core history | First turn sent to runner includes the provided prior messages |
+| `initialEntries` seeds UI | Pre-existing entries render immediately on mount |
+| `reset()` clears both | After reset, `messages` is empty and `history` is empty |
+| `useAgent().history` reflects state | Returns the live `Conversation.history` after each turn |
+
 **Components**
 
 | Component | Scenarios tested |
@@ -683,17 +730,20 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 
 ### 11.3 File layout
 
+Test files live alongside their source, following the convention of the other packages
+in the monorepo.
+
 ```
-packages/react-ui/
-└── src/
-    └── __tests__/
-        ├── useAgentStream.test.ts
-        ├── approval.test.tsx
-        ├── ThinkingBlock.test.tsx
-        ├── ToolCallBlock.test.tsx
-        ├── ChatInput.test.tsx
-        ├── MessageList.test.tsx
-        └── AgentProvider.test.tsx
+packages/react-ui/src/
+├── context.test.tsx
+├── approval.test.tsx
+├── hooks/
+│   └── useAgentStream.test.ts
+└── components/
+    ├── ThinkingBlock.test.tsx
+    ├── ToolCallBlock.test.tsx
+    ├── ChatInput.test.tsx
+    └── MessageList.test.tsx
 ```
 
 ---
