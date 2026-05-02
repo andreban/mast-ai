@@ -52,6 +52,8 @@ any component depends on it.
 
 Exported from `src/index.ts`.
 
+No demo wiring — the hook is internal and cannot be used without `AgentProvider`.
+
 **Depends on:** Issue 1
 
 ---
@@ -70,6 +72,13 @@ Exported from `src/index.ts`.
 
 Exported from `src/index.ts`.
 
+**`apps/demo-react-ui`** — first functional wiring:
+- `src/tools.ts`: `get_current_time` tool (returns `new Date().toISOString()`)
+- `App.tsx`: wrap with `AgentProvider` (using `GoogleGenAIAdapter` + `VITE_GEMINI_API_KEY`),
+  register `get_current_time`, render a minimal custom UI with `useAgent()`:
+  raw `<ul>` of entries (text only) + `<textarea>` + send/cancel `<button>`s
+- The demo is now a functional end-to-end chat, albeit unstyled
+
 **Depends on:** Issue 2
 
 ---
@@ -84,6 +93,9 @@ Exported from `src/index.ts`.
 
 **`src/context.test.tsx`** (extend)
 - Custom icon node from `icons` prop is rendered in place of bundled default
+
+**`apps/demo-react-ui`**
+- Pass all six `lucide-react` icon slots via the `icons` prop on `AgentProvider`
 
 **Depends on:** Issue 3
 
@@ -102,6 +114,9 @@ Sub-issues:
   all three states rendered correctly; `subThinking` and `subText` absent for plain
   tools.
 
+**`apps/demo-react-ui`**
+- Replace raw tool-call rendering in `App.tsx` with `ThinkingBlock` and `ToolCallBlock`
+
 **Depends on:** Issue 4
 
 ---
@@ -117,6 +132,9 @@ Sub-issues:
 
 No dedicated tests beyond what Issue 5 already covers; component correctness is
 verified through `MessageList` tests in Issue 8.
+
+**`apps/demo-react-ui`**
+- Replace per-entry rendering in `App.tsx` with `UserMessage` and `AssistantMessage`
 
 **Depends on:** Issue 5
 
@@ -135,6 +153,9 @@ verified through `MessageList` tests in Issue 8.
 - All scenarios from SPEC §11.2: Enter submits, Shift+Enter does not, cancel button
   appears while running
 
+**`apps/demo-react-ui`**
+- Replace the raw `<textarea>` + `<button>`s in `App.tsx` with `ChatInput`
+
 **Depends on:** Issue 4 (icons), Issue 3 (useAgent)
 
 ---
@@ -152,6 +173,9 @@ verified through `MessageList` tests in Issue 8.
 **`src/components/MessageList.test.tsx`**
 - Renders user and assistant entries; scrolls to bottom on new entry
 
+**`apps/demo-react-ui`**
+- Replace the raw `<ul>` in `App.tsx` with `MessageList`
+
 **Depends on:** Issue 6
 
 ---
@@ -168,6 +192,11 @@ verified through `MessageList` tests in Issue 8.
 - `prefers-color-scheme: dark` block
 - `[data-mast-theme="dark"]` explicit override block
 - All `mast-*` class rules for every component
+
+**`apps/demo-react-ui`**
+- Replace `MessageList` + `ChatInput` in `App.tsx` with `ConversationPanel`
+- Import `@mast-ai/react-ui/styles.css`
+- Add a dark mode toggle button that sets the `theme` prop on `ConversationPanel`
 
 **Depends on:** Issue 7, Issue 8
 
@@ -189,6 +218,8 @@ export interface ToolDefinition {
 No behaviour change in core — the field is metadata only at this stage. Update
 existing core tests to confirm the field is accepted without error.
 
+No demo wiring — the field has no visible effect until Issue 11.
+
 **Depends on:** (none — independent change)
 
 ---
@@ -208,6 +239,11 @@ needsApproval = (def.requiresApproval || overrideSet.has(name)) && !suppressSet.
 - All six scenarios from SPEC §11.2: `requiresApproval: true` triggers callback;
   callback returns `false` / `string` / `true`; `approvalOverride` adds and suppresses;
   no callback → silent execution.
+
+**`apps/demo-react-ui`**
+- Add `get_page_title` tool to `src/tools.ts` (returns `document.title`, marked
+  `requiresApproval: true`)
+- Register `get_page_title` and wire `onApprovalRequired` to `window.confirm`
 
 **Depends on:** Issue 3, Issue 10
 
@@ -232,23 +268,25 @@ Extends `AgentProvider` with save/load hooks.
 - `reset()` clears both `messages` and `history`
 - `useAgent().history` reflects current core state
 
+**`apps/demo-react-ui`**
+- Wire `onConversationChange` to persist `history` and `entries` to `localStorage`
+- Pass `initialHistory` and `initialEntries` loaded from `localStorage` on startup
+
 **Depends on:** Issue 3 (AgentProvider)
 
 ---
 
-## Issue 12 — Wire demo app
+## Issue 12 — Demo verification and polish
 
-Complete `apps/demo-react-ui` into a working reference implementation:
+By this point the demo has been wired progressively and should be fully functional.
+This issue is a dedicated pass to verify correctness end-to-end and add any remaining
+polish before the library is considered complete.
 
-- `AgentProvider` + `ConversationPanel` wired to `GoogleGenAIAdapter`
-  (key from `import.meta.env.VITE_GEMINI_API_KEY`)
-- `lucide-react` icons passed via `icons` prop (all six slots)
-- Two tools registered:
-  - `get_current_time`: returns `new Date().toISOString()`
-  - `get_page_title`: returns `document.title`, marked `requiresApproval: true`
-- `onApprovalRequired` wired to `window.confirm` for the demo
-- Dark mode toggle button sets `theme` prop on `ConversationPanel`
-- `onConversationChange` persists history and entries to `localStorage`; `initialHistory` and `initialEntries` restore them on page load
+- Manually verify all demo features work together: chat, tool calls, approval dialog,
+  dark mode toggle, conversation persistence across page reloads
+- Fix any integration issues discovered during manual testing
+- Clean up any temporary stubs or placeholder code left from earlier issues
+- Confirm `npm run build && npm run lint` still pass from the repo root
 
 **Depends on:** Issue 9, Issue 11, Issue 11b
 
