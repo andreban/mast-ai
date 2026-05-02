@@ -54,21 +54,21 @@ summarizer.destroy();
 
 ### Creation options
 
-| Option | Type | Default | Notes |
-|--------|------|---------|-------|
-| `type` | `'key-points' \| 'tl;dr' \| 'teaser' \| 'headline'` | `'key-points'` | Shape of the summary |
-| `format` | `'plain-text' \| 'markdown'` | `'plain-text'` | Output format |
-| `length` | `'short' \| 'medium' \| 'long'` | `'medium'` | Target length |
-| `sharedContext` | `string` | — | Domain context applied to every call on this instance |
-| `signal` | `AbortSignal` | — | Cancels creation |
-| `monitor` | `(m: EventTarget) => void` | — | Download progress |
+| Option          | Type                                                | Default        | Notes                                                 |
+| --------------- | --------------------------------------------------- | -------------- | ----------------------------------------------------- |
+| `type`          | `'key-points' \| 'tl;dr' \| 'teaser' \| 'headline'` | `'key-points'` | Shape of the summary                                  |
+| `format`        | `'plain-text' \| 'markdown'`                        | `'plain-text'` | Output format                                         |
+| `length`        | `'short' \| 'medium' \| 'long'`                     | `'medium'`     | Target length                                         |
+| `sharedContext` | `string`                                            | —              | Domain context applied to every call on this instance |
+| `signal`        | `AbortSignal`                                       | —              | Cancels creation                                      |
+| `monitor`       | `(m: EventTarget) => void`                          | —              | Download progress                                     |
 
 ### Per-call options
 
-| Option | Type | Notes |
-|--------|------|-------|
-| `context` | `string` | Per-call context hint to guide summarization |
-| `signal` | `AbortSignal` | Cancels this call |
+| Option    | Type          | Notes                                        |
+| --------- | ------------- | -------------------------------------------- |
+| `context` | `string`      | Per-call context hint to guide summarization |
+| `signal`  | `AbortSignal` | Cancels this call                            |
 
 ### Key design constraint
 
@@ -147,6 +147,7 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
 `addToRegistry` is the single entry point for registration. Before calling `Summarizer.availability()`, it must guard against the API being absent entirely — if the browser does not support the Summarizer API, `Summarizer` is `undefined` and calling any method on it throws a `ReferenceError`.
 
 **Step 1 — API existence check:**
+
 ```typescript
 if (typeof Summarizer === 'undefined') {
   throw new AdapterError('Summarizer API is not supported in this browser.');
@@ -155,10 +156,10 @@ if (typeof Summarizer === 'undefined') {
 
 **Step 2 — availability check.** It then handles all three meaningful availability states:
 
-| `Summarizer.availability()` | Behaviour |
-|-----------------------------|-----------|
-| `"unavailable"` | Rejects with `AdapterError("Summarizer API is unavailable on this device.")` |
-| `"readily"` | Calls `Summarizer.create()` with default options to prime the model into memory, caches the instance, then registers the tool. |
+| `Summarizer.availability()`          | Behaviour                                                                                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"unavailable"`                      | Rejects with `AdapterError("Summarizer API is unavailable on this device.")`                                                                        |
+| `"readily"`                          | Calls `Summarizer.create()` with default options to prime the model into memory, caches the instance, then registers the tool.                      |
 | `"after-download"` / `"downloading"` | Calls `Summarizer.create()` with a `monitor` to await the download. Once `create()` resolves, caches the resulting instance and registers the tool. |
 
 In all success paths, `addToRegistry` eagerly creates a summarizer session before registering. This primes the model into memory so the first `call()` is fast. The session is created with default options (`type`/`format`/`length` all unset) — if the first call arrives with different options, the instance will be recreated, but that recreation cost is small compared to the model cold-start it avoids. The returned `Promise<void>` from `addToRegistry` resolves only after the tool has been added to the registry.
@@ -192,15 +193,11 @@ Pass `context.signal` to both `Summarizer.create()` and `summarizer.summarize()`
 The Summarizer API is not in `lib.dom.d.ts`. Add the following to `packages/built-in-ai/src/types.ts`:
 
 ```typescript
-export type SummarizerAvailability =
-  | "readily"
-  | "after-download"
-  | "downloading"
-  | "unavailable";
+export type SummarizerAvailability = 'readily' | 'after-download' | 'downloading' | 'unavailable';
 
-export type SummarizerType = "key-points" | "tl;dr" | "teaser" | "headline";
-export type SummarizerFormat = "plain-text" | "markdown";
-export type SummarizerLength = "short" | "medium" | "long";
+export type SummarizerType = 'key-points' | 'tl;dr' | 'teaser' | 'headline';
+export type SummarizerFormat = 'plain-text' | 'markdown';
+export type SummarizerLength = 'short' | 'medium' | 'long';
 
 export interface SummarizerCreateOptions {
   type?: SummarizerType;
@@ -238,20 +235,20 @@ The Summarizer API only exists in supporting browsers; tests must mock it. Vites
 
 ### Cases to cover
 
-| Case | Expected behaviour |
-|------|--------------------|
-| `addToRegistry` — `Summarizer` global absent | Rejects with `AdapterError`; tool not registered |
-| `call()` — `Summarizer` global absent | Rejects with `AdapterError` |
-| `addToRegistry` — `"readily"` | `Summarizer.create` called with default options; tool is registered with pre-warmed instance |
-| `addToRegistry` — `"after-download"` | `Summarizer.create` called with monitor; resolves after mock create resolves; tool registered |
-| `addToRegistry` — `"downloading"` | Same as `"after-download"` |
-| `addToRegistry` — `"unavailable"` | Rejects with `AdapterError`; tool not registered |
-| `onDownloadProgress` callback | Mock `downloadprogress` event fires; callback receives `{ loaded, total }` |
-| `call()` happy path | Resolves with summary string |
-| `call()` — options match cached instance | `Summarizer.create` called only once across two calls |
-| `call()` — options differ | Cached instance destroyed; new one created |
-| `call()` — `context.signal` forwarded | Mock verifies signal passed to `summarize()` |
-| `call()` — `summarize()` throws | Error propagates from `call()` |
+| Case                                         | Expected behaviour                                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `addToRegistry` — `Summarizer` global absent | Rejects with `AdapterError`; tool not registered                                              |
+| `call()` — `Summarizer` global absent        | Rejects with `AdapterError`                                                                   |
+| `addToRegistry` — `"readily"`                | `Summarizer.create` called with default options; tool is registered with pre-warmed instance  |
+| `addToRegistry` — `"after-download"`         | `Summarizer.create` called with monitor; resolves after mock create resolves; tool registered |
+| `addToRegistry` — `"downloading"`            | Same as `"after-download"`                                                                    |
+| `addToRegistry` — `"unavailable"`            | Rejects with `AdapterError`; tool not registered                                              |
+| `onDownloadProgress` callback                | Mock `downloadprogress` event fires; callback receives `{ loaded, total }`                    |
+| `call()` happy path                          | Resolves with summary string                                                                  |
+| `call()` — options match cached instance     | `Summarizer.create` called only once across two calls                                         |
+| `call()` — options differ                    | Cached instance destroyed; new one created                                                    |
+| `call()` — `context.signal` forwarded        | Mock verifies signal passed to `summarize()`                                                  |
+| `call()` — `summarize()` throws              | Error propagates from `call()`                                                                |
 
 ---
 
@@ -360,12 +357,12 @@ await addAllBuiltInAITools(registry, {
 
 ## Files to Create / Modify
 
-| Path | Action |
-|------|--------|
-| `packages/built-in-ai/src/types.ts` | Add Summarizer API types |
-| `packages/built-in-ai/src/tools/summarize.ts` | Create |
-| `packages/built-in-ai/src/tools/summarize.test.ts` | Create |
-| `packages/built-in-ai/src/tools/index.ts` | Create |
-| `packages/built-in-ai/src/index.ts` | Add tool exports |
+| Path                                               | Action                   |
+| -------------------------------------------------- | ------------------------ |
+| `packages/built-in-ai/src/types.ts`                | Add Summarizer API types |
+| `packages/built-in-ai/src/tools/summarize.ts`      | Create                   |
+| `packages/built-in-ai/src/tools/summarize.test.ts` | Create                   |
+| `packages/built-in-ai/src/tools/index.ts`          | Create                   |
+| `packages/built-in-ai/src/index.ts`                | Add tool exports         |
 
 ---

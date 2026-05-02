@@ -70,7 +70,7 @@ export class UrpAdapter implements LlmAdapter {
     if (request.system) {
       urpRequest.messages = [
         { role: 'user', content: { type: 'text', text: request.system } },
-        ...request.messages
+        ...request.messages,
       ];
     }
 
@@ -84,11 +84,13 @@ export class UrpAdapter implements LlmAdapter {
 
     return {
       text: response.text_content,
-      toolCalls: response.tool_calls ? response.tool_calls.map(tc => ({
-        id: tc.id,
-        name: tc.name,
-        args: tc.arguments,
-      })) : [],
+      toolCalls: response.tool_calls
+        ? response.tool_calls.map((tc) => ({
+            id: tc.id,
+            name: tc.name,
+            args: tc.arguments,
+          }))
+        : [],
     };
   }
 

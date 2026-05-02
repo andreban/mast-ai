@@ -1,14 +1,14 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AdapterError } from "@mast-ai/core";
-import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from "@mast-ai/core";
+import { AdapterError } from '@mast-ai/core';
+import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from '@mast-ai/core';
 import type {
   SummarizerSession,
   SummarizerType,
   SummarizerFormat,
   SummarizerLength,
-} from "../types.js";
+} from '../types.js';
 
 /** Arguments passed by the model when invoking the `summarize` tool. */
 export interface SummarizeArgs {
@@ -54,21 +54,21 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
     registry: ToolRegistry,
     options?: SummarizeToolOptions,
   ): Promise<void> {
-    if (typeof Summarizer === "undefined") {
-      throw new AdapterError("Summarizer API is not supported in this browser.");
+    if (typeof Summarizer === 'undefined') {
+      throw new AdapterError('Summarizer API is not supported in this browser.');
     }
 
     const availability = await Summarizer.availability();
 
-    if (availability === "unavailable") {
-      throw new AdapterError("Summarizer API is unavailable on this device.");
+    if (availability === 'unavailable') {
+      throw new AdapterError('Summarizer API is unavailable on this device.');
     }
 
     const tool = new SummarizeTool();
 
     const monitor = options?.onDownloadProgress
       ? (m: EventTarget) => {
-          m.addEventListener("downloadprogress", (e) => {
+          m.addEventListener('downloadprogress', (e) => {
             const evt = e as ProgressEvent;
             options.onDownloadProgress!({ loaded: evt.loaded, total: evt.total });
           });
@@ -77,61 +77,62 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
 
     // Return immediately — session creation (including any download) happens in the background.
     // The tool is registered once the session is ready.
-    Summarizer.create({ monitor }).then((session) => {
-      tool.cached = { session, type: undefined, format: undefined, length: undefined };
-      registry.register(tool);
-    }).catch(() => {
-      // Background creation failed — tool remains unregistered.
-    });
+    Summarizer.create({ monitor })
+      .then((session) => {
+        tool.cached = { session, type: undefined, format: undefined, length: undefined };
+        registry.register(tool);
+      })
+      .catch(() => {
+        // Background creation failed — tool remains unregistered.
+      });
   }
 
   /** {@inheritDoc Tool.definition} */
   definition(): ToolDefinition {
     return {
-      name: "summarize",
+      name: 'summarize',
       description:
-        "Condense a long piece of text into a shorter form. " +
-        "Use when the user asks to summarize, shorten, or extract the key points of a document, " +
-        "article, or any other lengthy content.",
+        'Condense a long piece of text into a shorter form. ' +
+        'Use when the user asks to summarize, shorten, or extract the key points of a document, ' +
+        'article, or any other lengthy content.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           text: {
-            type: "string",
-            description: "The full text to summarize.",
+            type: 'string',
+            description: 'The full text to summarize.',
           },
           type: {
-            type: "string",
-            enum: ["key-points", "tldr", "teaser", "headline"],
+            type: 'string',
+            enum: ['key-points', 'tldr', 'teaser', 'headline'],
             description:
-              "Shape of the summary. " +
+              'Shape of the summary. ' +
               "'key-points' returns a bullet-point list of the main ideas (default). " +
               "'tldr' returns a short paragraph capturing the essence. " +
               "'teaser' returns an engaging excerpt meant to entice reading the full text. " +
               "'headline' returns a single-sentence title.",
           },
           format: {
-            type: "string",
-            enum: ["plain-text", "markdown"],
+            type: 'string',
+            enum: ['plain-text', 'markdown'],
             description:
               "Output format. Use 'markdown' when the result will be rendered; " +
               "'plain-text' otherwise. Defaults to 'plain-text'.",
           },
           length: {
-            type: "string",
-            enum: ["short", "medium", "long"],
+            type: 'string',
+            enum: ['short', 'medium', 'long'],
             description:
-              "Target length of the summary relative to the input. " +
-              "Defaults to 'medium'.",
+              'Target length of the summary relative to the input. ' + "Defaults to 'medium'.",
           },
           context: {
-            type: "string",
+            type: 'string',
             description:
               "Optional hint to guide the summarization, e.g. 'scientific paper', " +
               "'meeting transcript', or 'news article for a general audience'.",
           },
         },
-        required: ["text"],
+        required: ['text'],
       },
       scope: 'read',
     };
@@ -139,8 +140,8 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
 
   /** {@inheritDoc Tool.call} */
   async call(args: SummarizeArgs, context: ToolContext): Promise<string> {
-    if (typeof Summarizer === "undefined") {
-      throw new AdapterError("Summarizer API is not supported in this browser.");
+    if (typeof Summarizer === 'undefined') {
+      throw new AdapterError('Summarizer API is not supported in this browser.');
     }
 
     const session = await this.acquireSession(args, context);
@@ -150,7 +151,10 @@ export class SummarizeTool implements Tool<SummarizeArgs, string> {
     });
   }
 
-  private async acquireSession(args: SummarizeArgs, context: ToolContext): Promise<SummarizerSession> {
+  private async acquireSession(
+    args: SummarizeArgs,
+    context: ToolContext,
+  ): Promise<SummarizerSession> {
     if (
       this.cached &&
       this.cached.type === args.type &&

@@ -37,8 +37,8 @@ export interface AdapterResponse {
 /** A single chunk emitted by a streaming {@link LlmAdapter}. */
 export type AdapterStreamChunk =
   | { type: 'text_delta'; delta: string }
-  | { type: 'thinking';   delta: string }
-  | { type: 'tool_call';  toolCall: ToolCall };
+  | { type: 'thinking'; delta: string }
+  | { type: 'tool_call'; toolCall: ToolCall };
 
 /**
  * Adapter interface that bridges the runner to a specific LLM provider.

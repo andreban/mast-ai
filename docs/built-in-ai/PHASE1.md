@@ -16,23 +16,23 @@ Use `packages/google-genai/src/GoogleGenAIAdapter.ts` as the structural referenc
 // packages/core/src/adapter/index.ts
 
 export interface AdapterRequest {
-  messages: Message[];       // full conversation history
-  system?: string;           // system prompt
-  tools: ToolDefinition[];   // always empty for BuiltInAIAdapter (no tool support)
+  messages: Message[]; // full conversation history
+  system?: string; // system prompt
+  tools: ToolDefinition[]; // always empty for BuiltInAIAdapter (no tool support)
   outputSchema?: Record<string, unknown>;
   config?: ModelConfig;
   signal?: AbortSignal;
 }
 
 export interface AdapterResponse {
-  text?: string;             // undefined when tool calls were issued
-  toolCalls: ToolCall[];     // always [] for BuiltInAIAdapter
+  text?: string; // undefined when tool calls were issued
+  toolCalls: ToolCall[]; // always [] for BuiltInAIAdapter
 }
 
 export type AdapterStreamChunk =
   | { type: 'text_delta'; delta: string }
-  | { type: 'thinking';   delta: string }
-  | { type: 'tool_call';  toolCall: ToolCall };
+  | { type: 'thinking'; delta: string }
+  | { type: 'tool_call'; toolCall: ToolCall };
 
 export interface LlmAdapter {
   generate(request: AdapterRequest): Promise<AdapterResponse>;
@@ -91,11 +91,11 @@ MAST passes conversation history as `Message[]` and a separate `system` string. 
 
 **Proposed mapping:**
 
-| MAST | Prompt API |
-|------|-----------|
-| `request.system` | `{ role: "system", content: system }` as first entry in `initialPrompts` |
-| `request.messages` (all but last) | Remaining entries in `initialPrompts` |
-| `request.messages` (last user message) | Argument to `session.prompt()` / `session.promptStreaming()` |
+| MAST                                   | Prompt API                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------ |
+| `request.system`                       | `{ role: "system", content: system }` as first entry in `initialPrompts` |
+| `request.messages` (all but last)      | Remaining entries in `initialPrompts`                                    |
+| `request.messages` (last user message) | Argument to `session.prompt()` / `session.promptStreaming()`             |
 
 The Prompt API supports `role: "user" | "assistant" | "system"` in `initialPrompts`, so this mapping is clean. The last message is separated out because the API expects prompts to be sent via `prompt()`, not injected into history.
 
@@ -125,6 +125,7 @@ The API exposes `session.contextUsage` and `session.contextWindow` (token counts
 The Prompt API supports `signal` both on `LanguageModel.create()` and on `session.prompt()` / `session.promptStreaming()`. MAST passes `request.signal` through.
 
 **Proposed handling:**
+
 - Pass `request.signal` to `LanguageModel.create()` so session creation itself is cancellable.
 - Pass `request.signal` to `session.prompt()` / `session.promptStreaming()` for the actual generation.
 - Call `session.destroy()` in a `finally` block to always free resources.
@@ -148,10 +149,10 @@ The Prompt API supports `signal` both on `LanguageModel.create()` and on `sessio
 The Prompt API is not yet in `lib.dom.d.ts`. The package must declare the global interface. Key types to declare:
 
 ```typescript
-type LanguageModelAvailability = "readily" | "after-download" | "downloading" | "unavailable";
+type LanguageModelAvailability = 'readily' | 'after-download' | 'downloading' | 'unavailable';
 
 interface LanguageModelMessage {
-  role: "user" | "assistant" | "system";
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
@@ -175,7 +176,7 @@ interface LanguageModelSession {
   contextUsage: number;
   contextWindow: number;
   destroy(): void;
-  addEventListener(type: "contextoverflow", listener: EventListener): void;
+  addEventListener(type: 'contextoverflow', listener: EventListener): void;
 }
 
 declare const LanguageModel: {
@@ -183,7 +184,6 @@ declare const LanguageModel: {
   create(options?: LanguageModelCreateOptions): Promise<LanguageModelSession>;
 };
 ```
-
 
 ---
 
@@ -199,6 +199,7 @@ declare const LanguageModel: {
 ## Package Config
 
 **`package.json`:**
+
 ```json
 {
   "name": "@mast-ai/built-in-ai",
@@ -224,6 +225,7 @@ declare const LanguageModel: {
 ```
 
 **`tsconfig.json`** (identical to all other packages):
+
 ```json
 {
   "compilerOptions": {
@@ -274,4 +276,3 @@ packages/built-in-ai/
 The `tools/` directory is deferred to Phase 2.
 
 ---
-

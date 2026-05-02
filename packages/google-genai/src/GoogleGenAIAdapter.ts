@@ -1,8 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
-import type { Content, FunctionDeclaration, Part, FunctionCall, Schema } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import type { Content, FunctionDeclaration, Part, FunctionCall, Schema } from '@google/genai';
 import type {
   LlmAdapter,
   AdapterRequest,
@@ -11,7 +11,7 @@ import type {
   Message,
   ToolDefinition,
   ToolCall,
-} from "@mast-ai/core";
+} from '@mast-ai/core';
 
 /** Token-usage statistics reported by the Gemini API. */
 export interface UsageMetadata {
@@ -38,7 +38,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
    */
   constructor(
     apiKey: string,
-    modelName: string = "gemini-3.1-flash-lite-preview",
+    modelName: string = 'gemini-3.1-flash-lite-preview',
     onUsageUpdate?: (usage: UsageMetadata) => void,
   ) {
     this.client = new GoogleGenAI({ apiKey });
@@ -68,7 +68,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         stopSequences: request.config?.stopSequences,
         ...(outputSchema
           ? {
-              responseMimeType: "application/json",
+              responseMimeType: 'application/json',
               responseSchema: outputSchema as Schema,
               thinkingConfig: { thinkingBudget: 0 },
             }
@@ -93,20 +93,17 @@ export class GoogleGenAIAdapter implements LlmAdapter {
 
     const candidate = response.candidates?.[0];
     if (!candidate) {
-      throw new Error("No candidate returned from Gemini");
+      throw new Error('No candidate returned from Gemini');
     }
 
     const textPart = candidate.content?.parts?.find(
-      (p) => "text" in p && typeof p.text === "string",
+      (p) => 'text' in p && typeof p.text === 'string',
     );
     const toolCallParts =
-      candidate.content?.parts?.filter(
-        (p) => "functionCall" in p && p.functionCall,
-      ) || [];
+      candidate.content?.parts?.filter((p) => 'functionCall' in p && p.functionCall) || [];
 
     return {
-      text:
-        textPart && "text" in textPart ? (textPart.text as string) : undefined,
+      text: textPart && 'text' in textPart ? (textPart.text as string) : undefined,
       toolCalls: toolCallParts.map((p) => {
         const fc = p.functionCall as FunctionCall;
         return {
@@ -120,9 +117,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
   }
 
   /** {@inheritDoc LlmAdapter.generateStream} */
-  async *generateStream(
-    request: AdapterRequest,
-  ): AsyncIterable<AdapterStreamChunk> {
+  async *generateStream(request: AdapterRequest): AsyncIterable<AdapterStreamChunk> {
     const contents = this.mapMessages(request.messages);
     const systemInstruction = this.mapSystemInstruction(request.system);
     const tools =
@@ -162,14 +157,14 @@ export class GoogleGenAIAdapter implements LlmAdapter {
       if (!candidate) continue;
 
       for (const part of candidate.content?.parts || []) {
-        if (part.thought && typeof part.text === "string") {
-          yield { type: "thinking", delta: part.text };
-        } else if ("text" in part && typeof part.text === "string") {
-          yield { type: "text_delta", delta: part.text };
-        } else if ("functionCall" in part && part.functionCall) {
+        if (part.thought && typeof part.text === 'string') {
+          yield { type: 'thinking', delta: part.text };
+        } else if ('text' in part && typeof part.text === 'string') {
+          yield { type: 'text_delta', delta: part.text };
+        } else if ('functionCall' in part && part.functionCall) {
           const fc = part.functionCall as FunctionCall;
           yield {
-            type: "tool_call",
+            type: 'tool_call',
             toolCall: {
               id: fc.id || crypto.randomUUID(),
               name: fc.name!,
@@ -189,12 +184,12 @@ export class GoogleGenAIAdapter implements LlmAdapter {
 
   private mapMessages(messages: Message[]): Content[] {
     return messages.map((m) => {
-      const role = m.role === "assistant" ? "model" : "user";
+      const role = m.role === 'assistant' ? 'model' : 'user';
       const parts: Part[] = [];
 
-      if (m.content.type === "text") {
+      if (m.content.type === 'text') {
         parts.push({ text: m.content.text });
-      } else if (m.content.type === "tool_calls") {
+      } else if (m.content.type === 'tool_calls') {
         m.content.calls.forEach((call) => {
           const callWithSignature = call as ToolCall & {
             thoughtSignature?: string;
@@ -209,7 +204,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
             ...(thoughtSignature ? { thoughtSignature } : {}),
           });
         });
-      } else if (m.content.type === "tool_result") {
+      } else if (m.content.type === 'tool_result') {
         parts.push({
           functionResponse: {
             id: m.content.id,

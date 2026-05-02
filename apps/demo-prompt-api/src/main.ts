@@ -11,7 +11,8 @@ document.querySelector<HTMLElement>('#version')!.textContent = `v${VERSION}`;
 // --- Setup ---
 const agentConfig = createAgent({
   name: 'PromptAPIAssistant',
-  instructions: 'You are a helpful assistant running entirely on-device via the browser Prompt API.',
+  instructions:
+    'You are a helpful assistant running entirely on-device via the browser Prompt API.',
   tools: [],
 });
 

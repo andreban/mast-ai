@@ -1,11 +1,11 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { SummarizeTool } from "./summarize.js";
-import { DetectLanguageTool } from "./detectLanguage.js";
-import { TranslateTool } from "./translate.js";
-import { ProofreadTool } from "./proofread.js";
-import type { ToolRegistry } from "@mast-ai/core";
+import { SummarizeTool } from './summarize.js';
+import { DetectLanguageTool } from './detectLanguage.js';
+import { TranslateTool } from './translate.js';
+import { ProofreadTool } from './proofread.js';
+import type { ToolRegistry } from '@mast-ai/core';
 
 /** Options for {@link addAllBuiltInAITools}. */
 export interface AddAllBuiltInAIToolsOptions {
@@ -26,22 +26,22 @@ export async function addAllBuiltInAITools(
   await Promise.allSettled([
     SummarizeTool.addToRegistry(registry, {
       onDownloadProgress: options?.onDownloadProgress
-        ? (p) => options.onDownloadProgress!("summarize", p)
+        ? (p) => options.onDownloadProgress!('summarize', p)
         : undefined,
     }),
     DetectLanguageTool.addToRegistry(registry, {
       onDownloadProgress: options?.onDownloadProgress
-        ? (p) => options.onDownloadProgress!("detectLanguage", p)
+        ? (p) => options.onDownloadProgress!('detectLanguage', p)
         : undefined,
     }),
     TranslateTool.addToRegistry(registry, {
       onDownloadProgress: options?.onDownloadProgress
-        ? (p) => options.onDownloadProgress!("translate", p)
+        ? (p) => options.onDownloadProgress!('translate', p)
         : undefined,
     }),
     ProofreadTool.addToRegistry(registry, {
       onDownloadProgress: options?.onDownloadProgress
-        ? (p) => options.onDownloadProgress!("proofread", p)
+        ? (p) => options.onDownloadProgress!('proofread', p)
         : undefined,
     }),
   ]);

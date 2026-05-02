@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { ToolRegistry, ToolRegistryView, type ToolProvider } from './tool';
-import type { Tool, ToolDefinition, ToolContext } from './tool';
+import type { Tool, ToolDefinition } from './tool';
 
 function makeTool(name: string, scope: 'read' | 'write'): Tool {
   return {
@@ -46,7 +46,9 @@ describe('ToolRegistry', () => {
   it('throws when registering a duplicate tool name', () => {
     const registry = new ToolRegistry();
     registry.register(makeTool('dup', 'read'));
-    expect(() => registry.register(makeTool('dup', 'write'))).toThrow("Tool 'dup' is already registered.");
+    expect(() => registry.register(makeTool('dup', 'write'))).toThrow(
+      "Tool 'dup' is already registered.",
+    );
   });
 
   it('getTools returns definitions of all registered tools', () => {
@@ -55,8 +57,8 @@ describe('ToolRegistry', () => {
     registry.register(makeTool('b', 'write'));
     const defs = registry.getTools();
     expect(defs).toHaveLength(2);
-    expect(defs.map(d => d.name)).toContain('a');
-    expect(defs.map(d => d.name)).toContain('b');
+    expect(defs.map((d) => d.name)).toContain('a');
+    expect(defs.map((d) => d.name)).toContain('b');
   });
 
   it('getTool returns undefined for unknown names', () => {

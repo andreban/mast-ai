@@ -50,17 +50,17 @@ translator.destroy();
 
 ### Creation options
 
-| Option | Type | Notes |
-|--------|------|-------|
-| `sourceLanguage` | `string` | BCP 47 language tag (e.g. `"en"`, `"fr"`) |
-| `targetLanguage` | `string` | BCP 47 language tag |
-| `signal` | `AbortSignal` | Cancels session creation |
-| `monitor` | `(m: EventTarget) => void` | Download progress |
+| Option           | Type                       | Notes                                     |
+| ---------------- | -------------------------- | ----------------------------------------- |
+| `sourceLanguage` | `string`                   | BCP 47 language tag (e.g. `"en"`, `"fr"`) |
+| `targetLanguage` | `string`                   | BCP 47 language tag                       |
+| `signal`         | `AbortSignal`              | Cancels session creation                  |
+| `monitor`        | `(m: EventTarget) => void` | Download progress                         |
 
 ### Per-call options
 
-| Option | Type | Notes |
-|--------|------|-------|
+| Option   | Type          | Notes             |
+| -------- | ------------- | ----------------- |
 | `signal` | `AbortSignal` | Cancels this call |
 
 ### Key design constraint
@@ -136,6 +136,7 @@ export class TranslateTool implements Tool<TranslateArgs, string> {
 Because the Translator API requires a specific language pair to check availability, there is no meaningful session to pre-warm at registration time. `addToRegistry` only verifies the global exists and registers the tool immediately.
 
 **Step 1 — API existence check:**
+
 ```typescript
 if (typeof Translator === 'undefined') {
   throw new AdapterError('Translator API is not supported in this browser.');
@@ -177,11 +178,7 @@ Pass `context.signal` to both `Translator.create()` and `session.translate()`. N
 The Translator API is not in `lib.dom.d.ts`. Add the following to `packages/built-in-ai/src/types.ts`:
 
 ```typescript
-export type TranslatorAvailability =
-  | "readily"
-  | "after-download"
-  | "downloading"
-  | "unavailable";
+export type TranslatorAvailability = 'readily' | 'after-download' | 'downloading' | 'unavailable';
 
 export interface TranslatorAvailabilityOptions {
   sourceLanguage: string;
@@ -220,20 +217,20 @@ The Translator API only exists in supporting browsers; tests must mock it via `v
 
 ### Cases to cover
 
-| Case | Expected behaviour |
-|------|--------------------|
-| `addToRegistry` — `Translator` global absent | Rejects with `AdapterError`; tool not registered |
-| `addToRegistry` — global present | Resolves; tool is registered immediately (no session created yet) |
-| `call()` — `Translator` global absent | Rejects with `AdapterError` |
-| `call()` — pair `"unavailable"` | Rejects with `AdapterError` mentioning the language pair; no session created |
-| `call()` — pair `"readily"` | `Translator.create` called once; returns translated string |
-| `call()` — pair `"after-download"` | `Translator.create` called with monitor; returns translated string after mock create resolves |
-| `onDownloadProgress` callback | Mock `downloadprogress` event fires; callback receives `{ loaded, total }` |
-| `call()` — same pair called twice | `Translator.create` called only once; session reused |
-| `call()` — different pairs | `Translator.create` called once per unique pair; both sessions cached |
-| `call()` — `context.signal` forwarded | Mock verifies signal passed to both `create()` and `translate()` |
-| `call()` — `translate()` throws | Error propagates from `call()` |
-| `call()` — `create()` aborted | Session not cached; subsequent call retries `create()` |
+| Case                                         | Expected behaviour                                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `addToRegistry` — `Translator` global absent | Rejects with `AdapterError`; tool not registered                                              |
+| `addToRegistry` — global present             | Resolves; tool is registered immediately (no session created yet)                             |
+| `call()` — `Translator` global absent        | Rejects with `AdapterError`                                                                   |
+| `call()` — pair `"unavailable"`              | Rejects with `AdapterError` mentioning the language pair; no session created                  |
+| `call()` — pair `"readily"`                  | `Translator.create` called once; returns translated string                                    |
+| `call()` — pair `"after-download"`           | `Translator.create` called with monitor; returns translated string after mock create resolves |
+| `onDownloadProgress` callback                | Mock `downloadprogress` event fires; callback receives `{ loaded, total }`                    |
+| `call()` — same pair called twice            | `Translator.create` called only once; session reused                                          |
+| `call()` — different pairs                   | `Translator.create` called once per unique pair; both sessions cached                         |
+| `call()` — `context.signal` forwarded        | Mock verifies signal passed to both `create()` and `translate()`                              |
+| `call()` — `translate()` throws              | Error propagates from `call()`                                                                |
+| `call()` — `create()` aborted                | Session not cached; subsequent call retries `create()`                                        |
 
 ---
 
@@ -316,12 +313,12 @@ await addAllBuiltInAITools(registry);
 
 ## Files to Create / Modify
 
-| Path | Action |
-|------|--------|
-| `packages/built-in-ai/src/types.ts` | Add Translator API types |
-| `packages/built-in-ai/src/tools/translate.ts` | Create |
-| `packages/built-in-ai/src/tools/translate.test.ts` | Create |
-| `packages/built-in-ai/src/tools/index.ts` | Add `TranslateTool` to `addAllBuiltInAITools` |
-| `packages/built-in-ai/src/index.ts` | Add `TranslateTool` and `TranslateToolOptions` exports |
+| Path                                               | Action                                                 |
+| -------------------------------------------------- | ------------------------------------------------------ |
+| `packages/built-in-ai/src/types.ts`                | Add Translator API types                               |
+| `packages/built-in-ai/src/tools/translate.ts`      | Create                                                 |
+| `packages/built-in-ai/src/tools/translate.test.ts` | Create                                                 |
+| `packages/built-in-ai/src/tools/index.ts`          | Add `TranslateTool` to `addAllBuiltInAITools`          |
+| `packages/built-in-ai/src/index.ts`                | Add `TranslateTool` and `TranslateToolOptions` exports |
 
 ---

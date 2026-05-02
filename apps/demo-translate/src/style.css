@@ -1,5 +1,8 @@
 :root {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: #1a1a1a;
   --primary: #3b82f6;
   --primary-dark: #2563eb;
@@ -8,7 +11,11 @@
   --muted: #71717a;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -51,9 +58,18 @@ code {
   padding: 0.25rem 0.625rem;
   border-radius: 999px;
 }
-.status.checking  { background: #fef9c3; color: #854d0e; }
-.status.available { background: #dcfce7; color: #166534; }
-.status.unavailable { background: #fee2e2; color: #991b1b; }
+.status.checking {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.status.available {
+  background: #dcfce7;
+  color: #166534;
+}
+.status.unavailable {
+  background: #fee2e2;
+  color: #991b1b;
+}
 
 /* Card */
 main {
@@ -91,7 +107,8 @@ label {
   letter-spacing: 0.04em;
 }
 
-select, textarea {
+select,
+textarea {
   font-family: inherit;
   font-size: 0.95rem;
   border: 1px solid var(--border);
@@ -102,10 +119,11 @@ select, textarea {
   width: 100%;
 }
 
-select:focus, textarea:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 #swap-btn {
@@ -119,7 +137,9 @@ select:focus, textarea:focus {
   flex-shrink: 0;
   align-self: flex-end;
 }
-#swap-btn:hover { background: var(--border); }
+#swap-btn:hover {
+  background: var(--border);
+}
 
 /* Side-by-side panels */
 .panels {
@@ -152,7 +172,7 @@ textarea {
   gap: 1rem;
 }
 
-button[type="submit"] {
+button[type='submit'] {
   padding: 0.6rem 1.5rem;
   background: var(--primary);
   color: #fff;
@@ -162,8 +182,13 @@ button[type="submit"] {
   font-weight: 600;
   cursor: pointer;
 }
-button[type="submit"]:hover   { background: var(--primary-dark); }
-button[type="submit"]:disabled { background: #93c5fd; cursor: not-allowed; }
+button[type='submit']:hover {
+  background: var(--primary-dark);
+}
+button[type='submit']:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
 
 .progress {
   font-size: 0.85rem;
@@ -179,4 +204,6 @@ button[type="submit"]:disabled { background: #93c5fd; cursor: not-allowed; }
   padding: 0.625rem 0.875rem;
 }
 
-.hidden { display: none; }
+.hidden {
+  display: none;
+}

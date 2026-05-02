@@ -7,9 +7,12 @@
     "moduleResolution": "bundler",
     "verbatimModuleSyntax": true,
     "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
 }

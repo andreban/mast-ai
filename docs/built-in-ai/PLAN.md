@@ -10,15 +10,15 @@ This document plans the scope and implementation of a new package, `@mast-ai/bui
 
 The following APIs are available or in trial in browsers that support them:
 
-| API | Purpose | Status | Docs |
-|-----|---------|--------|------|
-| **Prompt API** | Send natural language prompts to the on-device model | Stable (extensions), Origin trial (web) | https://developer.chrome.com/docs/ai/prompt-api |
-| **Summarizer API** | Condense long-form content | Stable | https://developer.chrome.com/docs/ai/summarizer-api |
-| **Writer API** | Generate new content for writing tasks | Developer trial | https://developer.chrome.com/docs/ai/writer-api |
-| **Rewriter API** | Revise and restructure existing text | Developer trial | https://developer.chrome.com/docs/ai/rewriter-api |
-| **Translator API** | Translate user-generated and dynamic content | Stable | https://developer.chrome.com/docs/ai/translator-api |
-| **Language Detector API** | Detect the language of text | Stable | https://developer.chrome.com/docs/ai/language-detection |
-| **Proofreader API** | Interactive proofreading | Origin trial | https://developer.chrome.com/docs/ai/proofreader-api |
+| API                       | Purpose                                              | Status                                  | Docs                                                    |
+| ------------------------- | ---------------------------------------------------- | --------------------------------------- | ------------------------------------------------------- |
+| **Prompt API**            | Send natural language prompts to the on-device model | Stable (extensions), Origin trial (web) | https://developer.chrome.com/docs/ai/prompt-api         |
+| **Summarizer API**        | Condense long-form content                           | Stable                                  | https://developer.chrome.com/docs/ai/summarizer-api     |
+| **Writer API**            | Generate new content for writing tasks               | Developer trial                         | https://developer.chrome.com/docs/ai/writer-api         |
+| **Rewriter API**          | Revise and restructure existing text                 | Developer trial                         | https://developer.chrome.com/docs/ai/rewriter-api       |
+| **Translator API**        | Translate user-generated and dynamic content         | Stable                                  | https://developer.chrome.com/docs/ai/translator-api     |
+| **Language Detector API** | Detect the language of text                          | Stable                                  | https://developer.chrome.com/docs/ai/language-detection |
+| **Proofreader API**       | Interactive proofreading                             | Origin trial                            | https://developer.chrome.com/docs/ai/proofreader-api    |
 
 ---
 
@@ -31,6 +31,7 @@ The Prompt API is the only Built-in AI API that maps to the general-purpose LLM 
 Uses the **Prompt API** to power a full agent loop entirely on-device. This adapter enables a "local-only" mode with no network dependency.
 
 **Scope:**
+
 - Implement `generate()` using `LanguageModel.create()` and `session.prompt()`
 - Implement `generateStream()` using `session.promptStreaming()`
 - Map MAST `Message[]` history into the Prompt API's `initialPrompts` format
@@ -39,6 +40,7 @@ Uses the **Prompt API** to power a full agent loop entirely on-device. This adap
 - Tool calling: The Prompt API does **not** natively support structured tool calls. `BuiltInAIAdapter` will always return `toolCalls: []` and ignore any tools passed in the request. This is a known, documented limitation — callers should not register tools with a runner backed by this adapter.
 
 **Constraints:**
+
 - Browser-only environment (no Node.js support)
 - Availability gated on `typeof LanguageModel !== "undefined"`
 - Model download may be required on first use; expose session `downloadprogress` events
@@ -48,16 +50,17 @@ Uses the **Prompt API** to power a full agent loop entirely on-device. This adap
 
 Each stable/trial API below maps to one or more MAST tools that any agent can invoke:
 
-| Tool Name | Underlying API | Input | Output |
-|-----------|---------------|-------|--------|
-| `summarize` | Summarizer API | text, optional type/length/format | summary string |
-| `write` | Writer API | task description, optional context/tone/length | generated text |
-| `rewrite` | Rewriter API | text, optional goal/tone/length | rewritten text |
-| `translate` | Translator API | text, source language, target language | translated text |
-| `detectLanguage` | Language Detector API | text | detected language + confidence |
-| `proofread` | Proofreader API | text | corrections/suggestions |
+| Tool Name        | Underlying API        | Input                                          | Output                         |
+| ---------------- | --------------------- | ---------------------------------------------- | ------------------------------ |
+| `summarize`      | Summarizer API        | text, optional type/length/format              | summary string                 |
+| `write`          | Writer API            | task description, optional context/tone/length | generated text                 |
+| `rewrite`        | Rewriter API          | text, optional goal/tone/length                | rewritten text                 |
+| `translate`      | Translator API        | text, source language, target language         | translated text                |
+| `detectLanguage` | Language Detector API | text                                           | detected language + confidence |
+| `proofread`      | Proofreader API       | text                                           | corrections/suggestions        |
 
 Each tool should:
+
 - Check for API availability at call time and throw a descriptive `AdapterError` if unavailable
 - Accept the minimal required inputs plus relevant optional parameters
 - Handle `AbortSignal` where the underlying API supports it
@@ -147,31 +150,37 @@ export type { BuiltInAIAdapterOptions } from './BuiltInAIAdapter.js';
 ## Phased Delivery
 
 ### Phase 1 — Adapter (MVP)
+
 - `BuiltInAIAdapter` with `generate()` and `generateStream()`
 - Text-only, no tool calling
 - `types.ts` with Prompt API declarations
 - Unit tests with mocked `LanguageModel` global
 
 ### Phase 2 — Summarizer Tool
+
 - `summarize` tool wrapping the Summarizer API
 - Availability guard and tests
 
 ### Phase 3 — Language Detection Tool
+
 - `detectLanguage` tool wrapping the Language Detector API
 - Returns detected language and confidence score
 - Availability guard and tests
 
 ### Phase 4 — Translation Tool
+
 - `translate` tool wrapping the Translator API
 - Handles language pair availability checks and related error cases
 - Availability guard and tests
 
 ### Phase 5 — Proofreader Tool
+
 - `proofread` tool wrapping the Proofreader API
 - Availability guard and tests
 - Update `createAllBuiltInAITools` to include it
 
 ### Phase 6 — Writer and Rewriter Tools
+
 - `write` tool wrapping the Writer API
 - `rewrite` tool wrapping the Rewriter API
 - Availability guards and tests

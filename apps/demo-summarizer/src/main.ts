@@ -127,7 +127,7 @@ async function handleSummarize() {
   outputBox.className = 'output-box';
 
   try {
-    const result = await tool.call(args, { signal: controller.signal }) as string;
+    const result = (await tool.call(args, { signal: controller.signal })) as string;
     setOutput(result);
   } catch (err) {
     if (!controller.signal.aborted) {

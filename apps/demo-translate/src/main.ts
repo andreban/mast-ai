@@ -12,16 +12,16 @@ const tool = new TranslateTool({
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 
-const form       = document.getElementById('translate-form') as HTMLFormElement;
-const sourceLang = document.getElementById('source-lang')    as HTMLSelectElement;
-const targetLang = document.getElementById('target-lang')    as HTMLSelectElement;
-const swapBtn    = document.getElementById('swap-btn')       as HTMLButtonElement;
-const sourceText = document.getElementById('source-text')    as HTMLTextAreaElement;
-const result     = document.getElementById('result')         as HTMLDivElement;
-const statusEl   = document.getElementById('api-status')     as HTMLDivElement;
-const progressEl = document.getElementById('progress-msg')   as HTMLSpanElement;
-const errorEl    = document.getElementById('error-msg')      as HTMLDivElement;
-const submitBtn  = document.getElementById('translate-btn')  as HTMLButtonElement;
+const form = document.getElementById('translate-form') as HTMLFormElement;
+const sourceLang = document.getElementById('source-lang') as HTMLSelectElement;
+const targetLang = document.getElementById('target-lang') as HTMLSelectElement;
+const swapBtn = document.getElementById('swap-btn') as HTMLButtonElement;
+const sourceText = document.getElementById('source-text') as HTMLTextAreaElement;
+const result = document.getElementById('result') as HTMLDivElement;
+const statusEl = document.getElementById('api-status') as HTMLDivElement;
+const progressEl = document.getElementById('progress-msg') as HTMLSpanElement;
+const errorEl = document.getElementById('error-msg') as HTMLDivElement;
+const submitBtn = document.getElementById('translate-btn') as HTMLButtonElement;
 
 // ── Availability ──────────────────────────────────────────────────────────
 

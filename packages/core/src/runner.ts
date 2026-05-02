@@ -27,7 +27,7 @@ export class RunBuilder {
 
   constructor(
     private readonly agent: AgentConfig,
-    private readonly execute: StreamExecutor
+    private readonly execute: StreamExecutor,
   ) {}
 
   /** Prepend prior conversation turns. */
@@ -96,7 +96,7 @@ export class AgentRunner {
     /** The LLM adapter used to generate responses. */
     public readonly adapter: LlmAdapter,
     /** Provider of tools the runner may invoke on behalf of agents. */
-    public readonly registry: ToolProvider = new ToolRegistry()
+    public readonly registry: ToolProvider = new ToolRegistry(),
   ) {}
 
   /** Creates a Conversation that automatically tracks history across turns. */
@@ -107,7 +107,7 @@ export class AgentRunner {
   /** Primary entry point for multi-turn use. */
   runBuilder(agent: AgentConfig): RunBuilder {
     return new RunBuilder(agent, (input, history, signal, onToolEvent) =>
-      this.executeStream(agent, input, history, signal, onToolEvent)
+      this.executeStream(agent, input, history, signal, onToolEvent),
     );
   }
 
@@ -153,7 +153,7 @@ export class AgentRunner {
     // Clone history and add new user message
     const currentHistory: Message[] = [
       ...history,
-      { role: 'user', content: { type: 'text', text: input } }
+      { role: 'user', content: { type: 'text', text: input } },
     ];
 
     while (true) {
@@ -212,15 +212,14 @@ export class AgentRunner {
             try {
               const result = await tool.call(call.args, {
                 signal,
-                onEvent: onToolEvent
-                  ? (event) => onToolEvent(call.name, event)
-                  : undefined,
+                onEvent: onToolEvent ? (event) => onToolEvent(call.name, event) : undefined,
               });
               return { call, result };
-            } catch (err: any) {
-              return { call, result: `Error executing tool: ${err.message}` };
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              return { call, result: `Error executing tool: ${message}` };
             }
-          })
+          }),
         );
 
         const resultMessages: Message[] = [];
@@ -228,14 +227,14 @@ export class AgentRunner {
           yield { type: 'tool_call_completed', name: call.name, result };
           resultMessages.push({
             role: 'user',
-            content: { type: 'tool_result', id: call.id, name: call.name, result }
+            content: { type: 'tool_result', id: call.id, name: call.name, result },
           });
         }
 
         // Assistant tool_calls message must precede tool result messages in history.
         currentHistory.push({
           role: 'assistant',
-          content: { type: 'tool_calls', calls: toolCalls }
+          content: { type: 'tool_calls', calls: toolCalls },
         });
         currentHistory.push(...resultMessages);
 

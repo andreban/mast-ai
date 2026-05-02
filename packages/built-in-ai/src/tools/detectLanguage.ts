@@ -1,12 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AdapterError } from "@mast-ai/core";
-import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from "@mast-ai/core";
-import type {
-  LanguageDetectionResult,
-  LanguageDetectorSession,
-} from "../types.js";
+import { AdapterError } from '@mast-ai/core';
+import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from '@mast-ai/core';
+import type { LanguageDetectionResult, LanguageDetectorSession } from '../types.js';
 
 /** Arguments passed by the model when invoking the `detectLanguage` tool. */
 export interface DetectLanguageArgs {
@@ -41,52 +38,54 @@ export class DetectLanguageTool implements Tool<DetectLanguageArgs, LanguageDete
     registry: ToolRegistry,
     options?: DetectLanguageToolOptions,
   ): Promise<void> {
-    if (typeof LanguageDetector === "undefined") {
-      throw new AdapterError("Language Detector API is not supported in this browser.");
+    if (typeof LanguageDetector === 'undefined') {
+      throw new AdapterError('Language Detector API is not supported in this browser.');
     }
 
     const availability = await LanguageDetector.availability();
 
-    if (availability === "unavailable") {
-      throw new AdapterError("Language Detector API is unavailable on this device.");
+    if (availability === 'unavailable') {
+      throw new AdapterError('Language Detector API is unavailable on this device.');
     }
 
     const tool = new DetectLanguageTool();
 
     const monitor = options?.onDownloadProgress
       ? (m: EventTarget) => {
-          m.addEventListener("downloadprogress", (e) => {
+          m.addEventListener('downloadprogress', (e) => {
             const evt = e as ProgressEvent;
             options.onDownloadProgress!({ loaded: evt.loaded, total: evt.total });
           });
         }
       : undefined;
 
-    LanguageDetector.create({ monitor }).then((session) => {
-      tool.session = session;
-      registry.register(tool);
-    }).catch(() => {
-      // Background creation failed — tool remains unregistered.
-    });
+    LanguageDetector.create({ monitor })
+      .then((session) => {
+        tool.session = session;
+        registry.register(tool);
+      })
+      .catch(() => {
+        // Background creation failed — tool remains unregistered.
+      });
   }
 
   /** {@inheritDoc Tool.definition} */
   definition(): ToolDefinition {
     return {
-      name: "detectLanguage",
+      name: 'detectLanguage',
       description:
-        "Detect the language of a piece of text. " +
+        'Detect the language of a piece of text. ' +
         "Returns the most likely BCP 47 language tag (e.g. 'en', 'fr', 'ja') " +
-        "and a confidence score between 0 and 1.",
+        'and a confidence score between 0 and 1.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           text: {
-            type: "string",
-            description: "The text whose language should be detected.",
+            type: 'string',
+            description: 'The text whose language should be detected.',
           },
         },
-        required: ["text"],
+        required: ['text'],
       },
       scope: 'read',
     };
@@ -94,8 +93,8 @@ export class DetectLanguageTool implements Tool<DetectLanguageArgs, LanguageDete
 
   /** {@inheritDoc Tool.call} */
   async call(args: DetectLanguageArgs, context: ToolContext): Promise<LanguageDetectionResult> {
-    if (typeof LanguageDetector === "undefined") {
-      throw new AdapterError("Language Detector API is not supported in this browser.");
+    if (typeof LanguageDetector === 'undefined') {
+      throw new AdapterError('Language Detector API is not supported in this browser.');
     }
 
     const session = await this.acquireSession(context);

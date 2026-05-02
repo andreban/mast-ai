@@ -1,15 +1,15 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AdapterError } from "@mast-ai/core";
+import { AdapterError } from '@mast-ai/core';
 import type {
   LlmAdapter,
   AdapterRequest,
   AdapterResponse,
   AdapterStreamChunk,
   Message,
-} from "@mast-ai/core";
-import type { LanguageModelSession, LanguageModelMessage } from "./types.js";
+} from '@mast-ai/core';
+import type { LanguageModelSession, LanguageModelMessage } from './types.js';
 
 /** Options for {@link BuiltInAIAdapter}. */
 export interface BuiltInAIAdapterOptions {
@@ -37,7 +37,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
   async generate(request: AdapterRequest): Promise<AdapterResponse> {
     if (request.tools.length > 0) {
       console.warn(
-        "BuiltInAIAdapter: tool calling is not supported — tools will never be invoked.",
+        'BuiltInAIAdapter: tool calling is not supported — tools will never be invoked.',
       );
     }
 
@@ -47,7 +47,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
       const text = await session.prompt(input, { signal: request.signal });
       this.cachedHistory = [
         ...request.messages,
-        { role: "assistant", content: { type: "text", text } },
+        { role: 'assistant', content: { type: 'text', text } },
       ];
       return { text, toolCalls: [] };
     } catch (err) {
@@ -60,7 +60,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
   async *generateStream(request: AdapterRequest): AsyncIterable<AdapterStreamChunk> {
     if (request.tools.length > 0) {
       console.warn(
-        "BuiltInAIAdapter: tool calling is not supported — tools will never be invoked.",
+        'BuiltInAIAdapter: tool calling is not supported — tools will never be invoked.',
       );
     }
 
@@ -69,20 +69,20 @@ export class BuiltInAIAdapter implements LlmAdapter {
       const input = messageToString(lastMessage);
       const stream = session.promptStreaming(input, { signal: request.signal });
       const reader = stream.getReader();
-      let fullText = "";
+      let fullText = '';
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           fullText += value;
-          yield { type: "text_delta", delta: value };
+          yield { type: 'text_delta', delta: value };
         }
       } finally {
         reader.releaseLock();
       }
       this.cachedHistory = [
         ...request.messages,
-        { role: "assistant", content: { type: "text", text: fullText } },
+        { role: 'assistant', content: { type: 'text', text: fullText } },
       ];
     } catch (err) {
       this.invalidateCache();
@@ -94,7 +94,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
     request: AdapterRequest,
   ): Promise<{ session: LanguageModelSession; lastMessage: Message }> {
     if (request.messages.length === 0) {
-      throw new AdapterError("Request must contain at least one message.");
+      throw new AdapterError('Request must contain at least one message.');
     }
 
     const lastMessage = request.messages[request.messages.length - 1];
@@ -106,15 +106,15 @@ export class BuiltInAIAdapter implements LlmAdapter {
 
     this.invalidateCache();
 
-    if (typeof LanguageModel === "undefined") {
-      throw new AdapterError("Prompt API is not supported in this browser.");
+    if (typeof LanguageModel === 'undefined') {
+      throw new AdapterError('Prompt API is not supported in this browser.');
     }
 
     const availability = await LanguageModel.availability();
-    if (availability === "unavailable") {
-      throw new AdapterError("Built-in AI model is unavailable on this device.");
+    if (availability === 'unavailable') {
+      throw new AdapterError('Built-in AI model is unavailable on this device.');
     }
-    if (availability === "after-download" || availability === "downloading") {
+    if (availability === 'after-download' || availability === 'downloading') {
       throw new AdapterError(
         `Built-in AI model is not ready (status: "${availability}"). Wait for the model to finish downloading.`,
       );
@@ -126,7 +126,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
       initialPrompts,
       monitor: this.options.onDownloadProgress
         ? (m) => {
-            m.addEventListener("downloadprogress", (e) => {
+            m.addEventListener('downloadprogress', (e) => {
               const evt = e as ProgressEvent;
               this.options.onDownloadProgress!({ loaded: evt.loaded, total: evt.total });
             });
@@ -136,9 +136,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
 
     if (session.contextUsage >= session.contextWindow) {
       session.destroy();
-      throw new AdapterError(
-        "Conversation history exceeds the model's context window.",
-      );
+      throw new AdapterError("Conversation history exceeds the model's context window.");
     }
 
     this.cachedSession = session;
@@ -170,7 +168,7 @@ function buildInitialPrompts(
 ): LanguageModelMessage[] {
   const prompts: LanguageModelMessage[] = [];
   if (system) {
-    prompts.push({ role: "system", content: system });
+    prompts.push({ role: 'system', content: system });
   }
   for (const msg of history) {
     prompts.push({ role: msg.role, content: messageToString(msg) });
@@ -179,11 +177,11 @@ function buildInitialPrompts(
 }
 
 function messageToString(message: Message): string {
-  if (message.content.type === "text") {
+  if (message.content.type === 'text') {
     return message.content.text;
   }
   // tool_calls and tool_result have no text representation for the Prompt API
-  return "";
+  return '';
 }
 
 /** Returns the availability of the browser's on-device language model via `LanguageModel.availability()`. */

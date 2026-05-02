@@ -50,26 +50,26 @@ proofreader.destroy();
 
 ### Creation options
 
-| Option | Type | Notes |
-|--------|------|-------|
-| `signal` | `AbortSignal` | Cancels session creation |
-| `monitor` | `(m: EventTarget) => void` | Download progress |
+| Option    | Type                       | Notes                    |
+| --------- | -------------------------- | ------------------------ |
+| `signal`  | `AbortSignal`              | Cancels session creation |
+| `monitor` | `(m: EventTarget) => void` | Download progress        |
 
 ### Per-call options
 
-| Option | Type | Notes |
-|--------|------|-------|
+| Option   | Type          | Notes             |
+| -------- | ------------- | ----------------- |
 | `signal` | `AbortSignal` | Cancels this call |
 
 ### Return value
 
 `proofreader.proofread()` returns `Promise<ProofreadCorrection[]>`. Each entry describes one issue found in the input text:
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `text` | `string` | The problematic text span as it appears in the input |
-| `suggestions` | `string[]` | One or more suggested replacements |
-| `errorType` | `string` | e.g. `"spelling"`, `"grammar"` |
+| Field         | Type       | Notes                                                |
+| ------------- | ---------- | ---------------------------------------------------- |
+| `text`        | `string`   | The problematic text span as it appears in the input |
+| `suggestions` | `string[]` | One or more suggested replacements                   |
+| `errorType`   | `string`   | e.g. `"spelling"`, `"grammar"`                       |
 
 ### Session reuse
 
@@ -146,6 +146,7 @@ export class ProofreadTool implements Tool<ProofreadArgs, ProofreadCorrection[]>
 ### `addToRegistry` — availability and registration
 
 **Step 1 — API existence check:**
+
 ```typescript
 if (typeof Proofreader === 'undefined') {
   throw new AdapterError('Proofreader API is not supported in this browser.');
@@ -153,6 +154,7 @@ if (typeof Proofreader === 'undefined') {
 ```
 
 **Step 2 — Availability check:**
+
 ```typescript
 const availability = await Proofreader.availability();
 if (availability === 'unavailable') {
@@ -189,11 +191,7 @@ Pass `context.signal` to `session.proofread()`. Session creation in `addToRegist
 The Proofreader API is not in `lib.dom.d.ts`. Add the following to `packages/built-in-ai/src/types.ts`:
 
 ```typescript
-export type ProofreaderAvailability =
-  | "available"
-  | "downloadable"
-  | "downloading"
-  | "unavailable";
+export type ProofreaderAvailability = 'available' | 'downloadable' | 'downloading' | 'unavailable';
 
 export interface ProofreaderCreateOptions {
   signal?: AbortSignal;
@@ -231,20 +229,20 @@ The Proofreader API only exists in supporting browsers; tests must mock it via `
 
 ### Cases to cover
 
-| Case | Expected behaviour |
-|------|--------------------|
-| `addToRegistry` — `Proofreader` global absent | Rejects with `AdapterError`; tool not registered |
-| `addToRegistry` — availability `"unavailable"` | Rejects with `AdapterError`; tool not registered |
-| `addToRegistry` — availability `"readily"` | `Proofreader.create` called; tool registered |
+| Case                                              | Expected behaviour                                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `addToRegistry` — `Proofreader` global absent     | Rejects with `AdapterError`; tool not registered                                     |
+| `addToRegistry` — availability `"unavailable"`    | Rejects with `AdapterError`; tool not registered                                     |
+| `addToRegistry` — availability `"readily"`        | `Proofreader.create` called; tool registered                                         |
 | `addToRegistry` — availability `"after-download"` | `Proofreader.create` called with monitor; tool registered after mock create resolves |
-| `onDownloadProgress` callback | Mock `downloadprogress` event fires; callback receives `{ loaded, total }` |
-| `call()` — `Proofreader` global absent | Rejects with `AdapterError` |
-| `call()` — no session (e.g. creation was aborted) | Rejects with `AdapterError` |
-| `call()` — returns corrections array | `session.proofread` called with input text; returns corrections |
-| `call()` — returns empty array | Returns `[]` without error |
-| `call()` — `context.signal` forwarded | Mock verifies signal passed to `proofread()` |
-| `call()` — `proofread()` throws | Error propagates from `call()` |
-| `call()` — session reused across calls | `Proofreader.create` called once; `session.proofread` called twice |
+| `onDownloadProgress` callback                     | Mock `downloadprogress` event fires; callback receives `{ loaded, total }`           |
+| `call()` — `Proofreader` global absent            | Rejects with `AdapterError`                                                          |
+| `call()` — no session (e.g. creation was aborted) | Rejects with `AdapterError`                                                          |
+| `call()` — returns corrections array              | `session.proofread` called with input text; returns corrections                      |
+| `call()` — returns empty array                    | Returns `[]` without error                                                           |
+| `call()` — `context.signal` forwarded             | Mock verifies signal passed to `proofread()`                                         |
+| `call()` — `proofread()` throws                   | Error propagates from `call()`                                                       |
+| `call()` — session reused across calls            | `Proofreader.create` called once; `session.proofread` called twice                   |
 
 ---
 
@@ -323,13 +321,13 @@ await addAllBuiltInAITools(registry);
 
 ## Files to Create / Modify
 
-| Path | Action |
-|------|--------|
-| `packages/built-in-ai/src/types.ts` | Add Proofreader API types |
-| `packages/built-in-ai/src/tools/proofread.ts` | Create |
-| `packages/built-in-ai/src/tools/proofread.test.ts` | Create |
-| `packages/built-in-ai/src/tools/index.ts` | Add `ProofreadTool` to `addAllBuiltInAITools` |
-| `packages/built-in-ai/src/index.ts` | Add `ProofreadTool`, `ProofreadToolOptions`, and `ProofreadCorrection` exports |
+| Path                                               | Action                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `packages/built-in-ai/src/types.ts`                | Add Proofreader API types                                                      |
+| `packages/built-in-ai/src/tools/proofread.ts`      | Create                                                                         |
+| `packages/built-in-ai/src/tools/proofread.test.ts` | Create                                                                         |
+| `packages/built-in-ai/src/tools/index.ts`          | Add `ProofreadTool` to `addAllBuiltInAITools`                                  |
+| `packages/built-in-ai/src/index.ts`                | Add `ProofreadTool`, `ProofreadToolOptions`, and `ProofreadCorrection` exports |
 
 ---
 
@@ -341,9 +339,9 @@ This section documents friction points and design changes discovered during impl
 
 All other APIs (`Summarizer`, `LanguageDetector`, `Translator`) use `"readily"` and `"after-download"`. The Proofreader API uses different strings:
 
-| Expected | Actual |
-|----------|--------|
-| `"readily"` | `"available"` |
+| Expected           | Actual           |
+| ------------------ | ---------------- |
+| `"readily"`        | `"available"`    |
 | `"after-download"` | `"downloadable"` |
 
 The `ProofreaderAvailability` type was updated accordingly. The `"downloading"` and `"unavailable"` values match the other APIs.
@@ -382,9 +380,9 @@ And each `ProofreadCorrection` has:
 
 ```typescript
 {
-  correction: string;   // the replacement text
-  startIndex: number;   // start of the error span in the original input (inclusive)
-  endIndex: number;     // end of the error span in the original input (exclusive)
+  correction: string; // the replacement text
+  startIndex: number; // start of the error span in the original input (inclusive)
+  endIndex: number; // end of the error span in the original input (exclusive)
 }
 ```
 
