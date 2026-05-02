@@ -12,13 +12,14 @@
         <h2>createAgentTool Demo <small id="version"></small></h2>
 
         <div class="config-panel">
-          <label>Parent endpoint URL (URP)</label>
-          <input type="text" id="endpoint-url" value="http://127.0.0.1:3000/api/chat" />
+          <label>Google AI API key</label>
+          <input type="password" id="api-key" placeholder="AIza…" autocomplete="off" />
+          <p class="config-hint">Stored in localStorage on this device only.</p>
         </div>
 
         <div class="info-panel">
           <h3>Architecture</h3>
-          <p><strong>Parent agent</strong> &middot; <code>UrpAdapter</code> (remote)</p>
+          <p><strong>Parent agent</strong> &middot; <code>GoogleGenAIAdapter</code> (Gemini)</p>
           <p>
             <strong>Child agent</strong> &middot; <code>BuiltInAIAdapter</code> (on-device, via
             Chrome Prompt API)

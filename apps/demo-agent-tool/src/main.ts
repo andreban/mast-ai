@@ -4,14 +4,13 @@
 import {
   VERSION,
   ToolRegistry,
-  HttpTransport,
   AgentRunner,
-  UrpAdapter,
   createAgent,
   createAgentTool,
   Conversation,
 } from '@mast-ai/core';
 import { BuiltInAIAdapter, checkAvailability } from '@mast-ai/built-in-ai';
+import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
 
 document.querySelector<HTMLElement>('#version')!.textContent = `v${VERSION}`;
 
@@ -54,18 +53,19 @@ const parentAgent = createAgent({
   tools: ['rewrite_text'],
 });
 
-const endpointInput = document.querySelector<HTMLInputElement>('#endpoint-url')!;
+const apiKeyInput = document.querySelector<HTMLInputElement>('#api-key')!;
+const API_KEY_STORAGE = 'mast-demo-agent-tool.gemini-api-key';
+apiKeyInput.value = localStorage.getItem(API_KEY_STORAGE) ?? '';
 
 function buildConversation(): Conversation {
-  const runner = new AgentRunner(
-    new UrpAdapter(new HttpTransport({ url: endpointInput.value })),
-    registry,
-  );
+  const runner = new AgentRunner(new GoogleGenAIAdapter(apiKeyInput.value), registry);
   return runner.conversation(parentAgent);
 }
 
 let conversation = buildConversation();
-endpointInput.addEventListener('change', () => {
+
+apiKeyInput.addEventListener('change', () => {
+  localStorage.setItem(API_KEY_STORAGE, apiKeyInput.value);
   conversation = buildConversation();
 });
 
@@ -137,6 +137,14 @@ async function handleSend() {
 
   const text = promptInput.value.trim();
   if (!text) return;
+
+  if (!apiKeyInput.value.trim()) {
+    appendSystemMessage(
+      'Set a Google AI API key in the sidebar before sending — the parent agent uses Gemini.',
+      'error',
+    );
+    return;
+  }
 
   promptInput.value = '';
   promptInput.disabled = true;

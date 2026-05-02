@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@mast-ai/built-in-ai": "*",
-    "@mast-ai/core": "*"
+    "@mast-ai/core": "*",
+    "@mast-ai/google-genai": "*"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
