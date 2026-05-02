@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MAST — createAgentTool Demo</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="sidebar">
+        <h2>createAgentTool Demo <small id="version"></small></h2>
+
+        <div class="config-panel">
+          <label>Parent endpoint URL (URP)</label>
+          <input type="text" id="endpoint-url" value="http://127.0.0.1:3000/api/chat" />
+        </div>
+
+        <div class="info-panel">
+          <h3>Architecture</h3>
+          <p><strong>Parent agent</strong> &middot; <code>UrpAdapter</code> (remote)</p>
+          <p>
+            <strong>Child agent</strong> &middot; <code>BuiltInAIAdapter</code> (on-device, via
+            Chrome Prompt API)
+          </p>
+          <p>
+            The parent has one tool, <code>rewrite_text</code>, wired up with
+            <code>createAgentTool</code>. When the parent calls it, the child agent runs locally and
+            its <code>thinking</code> / <code>text_delta</code> events stream into the
+            <code>onToolEvent</code> handler &mdash; you'll see them appear inline below the tool
+            call.
+          </p>
+        </div>
+
+        <div class="info-panel">
+          <h3>Try this</h3>
+          <ul>
+            <li>Make this formal: "hey what's up?"</li>
+            <li>Rewrite as a haiku: "I went to the store and bought some bread."</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="chat-container">
+        <div class="message-list" id="message-list">
+          <div class="message assistant">
+            <div class="bubble">
+              Hi! Ask me to rewrite a piece of text in some style and I'll delegate to my on-device
+              child agent.
+            </div>
+          </div>
+        </div>
+
+        <div class="input-area">
+          <div class="status-indicator" id="status-indicator">Idle</div>
+          <div class="input-group">
+            <textarea
+              id="prompt-input"
+              placeholder="e.g. Rewrite as a haiku: I went to the store and bought some bread."
+            ></textarea>
+            <button id="send-button">Send</button>
+            <button id="stop-button" class="stop-button" hidden>Stop</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,273 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #1a1a1a;
+  background-color: #ffffff;
+  --primary-color: #3b82f6;
+  --bg-color: #f4f4f5;
+  --border-color: #e4e4e7;
+  --child-bg: #eff6ff;
+  --child-border: #bfdbfe;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar {
+  width: 320px;
+  background-color: var(--bg-color);
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.sidebar h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.sidebar h2 small {
+  font-size: 0.75rem;
+  color: #71717a;
+  font-weight: normal;
+}
+
+.config-panel label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #52525b;
+  margin-bottom: 0.4rem;
+}
+
+.config-panel input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.info-panel {
+  font-size: 0.85rem;
+  color: #52525b;
+  line-height: 1.5;
+}
+
+.info-panel h3 {
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  margin: 0 0 0.5rem;
+}
+
+.info-panel p {
+  margin: 0.4rem 0;
+}
+
+.info-panel ul {
+  margin: 0.4rem 0;
+  padding-left: 1.2rem;
+}
+
+.info-panel li {
+  margin: 0.25rem 0;
+}
+
+.info-panel code {
+  font-size: 0.8rem;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0.05em 0.3em;
+}
+
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.message.user {
+  align-self: flex-end;
+}
+
+.message.assistant {
+  align-self: flex-start;
+}
+
+.message.system {
+  align-self: center;
+  max-width: 90%;
+}
+
+.bubble {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.user .bubble {
+  background-color: var(--primary-color);
+  color: white;
+  border-bottom-right-radius: 0;
+}
+
+.assistant .bubble {
+  background-color: var(--bg-color);
+  color: #1a1a1a;
+  border-bottom-left-radius: 0;
+}
+
+.system small {
+  color: #71717a;
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: #f8f8f8;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.system.error small {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.system.child {
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--child-bg);
+  border: 1px solid var(--child-border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.system.child strong {
+  font-size: 0.75rem;
+  color: #1d4ed8;
+  font-family: monospace;
+  letter-spacing: 0.02em;
+}
+
+.system.child .child-body {
+  margin: 0;
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #1e3a8a;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.input-area {
+  padding: 1rem 2rem 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.status-indicator {
+  font-size: 0.75rem;
+  color: #71717a;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-indicator.running {
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.input-group {
+  display: flex;
+  gap: 1rem;
+}
+
+textarea {
+  flex: 1;
+  resize: none;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  height: 60px;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+button {
+  padding: 0 1.5rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #2563eb;
+}
+
+button:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.stop-button {
+  background-color: #ef4444;
+}
+
+.stop-button:hover {
+  background-color: #dc2626;
+}
