@@ -10,7 +10,13 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime', '@mast-ai/core', '@tanstack/react-virtual'],
+      external: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        '@mast-ai/core',
+        '@tanstack/react-virtual',
+      ],
     },
   },
 });

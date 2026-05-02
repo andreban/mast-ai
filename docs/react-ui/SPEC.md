@@ -2,12 +2,12 @@
 
 ## 1. Package
 
-| Field | Value |
-|-------|-------|
-| Name | `@mast-ai/react-ui` |
-| Location | `packages/react-ui` |
+| Field      | Value               |
+| ---------- | ------------------- |
+| Name       | `@mast-ai/react-ui` |
+| Location   | `packages/react-ui` |
 | Build tool | Vite (library mode) |
-| Language | TypeScript (strict) |
+| Language   | TypeScript (strict) |
 
 ### Peer Dependencies
 
@@ -25,8 +25,8 @@ scrolling by default because agent conversations grow unboundedly during long se
 
 ### Optional Dependencies
 
-| Package | Used for | How to activate |
-|---------|----------|-----------------|
+| Package                                             | Used for                            | How to activate                                                |
+| --------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------- |
 | `react-markdown` + `remark-gfm` + `rehype-sanitize` | Markdown rendering in `MessageItem` | Installed automatically when present; falls back to plain text |
 
 When `react-markdown` is detected, `rehype-sanitize` is **always applied** — the library
@@ -93,7 +93,7 @@ at any scope without `!important`.
 
 /* Dark theme — activated by OS preference OR explicit attribute */
 @media (prefers-color-scheme: dark) {
-  [data-mast-root]:not([data-mast-theme="light"]) {
+  [data-mast-root]:not([data-mast-theme='light']) {
     --mast-bg: #111827;
     --mast-bg-subtle: #1f2937;
     --mast-fg: #f9fafb;
@@ -112,7 +112,7 @@ at any scope without `!important`.
 }
 
 /* Explicit dark override (for apps using next-themes or similar) */
-[data-mast-root][data-mast-theme="dark"] {
+[data-mast-root][data-mast-theme='dark'] {
   /* same tokens as above */
 }
 ```
@@ -137,7 +137,7 @@ This avoids collisions with Tailwind utility classes and other CSS frameworks.
 ## 3. Data Types
 
 These types live in `@mast-ai/react-ui` and are separate from the `@mast-ai/core` types
-they are derived from. The UI types represent the *rendered state* of a conversation, not
+they are derived from. The UI types represent the _rendered state_ of a conversation, not
 the raw protocol messages.
 
 ```typescript
@@ -146,16 +146,16 @@ export interface ToolEventEntry {
   name: string;
   args?: unknown;
   result?: unknown;
-  subThinking?: string;  // accumulated thinking streamed from inside the tool/sub-agent
-  subText?: string;      // accumulated text streamed from inside the tool/sub-agent
-  isStreaming: boolean;  // true while the tool is executing
+  subThinking?: string; // accumulated thinking streamed from inside the tool/sub-agent
+  subText?: string; // accumulated text streamed from inside the tool/sub-agent
+  isStreaming: boolean; // true while the tool is executing
 }
 
 export interface ConversationEntry {
-  id: string;               // stable key for React reconciliation
+  id: string; // stable key for React reconciliation
   role: 'user' | 'assistant';
-  text: string;             // accumulated text (empty while streaming)
-  thinking?: string;        // accumulated thinking (empty while streaming)
+  text: string; // accumulated text (empty while streaming)
+  thinking?: string; // accumulated thinking (empty while streaming)
   toolEvents: ToolEventEntry[];
   isStreaming: boolean;
 }
@@ -224,6 +224,7 @@ interface AgentProviderProps {
 ```
 
 **Internal state managed by `AgentProvider`:**
+
 - `conversation` — `Conversation` instance (from `@mast-ai/core`)
 - `entries` — `ConversationEntry[]` built by processing `AgentEvent` stream
 - `isRunning` — boolean
@@ -253,8 +254,8 @@ Renders:
 
 ```html
 <div data-mast-root class="mast-conversation-panel {className}">
-  <MessageList renderToolCall={...} renderMessage={...} />
-  <ChatInput placeholder={...} />
+  <MessageList renderToolCall="{...}" renderMessage="{...}" />
+  <ChatInput placeholder="{...}" />
 </div>
 ```
 
@@ -284,9 +285,9 @@ Renders:
 <div data-mast-message-list class="mast-message-list {className}" role="log" aria-live="polite">
   <div style="height: {totalSize}px; position: relative;">
     {virtualItems.map(item => (
-      <div data-index={item.index} style="position: absolute; top: {item.start}px; width: 100%">
-        <MessageItem entry={entries[item.index]} ... />
-      </div>
+    <div data-index="{item.index}" style="position: absolute; top: {item.start}px; width: 100%">
+      <MessageItem entry="{entries[item.index]}" ... />
+    </div>
     ))}
   </div>
 </div>
@@ -403,11 +404,11 @@ Access agent state from any component inside `<AgentProvider>`.
 ```typescript
 interface UseAgentReturn {
   messages: ConversationEntry[];
-  history: Message[];        // raw core Message[] — read this to imperatively save state
+  history: Message[]; // raw core Message[] — read this to imperatively save state
   sendMessage: (text: string) => void;
   cancel: () => void;
   isRunning: boolean;
-  reset: () => void;         // clears entries and history; starts a new Conversation
+  reset: () => void; // clears entries and history; starts a new Conversation
 }
 
 function useAgent(): UseAgentReturn;
@@ -430,14 +431,14 @@ pass replacements via the `icons` prop on `<AgentProvider>`.
 The following icons ship inside the package as hand-authored SVGs (~50–80 bytes each,
 ~500 bytes total gzipped):
 
-| Key | Used in | Default appearance |
-|-----|---------|--------------------|
-| `brain` | `<ThinkingBlock>` header | Simple brain outline |
-| `wrench` | `<ToolCallBlock>` header (pending) | Simple wrench outline |
-| `check` | `<ToolCallBlock>` header (completed) | Checkmark circle |
-| `loader` | Streaming / pending spinner | Animated spinning circle |
-| `send` | `<ChatInput>` send button | Filled arrow |
-| `stop` | `<ChatInput>` cancel button | Filled square |
+| Key      | Used in                              | Default appearance       |
+| -------- | ------------------------------------ | ------------------------ |
+| `brain`  | `<ThinkingBlock>` header             | Simple brain outline     |
+| `wrench` | `<ToolCallBlock>` header (pending)   | Simple wrench outline    |
+| `check`  | `<ToolCallBlock>` header (completed) | Checkmark circle         |
+| `loader` | Streaming / pending spinner          | Animated spinning circle |
+| `send`   | `<ChatInput>` send button            | Filled arrow             |
+| `stop`   | `<ChatInput>` cancel button          | Filled square            |
 
 ### 6.3 `IconMap` type
 
@@ -484,7 +485,7 @@ import { Brain, Wrench, CircleCheck, LoaderCircle, Send, Square } from 'lucide-r
   }}
 >
   <ConversationPanel />
-</AgentProvider>
+</AgentProvider>;
 ```
 
 ### 6.6 `useIcons()` hook (internal)
@@ -558,18 +559,18 @@ output, not imported from `index.ts`.
 `useAgentStream` subscribes to the `AgentEvent` stream from `AgentRunner` and
 maintains `ConversationEntry[]` as follows:
 
-| Event | Action |
-|-------|--------|
-| User sends message | Append `{ role: 'user', text, isStreaming: false }` |
-| Run starts | Append `{ role: 'assistant', text: '', isStreaming: true }` |
-| `text_delta` | Mutate last entry: append `delta` to `text` |
-| `thinking` | Mutate last entry: append `delta` to `thinking` |
-| `tool_call_started` | Mutate last entry: push `{ type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents` |
-| `onToolEvent` → `thinking` | Mutate matching `ToolEventEntry`: append `delta` to `subThinking` |
-| `onToolEvent` → `text_delta` | Mutate matching `ToolEventEntry`: append `delta` to `subText` |
-| `tool_call_completed` | Mutate matching `ToolEventEntry`: set `result`, `isStreaming: false` |
-| `done` | Mutate last entry: set `text = output`, `isStreaming = false` |
-| Error / cancel | Mutate last entry: set `isStreaming = false`; optionally append error text |
+| Event                        | Action                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| User sends message           | Append `{ role: 'user', text, isStreaming: false }`                                                    |
+| Run starts                   | Append `{ role: 'assistant', text: '', isStreaming: true }`                                            |
+| `text_delta`                 | Mutate last entry: append `delta` to `text`                                                            |
+| `thinking`                   | Mutate last entry: append `delta` to `thinking`                                                        |
+| `tool_call_started`          | Mutate last entry: push `{ type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents` |
+| `onToolEvent` → `thinking`   | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                      |
+| `onToolEvent` → `text_delta` | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                          |
+| `tool_call_completed`        | Mutate matching `ToolEventEntry`: set `result`, `isStreaming: false`                                   |
+| `done`                       | Mutate last entry: set `text = output`, `isStreaming = false`                                          |
+| Error / cancel               | Mutate last entry: set `isStreaming = false`; optionally append error text                             |
 
 `onToolEvent` events are wired by passing an `onToolEvent` handler to `RunBuilder` inside `useAgentStream`. Events are matched to the correct `ToolEventEntry` by `toolName`. The `done` event from a sub-agent is ignored — the parent's `tool_call_completed` is the authoritative signal that a tool finished.
 
@@ -591,7 +592,7 @@ interface ToolDefinition {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  requiresApproval?: boolean;  // tool author declares this tool is sensitive
+  requiresApproval?: boolean; // tool author declares this tool is sensitive
 }
 ```
 
@@ -605,6 +606,7 @@ per-app.
 `AgentProvider` pauses the run before executing any tool whose effective approval flag
 is `true` and calls `onApprovalRequired`. The consuming app renders its own confirmation
 UI and returns:
+
 - `true` — proceed with the tool call as normal
 - `false` — cancel the tool call; the runner receives a synthetic "user cancelled" result
 - `string` — skip execution and inject this string as the tool result directly
@@ -667,12 +669,12 @@ execute without pausing — the callback is the opt-in).
 
 ### 11.1 Stack
 
-| Tool | Role |
-|------|------|
-| Vitest | Test runner (consistent with other packages in the monorepo) |
-| `@testing-library/react` | Component rendering and user-event simulation |
-| `jsdom` | DOM environment for Vitest |
-| `@testing-library/user-event` | Realistic keyboard/click interactions |
+| Tool                          | Role                                                         |
+| ----------------------------- | ------------------------------------------------------------ |
+| Vitest                        | Test runner (consistent with other packages in the monorepo) |
+| `@testing-library/react`      | Component rendering and user-event simulation                |
+| `jsdom`                       | DOM environment for Vitest                                   |
+| `@testing-library/user-event` | Realistic keyboard/click interactions                        |
 
 ### 11.2 Unit tests
 
@@ -682,51 +684,51 @@ The streaming state machine is the most complex logic in the library and the har
 to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequence of
 `AgentEvent`s.
 
-| Scenario | What is verified |
-|----------|-----------------|
-| Text streaming | `text_delta` events accumulate into the last entry's `text`; `isStreaming` is true during and false after |
-| Thinking streaming | `thinking` deltas accumulate into `thinking`; co-exists with text deltas |
-| Tool call lifecycle | `tool_call_started` appends a pending `ToolEventEntry` with `isStreaming: true`; `tool_call_completed` sets `result` and `isStreaming: false` |
-| Sub-agent thinking | `onToolEvent` → `thinking` appends to matching `ToolEventEntry.subThinking` |
-| Sub-agent text | `onToolEvent` → `text_delta` appends to matching `ToolEventEntry.subText` |
-| Sub-agent `done` ignored | `onToolEvent` → `done` does not affect parent entry's `isStreaming` |
-| Multiple concurrent tool calls | Each call tracked independently by name; sub-agent events routed to correct entry |
-| `done` event | Sets `isStreaming: false`, finalises `text` from `output` |
-| Error / cancel | Sets `isStreaming: false` on the last entry; prior entries unchanged |
-| New turn while previous is complete | Appends a new entry rather than mutating the last |
+| Scenario                            | What is verified                                                                                                                              |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text streaming                      | `text_delta` events accumulate into the last entry's `text`; `isStreaming` is true during and false after                                     |
+| Thinking streaming                  | `thinking` deltas accumulate into `thinking`; co-exists with text deltas                                                                      |
+| Tool call lifecycle                 | `tool_call_started` appends a pending `ToolEventEntry` with `isStreaming: true`; `tool_call_completed` sets `result` and `isStreaming: false` |
+| Sub-agent thinking                  | `onToolEvent` → `thinking` appends to matching `ToolEventEntry.subThinking`                                                                   |
+| Sub-agent text                      | `onToolEvent` → `text_delta` appends to matching `ToolEventEntry.subText`                                                                     |
+| Sub-agent `done` ignored            | `onToolEvent` → `done` does not affect parent entry's `isStreaming`                                                                           |
+| Multiple concurrent tool calls      | Each call tracked independently by name; sub-agent events routed to correct entry                                                             |
+| `done` event                        | Sets `isStreaming: false`, finalises `text` from `output`                                                                                     |
+| Error / cancel                      | Sets `isStreaming: false` on the last entry; prior entries unchanged                                                                          |
+| New turn while previous is complete | Appends a new entry rather than mutating the last                                                                                             |
 
 **Approval flow**
 
-| Scenario | What is verified |
-|----------|-----------------|
-| Tool with `requiresApproval: true` | `onApprovalRequired` is called before tool executes |
-| Callback returns `false` | Tool call is cancelled; runner receives synthetic "user cancelled" result |
-| Callback returns a string | Injected as the tool result; tool does not execute |
-| `approvalOverride` adds a name | Unlisted tool triggers approval |
-| `approvalOverride` suppresses with `!` | Tool with `requiresApproval: true` executes without prompting |
-| No `onApprovalRequired` provided | Tools with `requiresApproval: true` execute silently |
+| Scenario                               | What is verified                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| Tool with `requiresApproval: true`     | `onApprovalRequired` is called before tool executes                       |
+| Callback returns `false`               | Tool call is cancelled; runner receives synthetic "user cancelled" result |
+| Callback returns a string              | Injected as the tool result; tool does not execute                        |
+| `approvalOverride` adds a name         | Unlisted tool triggers approval                                           |
+| `approvalOverride` suppresses with `!` | Tool with `requiresApproval: true` executes without prompting             |
+| No `onApprovalRequired` provided       | Tools with `requiresApproval: true` execute silently                      |
 
 **Conversation persistence**
 
-| Scenario | What is verified |
-|----------|-----------------|
-| `onConversationChange` fires | Called with current `history` and `entries` after `done` event |
-| Not called on cancel/error | Callback not invoked when run ends without `done` |
+| Scenario                            | What is verified                                               |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `onConversationChange` fires        | Called with current `history` and `entries` after `done` event |
+| Not called on cancel/error          | Callback not invoked when run ends without `done`              |
 | `initialHistory` seeds core history | First turn sent to runner includes the provided prior messages |
-| `initialEntries` seeds UI | Pre-existing entries render immediately on mount |
-| `reset()` clears both | After reset, `messages` is empty and `history` is empty |
-| `useAgent().history` reflects state | Returns the live `Conversation.history` after each turn |
+| `initialEntries` seeds UI           | Pre-existing entries render immediately on mount               |
+| `reset()` clears both               | After reset, `messages` is empty and `history` is empty        |
+| `useAgent().history` reflects state | Returns the live `Conversation.history` after each turn        |
 
 **Components**
 
-| Component | Scenarios tested |
-|-----------|-----------------|
-| `<ThinkingBlock>` | Renders collapsed by default; expands on click; shows pulse indicator when `isStreaming` |
-| `<ToolCallBlock>` | Pending state (spinner, no result); completed state (check, result visible when expanded) |
-| `<ChatInput>` | Enter submits; Shift+Enter does not; button switches to cancel while `isRunning`; disabled while `isRunning` |
-| `<MessageList>` | Renders user and assistant entries; scrolls to bottom on new entry |
-| `<AgentProvider>` | `useAgent()` throws when called outside provider |
-| Icon override | Components render the custom node from `icons` prop instead of default SVG |
+| Component         | Scenarios tested                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| `<ThinkingBlock>` | Renders collapsed by default; expands on click; shows pulse indicator when `isStreaming`                     |
+| `<ToolCallBlock>` | Pending state (spinner, no result); completed state (check, result visible when expanded)                    |
+| `<ChatInput>`     | Enter submits; Shift+Enter does not; button switches to cancel while `isRunning`; disabled while `isRunning` |
+| `<MessageList>`   | Renders user and assistant entries; scrolls to bottom on new entry                                           |
+| `<AgentProvider>` | `useAgent()` throws when called outside provider                                                             |
+| Icon override     | Components render the custom node from `icons` prop instead of default SVG                                   |
 
 ### 11.3 File layout
 
@@ -755,12 +757,12 @@ surface and a reference implementation.
 
 ### Stack
 
-| Concern | Choice |
-|---------|--------|
-| Bundler | Vite |
+| Concern     | Choice                                                                |
+| ----------- | --------------------------------------------------------------------- |
+| Bundler     | Vite                                                                  |
 | LLM adapter | `@mast-ai/google-genai` (API key via `VITE_GEMINI_API_KEY` in `.env`) |
-| Icons | `lucide-react` (demonstrates icon override) |
-| Markdown | `react-markdown` + `remark-gfm` + `rehype-sanitize` |
+| Icons       | `lucide-react` (demonstrates icon override)                           |
+| Markdown    | `react-markdown` + `remark-gfm` + `rehype-sanitize`                   |
 
 ### What it demonstrates
 
