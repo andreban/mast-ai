@@ -1,0 +1,771 @@
+# Technical Specification: @mast-ai/react-ui
+
+## 1. Package
+
+| Field | Value |
+|-------|-------|
+| Name | `@mast-ai/react-ui` |
+| Location | `packages/react-ui` |
+| Build tool | Vite (library mode) |
+| Language | TypeScript (strict) |
+
+### Peer Dependencies
+
+```json
+{
+  "react": ">=19.0.0",
+  "react-dom": ">=19.0.0",
+  "@mast-ai/core": "workspace:*",
+  "@tanstack/react-virtual": ">=3.0.0"
+}
+```
+
+`@tanstack/react-virtual` is a required peer dependency. `<MessageList>` uses virtual
+scrolling by default because agent conversations grow unboundedly during long sessions.
+
+### Optional Dependencies
+
+| Package | Used for | How to activate |
+|---------|----------|-----------------|
+| `react-markdown` + `remark-gfm` + `rehype-sanitize` | Markdown rendering in `MessageItem` | Installed automatically when present; falls back to plain text |
+
+When `react-markdown` is detected, `rehype-sanitize` is **always applied** — the library
+does not expose a way to disable sanitisation. Apps that need unrestricted HTML rendering
+should supply a `renderMessage` prop instead.
+
+Icons are **bundled inline** — see [Section 6: Icons](#6-icons).
+
+---
+
+## 2. Styling Architecture
+
+### 2.1 Two-tier approach
+
+**Tier 1 — Headless (behaviour only)**
+Every component renders semantic HTML with `data-mast-*` attributes and no inline styles.
+Components accept `className` and `style` props for consumer control.
+
+**Tier 2 — Default stylesheet**
+An optional CSS file provides a complete default theme. Consumers opt in with:
+
+```ts
+import '@mast-ai/react-ui/styles.css';
+```
+
+This file is plain CSS with no build-tool dependencies. It uses CSS custom properties
+scoped under `[data-mast-root]` so it does not pollute the global namespace.
+
+### 2.2 CSS Custom Properties
+
+The default stylesheet defines a light theme and an automatic dark theme. Both are
+expressed as CSS custom property blocks so consuming apps can override individual tokens
+at any scope without `!important`.
+
+```css
+/* Light theme (default) */
+[data-mast-root] {
+  /* Color */
+  --mast-bg: #ffffff;
+  --mast-bg-subtle: #f9fafb;
+  --mast-fg: #111827;
+  --mast-fg-muted: #6b7280;
+  --mast-border: #e5e7eb;
+  --mast-accent: #2563eb;
+  --mast-accent-fg: #ffffff;
+  --mast-thinking-bg: #fefce8;
+  --mast-thinking-fg: #854d0e;
+  --mast-tool-bg: #f0fdf4;
+  --mast-tool-fg: #166534;
+  --mast-tool-pending: #f59e0b;
+  --mast-user-bubble: #dbeafe;
+  --mast-user-fg: #1e3a8a;
+
+  /* Typography */
+  --mast-font: system-ui, sans-serif;
+  --mast-font-mono: ui-monospace, monospace;
+  --mast-text-sm: 0.875rem;
+  --mast-text-base: 1rem;
+
+  /* Spacing */
+  --mast-gap: 0.75rem;
+  --mast-radius: 0.5rem;
+}
+
+/* Dark theme — activated by OS preference OR explicit attribute */
+@media (prefers-color-scheme: dark) {
+  [data-mast-root]:not([data-mast-theme="light"]) {
+    --mast-bg: #111827;
+    --mast-bg-subtle: #1f2937;
+    --mast-fg: #f9fafb;
+    --mast-fg-muted: #9ca3af;
+    --mast-border: #374151;
+    --mast-accent: #3b82f6;
+    --mast-accent-fg: #ffffff;
+    --mast-thinking-bg: #1c1917;
+    --mast-thinking-fg: #fcd34d;
+    --mast-tool-bg: #052e16;
+    --mast-tool-fg: #86efac;
+    --mast-tool-pending: #fbbf24;
+    --mast-user-bubble: #1e3a8a;
+    --mast-user-fg: #bfdbfe;
+  }
+}
+
+/* Explicit dark override (for apps using next-themes or similar) */
+[data-mast-root][data-mast-theme="dark"] {
+  /* same tokens as above */
+}
+```
+
+**Manual theme control:** Apps that manage their own theme switching (e.g. via
+`next-themes`) pass `data-mast-theme="light"` or `data-mast-theme="dark"` to the
+root element. `ConversationPanel` accepts a `theme` prop that sets this attribute:
+
+```tsx
+<ConversationPanel theme="dark" />        // force dark
+<ConversationPanel theme="light" />       // force light
+<ConversationPanel />                     // follow OS (default)
+```
+
+### 2.3 CSS class naming
+
+All default classes use the `mast-` prefix (e.g. `mast-message`, `mast-thinking-block`).
+This avoids collisions with Tailwind utility classes and other CSS frameworks.
+
+---
+
+## 3. Data Types
+
+These types live in `@mast-ai/react-ui` and are separate from the `@mast-ai/core` types
+they are derived from. The UI types represent the *rendered state* of a conversation, not
+the raw protocol messages.
+
+```typescript
+export interface ToolEventEntry {
+  type: 'tool_call_started' | 'tool_call_completed';
+  name: string;
+  args?: unknown;
+  result?: unknown;
+}
+
+export interface ConversationEntry {
+  id: string;               // stable key for React reconciliation
+  role: 'user' | 'assistant';
+  text: string;             // accumulated text (empty while streaming)
+  thinking?: string;        // accumulated thinking (empty while streaming)
+  toolEvents: ToolEventEntry[];
+  isStreaming: boolean;
+}
+```
+
+The `useAgentStream` internal hook builds and maintains a `ConversationEntry[]` from
+the `AgentEvent` stream emitted by `AgentRunner`.
+
+---
+
+## 4. Components
+
+### 4.1 `<AgentProvider>`
+
+Wraps a subtree with agent context. Manages a `Conversation` instance from
+`@mast-ai/core` and exposes it via the `useAgent()` hook.
+
+```tsx
+interface AgentProviderProps {
+  runner: AgentRunner;
+  agent: AgentConfig;
+  children: React.ReactNode;
+  icons?: IconMap;
+
+  /**
+   * Called before executing any tool call that has requiresApproval: true in
+   * its ToolDefinition. Return true to proceed, false to cancel, or a string
+   * to short-circuit execution with a synthetic result.
+   *
+   * Also called for any tool whose name appears in approvalOverride, regardless
+   * of the tool's own requiresApproval flag — allowing context-specific policy
+   * (e.g. a sandbox environment that auto-approves everything, or a production
+   * deployment that adds approval to a third-party tool it did not define).
+   */
+  onApprovalRequired?: (toolCall: ToolEventEntry) => Promise<boolean | string>;
+
+  /**
+   * Runtime override of per-tool approval policy. Names in this set trigger
+   * onApprovalRequired even if requiresApproval is false on the tool definition;
+   * names prefixed with '!' suppress approval even if requiresApproval is true.
+   * Example: approvalOverride={['extra_tool', '!safe_tool']}
+   */
+  approvalOverride?: string[];
+}
+```
+
+**Internal state managed by `AgentProvider`:**
+- `conversation` — `Conversation` instance (from `@mast-ai/core`)
+- `entries` — `ConversationEntry[]` built by processing `AgentEvent` stream
+- `isRunning` — boolean
+- `abortController` — ref, replaced on each new run
+
+### 4.2 `<ConversationPanel>`
+
+Renders a complete chat UI as a single composable unit. Internally renders
+`<MessageList>` and `<ChatInput>`. Requires `<AgentProvider>` as an ancestor.
+
+```tsx
+interface ConversationPanelProps {
+  className?: string;
+
+  /** Replace the default tool call renderer. Receives the ToolEventEntry. */
+  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+
+  /** Replace the default markdown renderer. Receives the raw text string. */
+  renderMessage?: (text: string) => React.ReactNode;
+
+  /** Placeholder text for the input field. */
+  inputPlaceholder?: string;
+}
+```
+
+Renders:
+
+```html
+<div data-mast-root class="mast-conversation-panel {className}">
+  <MessageList renderToolCall={...} renderMessage={...} />
+  <ChatInput placeholder={...} />
+</div>
+```
+
+### 4.3 `<MessageList>`
+
+Scrollable list of `ConversationEntry` items. Reads `entries` from context.
+Uses `@tanstack/react-virtual` (`useVirtualizer`) to render only the visible window of
+messages. Automatically scrolls to the bottom when a new entry is appended or the last
+entry (currently streaming) changes size.
+
+```tsx
+interface MessageListProps {
+  className?: string;
+  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+  renderMessage?: (text: string) => React.ReactNode;
+}
+```
+
+The virtualizer uses dynamic item measurement (`measureElement`) so variable-height
+messages (those with long tool call results or large markdown blocks) are handled
+correctly. A `useEffect` that watches `entries.length` and the last entry's `text`
+length drives the auto-scroll-to-bottom behaviour.
+
+Renders:
+
+```html
+<div data-mast-message-list class="mast-message-list {className}" role="log" aria-live="polite">
+  <div style="height: {totalSize}px; position: relative;">
+    {virtualItems.map(item => (
+      <div data-index={item.index} style="position: absolute; top: {item.start}px; width: 100%">
+        <MessageItem entry={entries[item.index]} ... />
+      </div>
+    ))}
+  </div>
+</div>
+```
+
+### 4.4 `<MessageItem>`
+
+Renders a single `ConversationEntry`. Delegates to `<UserMessage>` or
+`<AssistantMessage>` based on `entry.role`.
+
+```tsx
+interface MessageItemProps {
+  entry: ConversationEntry;
+  className?: string;
+  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+  renderMessage?: (text: string) => React.ReactNode;
+}
+```
+
+### 4.5 `<AssistantMessage>`
+
+Renders an assistant turn: optional `<ThinkingBlock>`, zero or more
+`<ToolCallBlock>` entries, then the final text. Text is rendered via the optional
+`react-markdown` renderer or the `renderMessage` override.
+
+```tsx
+interface AssistantMessageProps {
+  entry: ConversationEntry;
+  className?: string;
+  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+  renderMessage?: (text: string) => React.ReactNode;
+}
+```
+
+### 4.6 `<UserMessage>`
+
+Renders a user turn as a simple text bubble.
+
+```tsx
+interface UserMessageProps {
+  entry: ConversationEntry;
+  className?: string;
+}
+```
+
+### 4.7 `<ThinkingBlock>`
+
+Collapsible section for the agent's thinking/reasoning trace.
+
+```tsx
+interface ThinkingBlockProps {
+  content: string;
+  isStreaming?: boolean;
+  className?: string;
+  /** Default: 'Thinking Process' */
+  label?: string;
+}
+```
+
+- When `isStreaming` is true, shows a pulsing indicator next to the label.
+- Collapsed by default; expands on click.
+- Uses a native `<details>/<summary>` element so it works without JavaScript and is
+  keyboard-accessible by default.
+
+### 4.8 `<ToolCallBlock>`
+
+Displays a single tool invocation: name, collapsible args, and result once available.
+
+```tsx
+interface ToolCallBlockProps {
+  entry: ToolEventEntry;
+  className?: string;
+}
+```
+
+- Pending state (no `result` yet): shows a spinner indicator and `args` collapsed.
+- Completed state (`result` present): shows a check mark; `result` available in
+  expanded view.
+- Args and result are rendered as formatted JSON in a `<pre>` block.
+- Uses `<details>/<summary>` for expand/collapse.
+
+### 4.9 `<ChatInput>`
+
+Text input wired to `sendMessage` from context. Handles Enter-to-send and
+disabled state during streaming.
+
+```tsx
+interface ChatInputProps {
+  className?: string;
+  placeholder?: string;
+  /** Overrides default send button content */
+  sendLabel?: React.ReactNode;
+  /** Overrides default cancel button content (shown while isRunning) */
+  cancelLabel?: React.ReactNode;
+}
+```
+
+- Pressing Enter (without Shift) submits.
+- While `isRunning`, the send button becomes a cancel button that calls `cancel()`.
+- Auto-grows vertically (using `rows` attribute, not fixed height).
+
+---
+
+## 5. Hooks
+
+### `useAgent()`
+
+Access agent state from any component inside `<AgentProvider>`.
+
+```typescript
+interface UseAgentReturn {
+  messages: ConversationEntry[];
+  sendMessage: (text: string) => void;
+  cancel: () => void;
+  isRunning: boolean;
+  reset: () => void;   // clears entries and starts a new Conversation
+}
+
+function useAgent(): UseAgentReturn;
+```
+
+Throws if called outside `<AgentProvider>`.
+
+---
+
+## 6. Icons
+
+### 6.1 Strategy
+
+Icons are **bundled inline** as small SVG React components. The library has no dependency
+on `lucide-react` or any icon library. Consuming apps that prefer a different icon set
+pass replacements via the `icons` prop on `<AgentProvider>`.
+
+### 6.2 Default icon set
+
+The following icons ship inside the package as hand-authored SVGs (~50–80 bytes each,
+~500 bytes total gzipped):
+
+| Key | Used in | Default appearance |
+|-----|---------|--------------------|
+| `brain` | `<ThinkingBlock>` header | Simple brain outline |
+| `wrench` | `<ToolCallBlock>` header (pending) | Simple wrench outline |
+| `check` | `<ToolCallBlock>` header (completed) | Checkmark circle |
+| `loader` | Streaming / pending spinner | Animated spinning circle |
+| `send` | `<ChatInput>` send button | Filled arrow |
+| `stop` | `<ChatInput>` cancel button | Filled square |
+
+### 6.3 `IconMap` type
+
+```typescript
+export interface IconMap {
+  brain?: React.ReactNode;
+  wrench?: React.ReactNode;
+  check?: React.ReactNode;
+  loader?: React.ReactNode;
+  send?: React.ReactNode;
+  stop?: React.ReactNode;
+}
+```
+
+All keys are optional. Unspecified keys fall back to the bundled defaults.
+
+### 6.4 `icons` prop on `<AgentProvider>`
+
+```tsx
+interface AgentProviderProps {
+  // ... existing props
+  icons?: IconMap;
+}
+```
+
+Icons are distributed to child components via a dedicated `IconContext` (separate from
+agent state to avoid re-renders on state changes).
+
+### 6.5 Lucide usage example
+
+```tsx
+import { Brain, Wrench, CircleCheck, LoaderCircle, Send, Square } from 'lucide-react';
+
+<AgentProvider
+  runner={runner}
+  agent={agentConfig}
+  icons={{
+    brain: <Brain size={16} />,
+    wrench: <Wrench size={16} />,
+    check: <CircleCheck size={16} />,
+    loader: <LoaderCircle size={16} className="mast-spin" />,
+    send: <Send size={16} />,
+    stop: <Square size={16} />,
+  }}
+>
+  <ConversationPanel />
+</AgentProvider>
+```
+
+### 6.6 `useIcons()` hook (internal)
+
+Components read icons via an internal `useIcons()` hook rather than accepting individual
+icon props. This keeps the per-component API clean while still allowing app-wide
+overrides.
+
+```typescript
+// internal — not exported
+function useIcons(): Required<IconMap>;
+```
+
+---
+
+## 7. Module Layout
+
+```
+packages/react-ui/
+├── src/
+│   ├── index.ts               — public exports
+│   ├── context.tsx            — AgentProvider, AgentContext, useAgent
+│   ├── icons.tsx              — IconMap type, IconContext, useIcons, bundled SVG defaults
+│   ├── types.ts               — ConversationEntry, ToolEventEntry
+│   ├── hooks/
+│   │   └── useAgentStream.ts  — internal: builds ConversationEntry[] from AgentEvent
+│   └── components/
+│       ├── ConversationPanel.tsx
+│       ├── MessageList.tsx
+│       ├── MessageItem.tsx
+│       ├── AssistantMessage.tsx
+│       ├── UserMessage.tsx
+│       ├── ThinkingBlock.tsx
+│       ├── ToolCallBlock.tsx
+│       └── ChatInput.tsx
+├── styles/
+│   └── default.css            — emitted as dist/styles.css
+├── package.json
+├── tsconfig.json
+└── vite.config.ts             — library mode; externalises react, @mast-ai/core
+```
+
+### Public exports (`src/index.ts`)
+
+```typescript
+// Provider + hook
+export { AgentProvider } from './context';
+export { useAgent } from './context';
+
+// Components
+export { ConversationPanel } from './components/ConversationPanel';
+export { MessageList } from './components/MessageList';
+export { MessageItem } from './components/MessageItem';
+export { AssistantMessage } from './components/AssistantMessage';
+export { UserMessage } from './components/UserMessage';
+export { ThinkingBlock } from './components/ThinkingBlock';
+export { ToolCallBlock } from './components/ToolCallBlock';
+export { ChatInput } from './components/ChatInput';
+
+// Types
+export type { ConversationEntry, ToolEventEntry, AgentProviderProps, IconMap } from './types';
+```
+
+CSS is a separate export path (`@mast-ai/react-ui/styles.css`) handled by the build
+output, not imported from `index.ts`.
+
+---
+
+## 8. Streaming State Machine
+
+`useAgentStream` subscribes to the `AgentEvent` stream from `AgentRunner` and
+maintains `ConversationEntry[]` as follows:
+
+| Event | Action |
+|-------|--------|
+| User sends message | Append `{ role: 'user', text, isStreaming: false }` |
+| Run starts | Append `{ role: 'assistant', text: '', isStreaming: true }` |
+| `text_delta` | Mutate last entry: append `delta` to `text` |
+| `thinking` | Mutate last entry: append `delta` to `thinking` |
+| `tool_call_started` | Mutate last entry: push `{ type: 'tool_call_started', name, args }` to `toolEvents` |
+| `tool_call_completed` | Mutate last entry: update matching `toolEvents` entry with `result` |
+| `done` | Mutate last entry: set `text = output`, `isStreaming = false` |
+| Error / cancel | Mutate last entry: set `isStreaming = false`; optionally append error text |
+
+State updates use `React.useState` with structural copies to trigger re-renders. The
+last entry's `isStreaming` flag drives the pulsing indicator in `<ThinkingBlock>` and
+the spinner in `<ToolCallBlock>`.
+
+---
+
+## 9. Tool Approval Flow (Optional)
+
+### 9.1 Policy: `requiresApproval` on `ToolDefinition` (core change)
+
+Approval intent is declared by the tool author on the tool definition:
+
+```typescript
+// @mast-ai/core — ToolDefinition extended
+interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  requiresApproval?: boolean;  // tool author declares this tool is sensitive
+}
+```
+
+This is the canonical signal. `requiresApproval: true` means "pause and ask a human
+before executing this." The declaration lives next to the tool's name and description,
+where it is discoverable, portable across all MAST runners, and set once rather than
+per-app.
+
+### 9.2 Mechanism: `onApprovalRequired` callback
+
+`AgentProvider` pauses the run before executing any tool whose effective approval flag
+is `true` and calls `onApprovalRequired`. The consuming app renders its own confirmation
+UI and returns:
+- `true` — proceed with the tool call as normal
+- `false` — cancel the tool call; the runner receives a synthetic "user cancelled" result
+- `string` — skip execution and inject this string as the tool result directly
+
+```tsx
+<AgentProvider
+  runner={runner}
+  agent={agentConfig}
+  onApprovalRequired={async (toolCall) => {
+    return await myConfirmationDialog(toolCall);
+  }}
+>
+```
+
+### 9.3 Runtime override: `approvalOverride`
+
+The `approvalOverride` prop allows context-specific policy adjustments without touching
+tool definitions:
+
+```tsx
+// A sandbox that suppresses approval for normally-sensitive tools:
+<AgentProvider approvalOverride={['!delete_file']} ... />
+
+// A high-trust workflow that adds approval to a third-party tool it didn't define:
+<AgentProvider approvalOverride={['third_party_tool']} ... />
+```
+
+Names prefixed with `!` suppress approval even when the tool has `requiresApproval: true`.
+Unprefixed names add approval even when the tool does not.
+
+The effective approval decision for a tool named `name` is:
+
+```
+overrideSet = new Set(approvalOverride.filter(s => !s.startsWith('!')))
+suppressSet = new Set(approvalOverride.filter(s => s.startsWith('!')).map(s => s.slice(1)))
+
+needsApproval = (toolDef.requiresApproval || overrideSet.has(name)) && !suppressSet.has(name)
+```
+
+`onApprovalRequired` is not called when `needsApproval` is false, or when
+`onApprovalRequired` is not provided (in which case tools with `requiresApproval: true`
+execute without pausing — the callback is the opt-in).
+
+---
+
+## 10. Accessibility
+
+- `<MessageList>` uses `role="log"` and `aria-live="polite"` so screen readers
+  announce new messages.
+- `<ThinkingBlock>` and `<ToolCallBlock>` use native `<details>/<summary>` elements,
+  which are keyboard-accessible without JavaScript.
+- `<ChatInput>` has an associated `<label>` (visually hidden) for screen readers.
+- Send and cancel buttons have descriptive `aria-label` attributes.
+- Streaming indicators (pulsing dots) are wrapped in `aria-hidden="true"` since they
+  convey purely visual state already communicated via `aria-live`.
+
+---
+
+## 11. Testing Strategy
+
+### 11.1 Stack
+
+| Tool | Role |
+|------|------|
+| Vitest | Test runner (consistent with other packages in the monorepo) |
+| `@testing-library/react` | Component rendering and user-event simulation |
+| `jsdom` | DOM environment for Vitest |
+| `@testing-library/user-event` | Realistic keyboard/click interactions |
+
+### 11.2 Unit tests
+
+**`useAgentStream` (highest priority)**
+
+The streaming state machine is the most complex logic in the library and the hardest
+to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequence of
+`AgentEvent`s.
+
+| Scenario | What is verified |
+|----------|-----------------|
+| Text streaming | `text_delta` events accumulate into the last entry's `text`; `isStreaming` is true during and false after |
+| Thinking streaming | `thinking` deltas accumulate into `thinking`; co-exists with text deltas |
+| Tool call lifecycle | `tool_call_started` appends a pending `ToolEventEntry`; `tool_call_completed` updates it with `result` |
+| Multiple concurrent tool calls | Each call tracked independently by name |
+| `done` event | Sets `isStreaming: false`, finalises `text` from `output` |
+| Error / cancel | Sets `isStreaming: false` on the last entry; prior entries unchanged |
+| New turn while previous is complete | Appends a new entry rather than mutating the last |
+
+**Approval flow**
+
+| Scenario | What is verified |
+|----------|-----------------|
+| Tool with `requiresApproval: true` | `onApprovalRequired` is called before tool executes |
+| Callback returns `false` | Tool call is cancelled; runner receives synthetic "user cancelled" result |
+| Callback returns a string | Injected as the tool result; tool does not execute |
+| `approvalOverride` adds a name | Unlisted tool triggers approval |
+| `approvalOverride` suppresses with `!` | Tool with `requiresApproval: true` executes without prompting |
+| No `onApprovalRequired` provided | Tools with `requiresApproval: true` execute silently |
+
+**Components**
+
+| Component | Scenarios tested |
+|-----------|-----------------|
+| `<ThinkingBlock>` | Renders collapsed by default; expands on click; shows pulse indicator when `isStreaming` |
+| `<ToolCallBlock>` | Pending state (spinner, no result); completed state (check, result visible when expanded) |
+| `<ChatInput>` | Enter submits; Shift+Enter does not; button switches to cancel while `isRunning`; disabled while `isRunning` |
+| `<MessageList>` | Renders user and assistant entries; scrolls to bottom on new entry |
+| `<AgentProvider>` | `useAgent()` throws when called outside provider |
+| Icon override | Components render the custom node from `icons` prop instead of default SVG |
+
+### 11.3 File layout
+
+```
+packages/react-ui/
+└── src/
+    └── __tests__/
+        ├── useAgentStream.test.ts
+        ├── approval.test.tsx
+        ├── ThinkingBlock.test.tsx
+        ├── ToolCallBlock.test.tsx
+        ├── ChatInput.test.tsx
+        ├── MessageList.test.tsx
+        └── AgentProvider.test.tsx
+```
+
+---
+
+## 12. Demo App (`apps/demo-react-ui`)
+
+A Vite + React + TypeScript app in the monorepo that serves as both a manual test
+surface and a reference implementation.
+
+### Stack
+
+| Concern | Choice |
+|---------|--------|
+| Bundler | Vite |
+| LLM adapter | `@mast-ai/google-genai` (API key via `VITE_GEMINI_API_KEY` in `.env`) |
+| Icons | `lucide-react` (demonstrates icon override) |
+| Markdown | `react-markdown` + `remark-gfm` + `rehype-sanitize` |
+
+### What it demonstrates
+
+1. **Minimal setup** — `<AgentProvider>` + `<ConversationPanel>` with a single CSS import
+   and a `GoogleGenAIAdapter`.
+2. **Custom icons** — all six icon slots overridden with `lucide-react` equivalents.
+3. **Tool call rendering** — two registered tools (`get_current_time`,
+   `get_page_title`) so tool call blocks appear in the conversation.
+4. **Dark mode** — a toggle button that sets `theme="dark"` / `"light"` on
+   `<ConversationPanel>`, demonstrating manual theme control alongside the OS default.
+5. **Approval flow** — `get_page_title` has `requiresApproval: true`; the demo shows a
+   simple browser `confirm()` dialog wired to `onApprovalRequired`.
+
+### File structure
+
+```
+apps/demo-react-ui/
+├── src/
+│   ├── main.tsx        — mounts App
+│   ├── App.tsx         — AgentProvider setup, tool registration, theme toggle
+│   └── tools.ts        — get_current_time and get_page_title tool definitions
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+├── package.json
+└── .env.example        — VITE_GEMINI_API_KEY=your_key_here
+```
+
+---
+
+## 13. Post-Implementation Deliverables
+
+The following are required before the feature is considered complete. They are deferred
+until the package and demo are implemented and manually verified.
+
+### 12.1 Developer documentation (`docs/react-ui/USAGE.md`)
+
+A usage guide covering:
+
+- Installation (peer deps, optional deps, CSS import)
+- Basic setup with `GoogleGenAIAdapter`
+- Registering tools
+- Custom icons (lucide-react example)
+- Dark mode and theming (CSS variable overrides)
+- Custom tool call rendering (`renderToolCall` prop)
+- Custom message rendering (`renderMessage` prop)
+- Composing a custom layout with primitives (`MessageList` + `ChatInput`)
+- Fully headless usage via `useAgent()`
+- Approval flow (`requiresApproval` on `ToolDefinition` + `onApprovalRequired` callback)
+
+### 12.2 Skill update (`skills/mast-ai/`)
+
+- Add `@mast-ai/react-ui` to the Core Concepts list in `SKILL.md`
+- Add a reference link to `references/react-ui.md` in `SKILL.md`
+- Create `skills/mast-ai/references/react-ui.md` mirroring the USAGE.md content in
+  reference format
+- Add `skills/mast-ai/assets/react-ui-basic.tsx` — a minimal working example showing
+  `AgentProvider` + `ConversationPanel` with `GoogleGenAIAdapter`
