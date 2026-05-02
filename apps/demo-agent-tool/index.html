@@ -19,17 +19,20 @@
 
         <div class="info-panel">
           <h3>Architecture</h3>
-          <p><strong>Parent agent</strong> &middot; <code>GoogleGenAIAdapter</code> (Gemini)</p>
           <p>
-            <strong>Child agent</strong> &middot; <code>BuiltInAIAdapter</code> (on-device, via
-            Chrome Prompt API)
+            <strong>Parent agent</strong>: an orchestrator that picks tools. It runs through its
+            own <code>AgentRunner</code> + <code>GoogleGenAIAdapter</code>.
           </p>
           <p>
-            The parent has one tool, <code>rewrite_text</code>, wired up with
-            <code>createAgentTool</code>. When the parent calls it, the child agent runs locally and
-            its <code>thinking</code> / <code>text_delta</code> events stream into the
-            <code>onToolEvent</code> handler &mdash; you'll see them appear inline below the tool
-            call.
+            <strong>Child agent</strong>: a specialised rewriter. It runs through a separate
+            <code>AgentRunner</code> + <code>GoogleGenAIAdapter</code> with its own
+            <code>AgentConfig</code>.
+          </p>
+          <p>
+            <code>createAgentTool</code> wires the child as the parent's only tool,
+            <code>rewrite_text</code>. The child's <code>text_delta</code> events stream into the
+            parent's <code>onToolEvent</code> handler &mdash; you'll see them appear inline below
+            the tool call.
           </p>
         </div>
 

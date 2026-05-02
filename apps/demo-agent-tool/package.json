@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mast-ai/built-in-ai": "*",
     "@mast-ai/core": "*",
     "@mast-ai/google-genai": "*"
   },
