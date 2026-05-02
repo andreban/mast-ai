@@ -4,3 +4,5 @@
 export type { ConversationEntry, ToolEventEntry, IconMap } from './types';
 export { useAgentStream } from './hooks/useAgentStream';
 export type { UseAgentStreamReturn } from './hooks/useAgentStream';
+export { AgentProvider, useAgent } from './context';
+export type { AgentProviderProps, UseAgentReturn } from './context';
