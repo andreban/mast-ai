@@ -6,3 +6,5 @@ export { useAgentStream } from './hooks/useAgentStream';
 export type { UseAgentStreamReturn } from './hooks/useAgentStream';
 export { AgentProvider, useAgent } from './context';
 export type { AgentProviderProps, UseAgentReturn } from './context';
+export { ThinkingBlock } from './components/ThinkingBlock';
+export type { ThinkingBlockProps } from './components/ThinkingBlock';

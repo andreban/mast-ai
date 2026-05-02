@@ -4,7 +4,7 @@
 import { useState, type KeyboardEvent } from 'react';
 import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
-import { AgentProvider, useAgent, type IconMap } from '@mast-ai/react-ui';
+import { AgentProvider, ThinkingBlock, useAgent, type IconMap } from '@mast-ai/react-ui';
 import { Brain, CircleCheck, LoaderCircle, Send, Square, Wrench } from 'lucide-react';
 
 import { GetCurrentTimeTool } from './tools';
@@ -57,7 +57,11 @@ function ChatUI() {
       <ul>
         {messages.map((entry) => (
           <li key={entry.id}>
-            <strong>{entry.role}:</strong> {entry.text}
+            <strong>{entry.role}:</strong>{' '}
+            {entry.role === 'assistant' && entry.thinking ? (
+              <ThinkingBlock content={entry.thinking} isStreaming={entry.isStreaming} />
+            ) : null}
+            {entry.text}
             {entry.isStreaming && entry.text === '' ? <em> (thinking...)</em> : null}
           </li>
         ))}
