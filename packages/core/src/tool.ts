@@ -80,7 +80,7 @@ export class ToolRegistry implements ToolProvider {
 
   /** Returns the definitions of all registered tools for inclusion in an adapter request. */
   getTools(): ToolDefinition[] {
-    return Array.from(this._tools.values()).map(t => t.definition());
+    return Array.from(this._tools.values()).map((t) => t.definition());
   }
 
   /** Returns a live read-only view filtered to tools with `scope: 'read'`. */
@@ -102,7 +102,7 @@ export class ToolRegistryView implements ToolProvider {
   ) {}
 
   getTools(): ToolDefinition[] {
-    return this.parent.getTools().filter(def => def.scope === this.scope);
+    return this.parent.getTools().filter((def) => def.scope === this.scope);
   }
 
   getTool(name: string): Tool | undefined {

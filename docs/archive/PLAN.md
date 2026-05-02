@@ -1,7 +1,9 @@
 # Implementation Plan: MAST (Modular Agent State Toolkit)
 
 ## Agent Instructions (For New Chat Sessions)
+
 If you are picking up this plan in a new session, you MUST:
+
 1. **Read `docs/SPEC.md`:** Do not guess type definitions, interfaces, or protocol schemas. The exact structures for `Message`, `ToolCall`, `UrpAdapter`, etc., are explicitly defined in the technical spec.
 2. **Read `docs/PRD.md`:** To understand the "Hybrid Mode" and why the browser is the orchestrator.
 3. **Understand the Monorepo:** This is a Bun workspace. The core library is in `packages/core` and the demos are in `apps/`. Use `bun run build` to verify changes.
@@ -11,6 +13,7 @@ If you are picking up this plan in a new session, you MUST:
 This document outlines the phased implementation of the MAST library and its integration into a suite of focused demo applications under the `apps/` directory. Each phase is designed to be a standalone PR that maintains project build integrity while showcasing specific features of the toolkit.
 
 ## Phase 1: Core Types & Protocol Definitions (PR #1) - COMPLETED
+
 **Goal:** Establish the foundational type system and the Universal Remote Protocol (URP) schema.
 
 - **Library Tasks:**
@@ -25,6 +28,7 @@ This document outlines the phased implementation of the MAST library and its int
 - **Success Criteria:** `bun run build` passes for both `packages/core` and `apps/demo-basic-chat`.
 
 ## Phase 2: Transport & Adapters (PR #2)
+
 **Goal:** Implement the communication layer for remote LLMs.
 
 - **Library Tasks:**
@@ -37,6 +41,7 @@ This document outlines the phased implementation of the MAST library and its int
 - **Success Criteria:** Demo can successfully "ping" a URP-compatible endpoint (even if mocked).
 
 ## Phase 3: The Agent Runner & The Loop (PR #3) - COMPLETED
+
 **Goal:** Implement the "Thinking" loop and tool execution logic.
 
 - **Library Tasks:**
@@ -51,6 +56,7 @@ This document outlines the phased implementation of the MAST library and its int
 - **Success Criteria:** A user can "chat" with a remote LLM and see local tools being triggered in the console/UI.
 
 ## Phase 4: Client-Side Mode (Chrome Prompt API) (PR #4)
+
 **Goal:** Support on-device inference using Gemini Nano.
 
 - **Library Tasks:**
@@ -63,6 +69,7 @@ This document outlines the phased implementation of the MAST library and its int
 - **Success Criteria:** The new demo runs entirely locally (no network calls for inference).
 
 ## Phase 5: Recursive Agents (Sub-Agents) (PR #5)
+
 **Goal:** Allow agents to be treated as tools by other agents.
 
 - **Library Tasks:**
@@ -76,6 +83,7 @@ This document outlines the phased implementation of the MAST library and its int
 - **Success Criteria:** Nested agent loops function without state collision.
 
 ## Phase 6: Performance & Production Ready (PR #6)
+
 **Goal:** Offload heavy logic and finalize the bundle.
 
 - **Library Tasks:**

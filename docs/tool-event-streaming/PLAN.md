@@ -54,9 +54,7 @@ export class RunBuilder {
 ```typescript
 const result = await tool.call(call.args, {
   signal,
-  onEvent: onToolEvent
-    ? (event) => onToolEvent(call.name, event)
-    : undefined,
+  onEvent: onToolEvent ? (event) => onToolEvent(call.name, event) : undefined,
 });
 ```
 
@@ -104,9 +102,9 @@ Key: because `Promise.all` runs tools concurrently, events from multiple tools m
 
 ## Files changed in `@mast-ai/core`
 
-| File | Change |
-|---|---|
-| `src/tool.ts` | Add `onEvent?: (event: AgentEvent) => void` to `ToolContext`; import `AgentEvent` from `./types` |
+| File            | Change                                                                                                                                                                           |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/tool.ts`   | Add `onEvent?: (event: AgentEvent) => void` to `ToolContext`; import `AgentEvent` from `./types`                                                                                 |
 | `src/runner.ts` | Add `_onToolEvent` field and `onToolEvent()` to `RunBuilder`; update `StreamExecutor` type and `executeStream` signature; pass `onEvent` into `ToolContext` inside `Promise.all` |
 
 No changes to `src/types.ts`, `src/conversation.ts`, or any adapter.

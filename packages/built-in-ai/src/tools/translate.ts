@@ -1,9 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AdapterError } from "@mast-ai/core";
-import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from "@mast-ai/core";
-import type { TranslatorSession } from "../types.js";
+import { AdapterError } from '@mast-ai/core';
+import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from '@mast-ai/core';
+import type { TranslatorSession } from '../types.js';
 
 /** Arguments passed by the model when invoking the `translate` tool. */
 export interface TranslateArgs {
@@ -49,8 +49,8 @@ export class TranslateTool implements Tool<TranslateArgs, string> {
     registry: ToolRegistry,
     options?: TranslateToolOptions,
   ): Promise<void> {
-    if (typeof Translator === "undefined") {
-      throw new AdapterError("Translator API is not supported in this browser.");
+    if (typeof Translator === 'undefined') {
+      throw new AdapterError('Translator API is not supported in this browser.');
     }
 
     registry.register(new TranslateTool(options));
@@ -59,27 +59,27 @@ export class TranslateTool implements Tool<TranslateArgs, string> {
   /** {@inheritDoc Tool.definition} */
   definition(): ToolDefinition {
     return {
-      name: "translate",
+      name: 'translate',
       description:
-        "Translate a piece of text from one language to another using an on-device AI model. " +
+        'Translate a piece of text from one language to another using an on-device AI model. ' +
         "Languages are specified as BCP 47 tags (e.g. 'en', 'fr', 'ja').",
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           text: {
-            type: "string",
-            description: "The text to translate.",
+            type: 'string',
+            description: 'The text to translate.',
           },
           sourceLanguage: {
-            type: "string",
+            type: 'string',
             description: 'BCP 47 language tag of the source language (e.g. "en").',
           },
           targetLanguage: {
-            type: "string",
+            type: 'string',
             description: 'BCP 47 language tag of the target language (e.g. "fr").',
           },
         },
-        required: ["text", "sourceLanguage", "targetLanguage"],
+        required: ['text', 'sourceLanguage', 'targetLanguage'],
       },
       scope: 'read',
     };
@@ -87,8 +87,8 @@ export class TranslateTool implements Tool<TranslateArgs, string> {
 
   /** {@inheritDoc Tool.call} */
   async call(args: TranslateArgs, context: ToolContext): Promise<string> {
-    if (typeof Translator === "undefined") {
-      throw new AdapterError("Translator API is not supported in this browser.");
+    if (typeof Translator === 'undefined') {
+      throw new AdapterError('Translator API is not supported in this browser.');
     }
 
     const session = await this.acquireSession(args.sourceLanguage, args.targetLanguage, context);
@@ -107,7 +107,7 @@ export class TranslateTool implements Tool<TranslateArgs, string> {
     }
 
     const availability = await Translator.availability({ sourceLanguage, targetLanguage });
-    if (availability === "unavailable") {
+    if (availability === 'unavailable') {
       throw new AdapterError(
         `Translation from ${sourceLanguage} to ${targetLanguage} is not available on this device.`,
       );
@@ -115,7 +115,7 @@ export class TranslateTool implements Tool<TranslateArgs, string> {
 
     const monitor = this.options?.onDownloadProgress
       ? (m: EventTarget) => {
-          m.addEventListener("downloadprogress", (e) => {
+          m.addEventListener('downloadprogress', (e) => {
             const evt = e as ProgressEvent;
             this.options!.onDownloadProgress!({
               loaded: evt.loaded,

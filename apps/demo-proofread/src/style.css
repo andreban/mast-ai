@@ -1,5 +1,8 @@
 :root {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: #1a1a1a;
   background-color: #ffffff;
   --primary: #7c3aed;
@@ -10,14 +13,17 @@
   --bg: #fafafa;
 }
 
-body, html {
+body,
+html {
   margin: 0;
   padding: 0;
   height: 100vh;
   box-sizing: border-box;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: inherit;
 }
 
@@ -90,19 +96,25 @@ body, html {
   background: #f4f4f5;
   color: var(--muted);
 }
-.status-badge.loading::before { background: var(--muted); }
+.status-badge.loading::before {
+  background: var(--muted);
+}
 
 .status-badge.available {
   background: #f0fdf4;
   color: #16a34a;
 }
-.status-badge.available::before { background: #16a34a; }
+.status-badge.available::before {
+  background: #16a34a;
+}
 
 .status-badge.unavailable {
   background: #fef2f2;
   color: #dc2626;
 }
-.status-badge.unavailable::before { background: #dc2626; }
+.status-badge.unavailable::before {
+  background: #dc2626;
+}
 
 .info-panel h3 {
   margin: 0 0 0.5rem;
@@ -120,7 +132,9 @@ body, html {
   color: #3f3f46;
 }
 
-.info-panel p:last-child { margin-bottom: 0; }
+.info-panel p:last-child {
+  margin-bottom: 0;
+}
 
 .info-panel code {
   background: #e4e4e7;
@@ -203,7 +217,9 @@ button {
   font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
+  transition:
+    background-color 0.15s,
+    opacity 0.15s;
 }
 
 button:disabled {

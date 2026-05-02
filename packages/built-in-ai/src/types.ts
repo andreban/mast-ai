@@ -10,14 +10,14 @@
  * - `"unavailable"` — not supported on this device or browser.
  */
 export type LanguageModelAvailability =
-  | "readily"
-  | "after-download"
-  | "downloading"
-  | "unavailable";
+  | 'readily'
+  | 'after-download'
+  | 'downloading'
+  | 'unavailable';
 
 /** A single message passed to `LanguageModel.create` as part of `initialPrompts`. */
 export interface LanguageModelMessage {
-  role: "user" | "assistant" | "system";
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
@@ -47,7 +47,7 @@ export interface LanguageModelSession {
   /** Maximum number of tokens the session context can hold. */
   contextWindow: number;
   destroy(): void;
-  addEventListener(type: "contextoverflow", listener: EventListener): void;
+  addEventListener(type: 'contextoverflow', listener: EventListener): void;
 }
 
 declare global {
@@ -65,18 +65,14 @@ declare global {
  * - `"downloading"` — download is in progress.
  * - `"unavailable"` — not supported on this device or browser.
  */
-export type SummarizerAvailability =
-  | "readily"
-  | "after-download"
-  | "downloading"
-  | "unavailable";
+export type SummarizerAvailability = 'readily' | 'after-download' | 'downloading' | 'unavailable';
 
 /** Shape of the summary output. */
-export type SummarizerType = "key-points" | "tldr" | "teaser" | "headline";
+export type SummarizerType = 'key-points' | 'tldr' | 'teaser' | 'headline';
 /** Output format of the summary. */
-export type SummarizerFormat = "plain-text" | "markdown";
+export type SummarizerFormat = 'plain-text' | 'markdown';
 /** Target length of the summary relative to the source text. */
-export type SummarizerLength = "short" | "medium" | "long";
+export type SummarizerLength = 'short' | 'medium' | 'long';
 
 /** Options accepted by `Summarizer.create`. */
 export interface SummarizerCreateOptions {
@@ -120,10 +116,10 @@ declare global {
  * - `"unavailable"` — not supported on this device or browser.
  */
 export type LanguageDetectorAvailability =
-  | "readily"
-  | "after-download"
-  | "downloading"
-  | "unavailable";
+  | 'readily'
+  | 'after-download'
+  | 'downloading'
+  | 'unavailable';
 
 /** Options accepted by `LanguageDetector.create`. */
 export interface LanguageDetectorCreateOptions {
@@ -153,7 +149,9 @@ export interface LanguageDetectorSession {
 
 declare global {
   const LanguageDetector: {
-    availability(options?: Partial<LanguageDetectorCreateOptions>): Promise<LanguageDetectorAvailability>;
+    availability(
+      options?: Partial<LanguageDetectorCreateOptions>,
+    ): Promise<LanguageDetectorAvailability>;
     create(options?: LanguageDetectorCreateOptions): Promise<LanguageDetectorSession>;
   };
 }
@@ -166,11 +164,7 @@ declare global {
  * - `"downloading"` — download is in progress.
  * - `"unavailable"` — not supported on this device or browser.
  */
-export type TranslatorAvailability =
-  | "readily"
-  | "after-download"
-  | "downloading"
-  | "unavailable";
+export type TranslatorAvailability = 'readily' | 'after-download' | 'downloading' | 'unavailable';
 
 /** Options for checking Translator availability for a specific language pair. */
 export interface TranslatorAvailabilityOptions {
@@ -213,11 +207,7 @@ declare global {
  * - `"downloading"` — download is in progress.
  * - `"unavailable"` — not supported on this device or browser.
  */
-export type ProofreaderAvailability =
-  | "available"
-  | "downloadable"
-  | "downloading"
-  | "unavailable";
+export type ProofreaderAvailability = 'available' | 'downloadable' | 'downloading' | 'unavailable';
 
 /** Options accepted by `Proofreader.create`. */
 export interface ProofreaderCreateOptions {

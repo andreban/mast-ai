@@ -8,8 +8,8 @@ A plain serialisable object that defines the agent's blueprint.
 export interface AgentConfig {
   name: string;
   instructions: string;
-  tools?: string[];                 // names of tools the agent may invoke
-  outputSchema?: Record<string, unknown>;  // JSON Schema for structured output
+  tools?: string[]; // names of tools the agent may invoke
+  outputSchema?: Record<string, unknown>; // JSON Schema for structured output
 }
 ```
 
@@ -116,4 +116,3 @@ const conv = runner.conversation(agent);
 const result = await conv.run('Hello!');
 // conv.history is automatically updated.
 ```
-

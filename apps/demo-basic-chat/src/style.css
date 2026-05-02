@@ -1,5 +1,8 @@
 :root {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: #1a1a1a;
   background-color: #ffffff;
   --primary-color: #3b82f6;
@@ -7,14 +10,17 @@
   --border-color: #e4e4e7;
 }
 
-body, html {
+body,
+html {
   margin: 0;
   padding: 0;
   height: 100vh;
   box-sizing: border-box;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: inherit;
 }
 

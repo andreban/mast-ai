@@ -36,7 +36,7 @@ export class HttpTransport implements UrpTransport {
       if (!response.ok) {
         throw new AdapterError(
           `HTTP request failed with status ${response.status}`,
-          response.status
+          response.status,
         );
       }
 
@@ -49,7 +49,7 @@ export class HttpTransport implements UrpTransport {
       throw new AdapterError(
         `Failed to send request: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        error
+        error,
       );
     }
   }
@@ -62,7 +62,7 @@ export class HttpTransport implements UrpTransport {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream, application/x-ndjson, application/json',
+          Accept: 'text/event-stream, application/x-ndjson, application/json',
           ...(this.options.headers || {}),
         },
         body: JSON.stringify({ ...request, stream: true }),
@@ -72,14 +72,14 @@ export class HttpTransport implements UrpTransport {
       throw new AdapterError(
         `Failed to send streaming request: ${error instanceof Error ? error.message : String(error)}`,
         undefined,
-        error
+        error,
       );
     }
 
     if (!response.ok) {
       throw new AdapterError(
         `HTTP streaming request failed with status ${response.status}`,
-        response.status
+        response.status,
       );
     }
 

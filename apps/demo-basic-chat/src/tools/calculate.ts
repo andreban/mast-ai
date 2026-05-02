@@ -11,11 +11,11 @@ export class CalculatorTool implements Tool {
       parameters: {
         type: 'object',
         properties: {
-          expression: { type: 'string' }
+          expression: { type: 'string' },
         },
-        required: ['expression']
+        required: ['expression'],
       },
-      scope: 'read' as const
+      scope: 'read' as const,
     };
   }
 

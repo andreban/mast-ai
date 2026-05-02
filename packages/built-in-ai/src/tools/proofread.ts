@@ -1,9 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AdapterError } from "@mast-ai/core";
-import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from "@mast-ai/core";
-import type { ProofreadCorrection, ProofreadResult, ProofreaderSession } from "../types.js";
+import { AdapterError } from '@mast-ai/core';
+import type { Tool, ToolDefinition, ToolContext, ToolRegistry } from '@mast-ai/core';
+import type { ProofreadCorrection, ProofreadResult, ProofreaderSession } from '../types.js';
 
 export type { ProofreadCorrection, ProofreadResult };
 
@@ -48,18 +48,18 @@ export class ProofreadTool implements Tool<ProofreadArgs, ProofreadResult> {
     registry: ToolRegistry,
     options?: ProofreadToolOptions,
   ): Promise<void> {
-    if (typeof Proofreader === "undefined") {
-      throw new AdapterError("Proofreader API is not supported in this browser.");
+    if (typeof Proofreader === 'undefined') {
+      throw new AdapterError('Proofreader API is not supported in this browser.');
     }
 
     const availability = await Proofreader.availability();
-    if (availability === "unavailable") {
-      throw new AdapterError("Proofreader API is not available on this device.");
+    if (availability === 'unavailable') {
+      throw new AdapterError('Proofreader API is not available on this device.');
     }
 
     const tool = new ProofreadTool(options);
 
-    if (availability === "available") {
+    if (availability === 'available') {
       tool.session = await Proofreader.create();
     }
     // For "downloadable"/"downloading", session creation is deferred to call().
@@ -70,19 +70,19 @@ export class ProofreadTool implements Tool<ProofreadArgs, ProofreadResult> {
   /** {@inheritDoc Tool.definition} */
   definition(): ToolDefinition {
     return {
-      name: "proofread",
+      name: 'proofread',
       description:
-        "Check a piece of text for spelling and grammar errors using an on-device AI model. " +
-        "Returns a list of corrections, each with the problematic span and the corrected replacement.",
+        'Check a piece of text for spelling and grammar errors using an on-device AI model. ' +
+        'Returns a list of corrections, each with the problematic span and the corrected replacement.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           text: {
-            type: "string",
-            description: "The text to proofread.",
+            type: 'string',
+            description: 'The text to proofread.',
           },
         },
-        required: ["text"],
+        required: ['text'],
       },
       scope: 'read',
     };
@@ -90,8 +90,8 @@ export class ProofreadTool implements Tool<ProofreadArgs, ProofreadResult> {
 
   /** {@inheritDoc Tool.call} */
   async call(args: ProofreadArgs, context: ToolContext): Promise<ProofreadResult> {
-    if (typeof Proofreader === "undefined") {
-      throw new AdapterError("Proofreader API is not supported in this browser.");
+    if (typeof Proofreader === 'undefined') {
+      throw new AdapterError('Proofreader API is not supported in this browser.');
     }
 
     if (!this.session) {
@@ -105,7 +105,7 @@ export class ProofreadTool implements Tool<ProofreadArgs, ProofreadResult> {
     if (!this.options?.onDownloadProgress) return undefined;
     const cb = this.options.onDownloadProgress;
     return (m: EventTarget) => {
-      m.addEventListener("downloadprogress", (e) => {
+      m.addEventListener('downloadprogress', (e) => {
         const evt = e as ProgressEvent;
         cb({ loaded: evt.loaded, total: evt.total });
       });

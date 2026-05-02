@@ -37,6 +37,7 @@ URP is used by remote reasoning engines (e.g., Rust, Python servers) to communic
 Must return either `text_content` OR `tool_calls`.
 
 **Text Response:**
+
 ```json
 {
   "text_content": "The answer is 4.",
@@ -46,6 +47,7 @@ Must return either `text_content` OR `tool_calls`.
 ```
 
 **Tool Call Response:**
+
 ```json
 {
   "tool_calls": [
@@ -60,14 +62,16 @@ Must return either `text_content` OR `tool_calls`.
 
 ## Agent Call Protocol (ACP)
 
-ACP is a minimal HTTP convention for server-side *sub-agents*. Unlike URP, it encapsulates its own state and tools. The browser simply sends a string and gets a string back.
+ACP is a minimal HTTP convention for server-side _sub-agents_. Unlike URP, it encapsulates its own state and tools. The browser simply sends a string and gets a string back.
 
 ### Request
+
 ```json
 { "input": "Summarise the following text: ..." }
 ```
 
 ### Response
+
 ```json
 { "output": "The document discusses three key themes..." }
 ```

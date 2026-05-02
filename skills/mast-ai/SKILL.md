@@ -11,7 +11,7 @@ This skill provides expert guidance for implementing AI agents using the MAST li
 
 - **AgentRunner**: The core execution engine that runs in the browser. It owns the `LlmAdapter` and `ToolRegistry`.
 - **ToolRegistry**: Registers standard TypeScript functions that have direct, synchronous access to the browser's DOM, `localStorage`, etc.
-- **Adapters**: Connect the agent to a reasoning engine. 
+- **Adapters**: Connect the agent to a reasoning engine.
   - `UrpAdapter` connects to a remote backend (Hybrid Mode).
   - `GoogleGenAIAdapter` (`@mast-ai/google-genai`) calls the Gemini API directly with tool calling, streaming, and thinking mode.
   - `BuiltInAIAdapter` (`@mast-ai/built-in-ai`) runs inference fully on-device via the browser Prompt API (no tool calling).
@@ -32,6 +32,7 @@ Because MAST is currently hosted on GitHub and not published to NPM, installatio
 
 **Option A: Inside the MAST Monorepo (Recommended for Demos)**
 If you are creating an app within the `apps/` directory of the MAST monorepo, use the workspace protocol in your `package.json`:
+
 ```json
 "dependencies": {
   "@mast-ai/core": "workspace:*"
@@ -42,10 +43,12 @@ If you are creating an app within the `apps/` directory of the MAST monorepo, us
 To install `@mast-ai/core` in an external project, you can install it directly from the GitHub repository. The `prepare` script will automatically build the library upon installation.
 
 Using Bun or npm (if supported):
+
 ```bash
 bun add github:andreban/mast-ai
 ```
-*(Note: You may need to specify the workspace subdirectory depending on your package manager, e.g., `github:andreban/mast-ai#packages/core` or similar syntax)*
+
+_(Note: You may need to specify the workspace subdirectory depending on your package manager, e.g., `github:andreban/mast-ai#packages/core` or similar syntax)_
 
 ## Workflow: Creating a New Agent
 

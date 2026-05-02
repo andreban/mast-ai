@@ -8,7 +8,7 @@ import {
   AgentRunner,
   UrpAdapter,
   createAgent,
-  Conversation
+  Conversation,
 } from '@mast-ai/core';
 import { GetCurrentTimeTool } from './tools/getCurrentTime';
 import { CalculatorTool } from './tools/calculate';
@@ -20,8 +20,9 @@ const registry = new ToolRegistry()
 
 const agentConfig = createAgent({
   name: 'DemoAssistant',
-  instructions: 'You are a helpful assistant. Use tools when necessary to answer user questions accurately.',
-  tools: ['getCurrentTime', 'calculate']
+  instructions:
+    'You are a helpful assistant. Use tools when necessary to answer user questions accurately.',
+  tools: ['getCurrentTime', 'calculate'],
 });
 
 document.querySelector<HTMLElement>('#version')!.textContent = `v${VERSION}`;
@@ -43,12 +44,17 @@ const endpointInput = document.querySelector<HTMLInputElement>('#endpoint-url')!
 const statusIndicator = document.querySelector('#status-indicator')!;
 
 function buildConversation(): Conversation {
-  const runner = new AgentRunner(new UrpAdapter(new HttpTransport({ url: endpointInput.value })), registry);
+  const runner = new AgentRunner(
+    new UrpAdapter(new HttpTransport({ url: endpointInput.value })),
+    registry,
+  );
   return runner.conversation(agentConfig);
 }
 
 let conversation = buildConversation();
-endpointInput.addEventListener('change', () => { conversation = buildConversation(); });
+endpointInput.addEventListener('change', () => {
+  conversation = buildConversation();
+});
 
 let currentController: AbortController | null = null;
 
@@ -64,7 +70,10 @@ function appendMessage(role: 'user' | 'assistant', content: string): HTMLElement
   return bubble;
 }
 
-function appendSystemMessage(content: string, type: 'tool' | 'thinking' | 'error' = 'tool'): HTMLElement {
+function appendSystemMessage(
+  content: string,
+  type: 'tool' | 'thinking' | 'error' = 'tool',
+): HTMLElement {
   const msgEl = document.createElement('div');
   msgEl.className = `message system ${type}`;
   const small = document.createElement('small');
@@ -122,7 +131,10 @@ async function handleSend() {
   } catch (error) {
     if (!controller.signal.aborted) {
       console.error(error);
-      appendSystemMessage(`❌ Error: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      appendSystemMessage(
+        `❌ Error: ${error instanceof Error ? error.message : String(error)}`,
+        'error',
+      );
     }
   } finally {
     currentController = null;

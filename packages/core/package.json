@@ -9,7 +9,9 @@
     "build": "tsup src/index.ts --format esm --minify --out-dir dist && tsc --emitDeclarationOnly --rootDir src --outDir dist",
     "prepare": "tsup src/index.ts --format esm --minify --out-dir dist && tsc --emitDeclarationOnly --rootDir src --outDir dist",
     "dev": "tsup src/index.ts --format esm --out-dir dist --watch",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src",
+    "format": "prettier --write src"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
