@@ -4,7 +4,8 @@
 import { useState, type KeyboardEvent } from 'react';
 import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
-import { AgentProvider, useAgent } from '@mast-ai/react-ui';
+import { AgentProvider, useAgent, type IconMap } from '@mast-ai/react-ui';
+import { Brain, CircleCheck, LoaderCircle, Send, Square, Wrench } from 'lucide-react';
 
 import { GetCurrentTimeTool } from './tools';
 
@@ -23,6 +24,15 @@ const agentConfig = createAgent({
     'Use the get_current_time tool when the user asks about the current time.',
   tools: ['get_current_time'],
 });
+
+const icons: IconMap = {
+  brain: <Brain size={16} />,
+  wrench: <Wrench size={16} />,
+  check: <CircleCheck size={16} />,
+  loader: <LoaderCircle size={16} className="mast-spin" />,
+  send: <Send size={16} />,
+  stop: <Square size={16} />,
+};
 
 function ChatUI() {
   const { messages, sendMessage, cancel, isRunning } = useAgent();
@@ -76,7 +86,7 @@ function ChatUI() {
 
 export default function App() {
   return (
-    <AgentProvider runner={runner} agent={agentConfig}>
+    <AgentProvider runner={runner} agent={agentConfig} icons={icons}>
       <h1>MAST React UI Demo</h1>
       <ChatUI />
     </AgentProvider>

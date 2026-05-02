@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import type { AgentConfig, AgentRunner, Conversation } from '@mast-ai/core';
 
 import { useAgentStream } from './hooks/useAgentStream';
+import { IconProvider } from './icons';
 import type { ConversationEntry, IconMap } from './types';
 
 /**
@@ -19,8 +20,10 @@ export interface AgentProviderProps {
   /** The subtree that should have access to {@link useAgent}. */
   children: ReactNode;
   /**
-   * Optional override for the bundled inline SVG icons. Wired up in a follow-up
-   * issue; accepted here so the prop is part of the stable provider API.
+   * Optional overrides for the bundled inline SVG icons. Any keys left
+   * unspecified fall back to the defaults exported from `./icons`. Distributed
+   * to descendants through a dedicated icon context so updates do not flow
+   * through the agent state context.
    */
   icons?: IconMap;
 }
@@ -54,7 +57,7 @@ const AgentContext = createContext<UseAgentReturn | null>(null);
  * and drives it with {@link useAgentStream}. Children access the resulting
  * state through {@link useAgent}.
  */
-export function AgentProvider({ runner, agent, children }: AgentProviderProps) {
+export function AgentProvider({ runner, agent, children, icons }: AgentProviderProps) {
   const [conversation, setConversation] = useState<Conversation>(() => runner.conversation(agent));
 
   const {
@@ -75,7 +78,11 @@ export function AgentProvider({ runner, agent, children }: AgentProviderProps) {
     [entries, sendMessage, cancel, isRunning, reset],
   );
 
-  return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;
+  return (
+    <AgentContext.Provider value={value}>
+      <IconProvider icons={icons}>{children}</IconProvider>
+    </AgentContext.Provider>
+  );
 }
 
 /**

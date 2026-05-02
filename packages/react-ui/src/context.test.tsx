@@ -1,12 +1,14 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, render } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReactNode } from 'react';
 import type { AgentConfig, AgentEvent, AgentRunner, Conversation } from '@mast-ai/core';
 
 import { AgentProvider, useAgent } from './context';
+import { defaultIcons, useIcons } from './icons';
+import type { IconMap } from './types';
 
 // ---------------------------------------------------------------------------
 // Mock helpers
@@ -96,6 +98,42 @@ describe('useAgent', () => {
     expect(result.current.messages).toHaveLength(2);
     expect(result.current.messages[0]).toMatchObject({ role: 'user', text: 'hello' });
     expect(result.current.messages[1]).toMatchObject({ role: 'assistant', text: 'Hi' });
+  });
+
+  it('exposes the bundled icon defaults when no `icons` prop is provided', () => {
+    const runner = makeMockRunner();
+    const { result } = renderHook(() => useIcons(), { wrapper: makeWrapper(runner) });
+
+    expect(result.current).toBe(defaultIcons);
+  });
+
+  it('overrides individual icon slots from the `icons` prop, leaving the rest as defaults', () => {
+    const runner = makeMockRunner();
+    const customSend = <span data-testid="custom-send">SEND</span>;
+    const customStop = <span data-testid="custom-stop">STOP</span>;
+    const icons: IconMap = { send: customSend, stop: customStop };
+
+    function ProbeIcons() {
+      const map = useIcons();
+      return (
+        <div>
+          <div data-testid="brain-slot">{map.brain}</div>
+          <div data-testid="send-slot">{map.send}</div>
+          <div data-testid="stop-slot">{map.stop}</div>
+        </div>
+      );
+    }
+
+    const { getByTestId } = render(
+      <AgentProvider runner={runner} agent={agentConfig} icons={icons}>
+        <ProbeIcons />
+      </AgentProvider>,
+    );
+
+    expect(getByTestId('custom-send').textContent).toBe('SEND');
+    expect(getByTestId('custom-stop').textContent).toBe('STOP');
+    // The unspecified `brain` slot still renders the bundled SVG default.
+    expect(getByTestId('brain-slot').querySelector('svg')).not.toBeNull();
   });
 
   it('reset() clears messages and creates a fresh Conversation', async () => {

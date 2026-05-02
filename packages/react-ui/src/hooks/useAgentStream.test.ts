@@ -138,8 +138,16 @@ describe('useAgentStream', () => {
     });
 
     expect(result.current.entries).toHaveLength(2);
-    expect(result.current.entries[0]).toMatchObject({ role: 'user', text: 'Hello', isStreaming: false });
-    expect(result.current.entries[1]).toMatchObject({ role: 'assistant', text: '', isStreaming: true });
+    expect(result.current.entries[0]).toMatchObject({
+      role: 'user',
+      text: 'Hello',
+      isStreaming: false,
+    });
+    expect(result.current.entries[1]).toMatchObject({
+      role: 'assistant',
+      text: '',
+      isStreaming: true,
+    });
     expect(result.current.isRunning).toBe(true);
 
     resume();
@@ -526,8 +534,7 @@ describe('useAgentStream', () => {
   // -------------------------------------------------------------------------
 
   it('appends a new entry pair on a second sendMessage rather than mutating the first', async () => {
-    const makeConv = (output: string) =>
-      mockConversation([{ type: 'done', output, history: [] }]);
+    const makeConv = (output: string) => mockConversation([{ type: 'done', output, history: [] }]);
 
     const { result, rerender } = renderHook(
       ({ conv }: { conv: Conversation }) => useAgentStream(conv),
