@@ -315,112 +315,65 @@ for await (const event of conv2.runStream('Hello!', abortController.signal)) {
 }
 ```
 
-### `AgentExecutor` / `AgentTool` (`src/agent-tool.ts`)
+### `createAgentTool` (`src/agentTool.ts`)
 
-Because a sub-agent is exposed to its parent as a plain `Tool`, the sub-agent's execution mode is entirely independent of the parent's. The unifying abstraction is `AgentExecutor` — anything that can run an agent given a string input:
+A sub-agent is exposed to its parent as a plain `Tool`. `createAgentTool` is the helper that wraps an `AgentConfig` + `AgentRunner` pair as a `Tool`, encoding the sub-agent contract documented in [Tool Event Streaming](./tool-event-streaming/PLAN.md) so individual tool authors do not have to reimplement it (and get it wrong).
 
 ```typescript
-export interface AgentExecutor {
-  run(input: string, context: ToolContext): Promise<{ output: string }>;
+export interface AgentToolOptions {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>; // JSON Schema
+  scope?: 'read' | 'write'; // defaults to 'read'
+  requiresApproval?: boolean;
+  /** Build the input string passed to the child agent from the tool args. */
+  buildInput: (args: unknown) => string;
 }
+
+export function createAgentTool(
+  runner: AgentRunner,
+  agent: AgentConfig,
+  options: AgentToolOptions,
+): Tool;
 ```
 
-`AgentTool` wraps any `AgentExecutor` as a `Tool`, making the sub-agent's location invisible to the parent:
+The returned tool's `call(args, context)`:
+
+1. Builds the child input via `options.buildInput(args)`.
+2. Calls `runner.runBuilder(agent).signal(context.signal).runStream(input)`.
+3. For every event whose type is not `done`, calls `context.onEvent?.(event)`.
+4. Returns the `done.output` string as the tool result.
+5. Throws `AgentError` if the stream ends without a `done` event.
+
+`done` events are filtered because they carry the child's full conversation `history`, which must not leak to parent UI consumers registered via `RunBuilder.onToolEvent` (see [Tool Event Streaming](./tool-event-streaming/PLAN.md#consumer-integration)).
+
+Because `runner` and `agent` are passed in separately, the child can use a different adapter, registry, instructions, or tool allowlist than the parent — true decoupling between parent and child execution modes.
+
+**Usage pattern (hybrid parent → on-device child):**
 
 ```typescript
-export class AgentTool implements Tool {
-  constructor(
-    definition: ToolDefinition, // name, description, parameters exposed to the parent adapter
-    executor: AgentExecutor,
-  );
-
-  definition(): ToolDefinition;
-  call(args: unknown, context: ToolContext): Promise<{ output: string }>;
-}
-```
-
-**How `call` works:**
-
-1. Serialises `args` to a JSON string and passes it to `executor.run(input, context)`.
-2. `ToolContext` (including `signal`) is forwarded to the executor so cancellation propagates.
-3. Returns `{ output }` so the parent adapter receives a structured, readable result.
-
-The three sub-agent execution modes each have a corresponding `AgentExecutor` implementation:
-
-| Sub-agent mode  | `AgentExecutor` implementation                                     |
-| --------------- | ------------------------------------------------------------------ |
-| **Client-side** | `localAgent(config, runner)` — binds `AgentConfig` + `AgentRunner` |
-| **Hybrid**      | `localAgent(config, runner)` with `runner` using `UrpAdapter`      |
-| **Server-side** | `AcpAgent` — calls a remote ACP-compliant endpoint                 |
-
-#### `localAgent` helper
-
-Binds an `AgentConfig` and `AgentRunner` into an `AgentExecutor`. The sub-agent loop runs in the browser; the `LlmAdapter` on the runner determines whether inference is local (`PromptApiAdapter`) or remote (`UrpAdapter`).
-
-```typescript
-export function localAgent(agent: AgentConfig, runner: AgentRunner): AgentExecutor;
-```
-
-**Usage pattern (hybrid parent → client-side child):**
-
-```typescript
-const childRunner = new AgentRunner(new PromptApiAdapter());
+const childRunner = new AgentRunner(await BuiltInAIAdapter.create());
 const childAgent: AgentConfig = {
   name: 'Classifier',
-  instructions: 'Classify the intent in the "text" field of the JSON input.',
+  instructions: 'Classify the intent in the input text.',
 };
 
-const classifyTool = new AgentTool(
-  {
-    name: 'classify_intent',
-    description: 'Classifies the user intent in a piece of text.',
-    parameters: {
-      type: 'object',
-      properties: { text: { type: 'string' } },
-      required: ['text'],
-    },
+const classifyTool = createAgentTool(childRunner, childAgent, {
+  name: 'classify_intent',
+  description: 'Classifies the user intent in a piece of text.',
+  parameters: {
+    type: 'object',
+    properties: { text: { type: 'string' } },
+    required: ['text'],
   },
-  localAgent(childAgent, childRunner),
-);
+  buildInput: (args) => (args as { text: string }).text,
+});
 
 const registry = new ToolRegistry().register(classifyTool);
 const parentRunner = new AgentRunner(parentAdapter, registry);
 ```
 
-#### `AcpAgent` — server-side sub-agents
-
-`AcpAgent` implements `AgentExecutor` against the Agent Call Protocol (ACP), a minimal HTTP convention for server-side agent endpoints (see [Agent Call Protocol](#agent-call-protocol-acp) below).
-
-```typescript
-export interface AcpAgentOptions {
-  url: string;
-  headers?: Record<string, string>;
-}
-
-export class AcpAgent implements AgentExecutor {
-  constructor(options: AcpAgentOptions);
-  run(input: string, context: ToolContext): Promise<{ output: string }>;
-}
-```
-
-**Usage pattern (hybrid parent → server-side child):**
-
-```typescript
-const summariseTool = new AgentTool(
-  {
-    name: 'summarise',
-    description: 'Summarises a long piece of text using a server-side agent.',
-    parameters: {
-      type: 'object',
-      properties: { text: { type: 'string' } },
-      required: ['text'],
-    },
-  },
-  new AcpAgent({ url: '/api/agents/summariser' }),
-);
-```
-
-Custom `AgentExecutor` implementations can wrap third-party agent APIs (e.g. OpenAI Assistants, LangChain agents) without modifying `AgentTool`.
+Server-side sub-agents (an HTTP-backed agent endpoint) can be modelled as a custom `Tool` that calls the endpoint directly; they do not need `createAgentTool`.
 
 ### `AgentError` (`src/error.ts`)
 
@@ -583,7 +536,7 @@ On failure, the server returns a non-2xx status code. An optional JSON body may 
 
 - ACP is intentionally minimal. It carries no conversation history, no tool definitions, and no configuration — those are internal concerns of the server-side agent.
 - A backend built with `rust-agent-kit` can expose any `AgentRunner` as an ACP endpoint with a thin HTTP handler (~10 lines).
-- Third-party agent APIs that do not speak ACP natively can be wrapped in a custom `AgentExecutor` implementation without modifying `AgentTool`.
+- Third-party agent APIs that do not speak ACP natively can be wrapped in a custom `Tool` implementation that posts to the third-party endpoint and returns the response as the tool result.
 
 ---
 
@@ -824,7 +777,7 @@ src/
   agent.ts                — createAgent helper, AgentConfig validation
   runner.ts               — AgentRunner, RunBuilder
   conversation.ts         — Conversation (automatic history management)
-  agent-tool.ts           — AgentExecutor, AgentTool, localAgent, AcpAgent, AcpAgentOptions
+  agentTool.ts            — createAgentTool, AgentToolOptions
   adapter/
     index.ts              — LlmAdapter, AdapterRequest, AdapterResponse,
                             AdapterStreamChunk, ModelConfig
@@ -846,7 +799,7 @@ tests/
     tool-registry.test.ts
     urp-adapter.test.ts         — URP ↔ AdapterRequest translation
     prompt-api-adapter.test.ts  — tool injection, responseConstraint schema, session lifecycle
-    agent-tool.test.ts          — AgentTool, localAgent, AcpAgent with stub executor
+    agentTool.test.ts           — createAgentTool with stub adapter
   integration/
     http-transport.test.ts      — hits a local URP echo server
     acp-agent.test.ts           — hits a local ACP echo server
