@@ -1,0 +1,31 @@
+{
+  "name": "demo-react-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src",
+    "format": "prettier --write src"
+  },
+  "dependencies": {
+    "@mast-ai/google-genai": "*",
+    "@mast-ai/react-ui": "*",
+    "@tanstack/react-virtual": "^3.0.0",
+    "lucide-react": "^0.400.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "~6.0.2",
+    "vite": "^6.0.0"
+  }
+}
