@@ -564,6 +564,85 @@ describe('useAgentStream', () => {
     expect(result.current.entries[1].text).toBe('First');
   });
 
+  // -------------------------------------------------------------------------
+  // displayText override
+  // -------------------------------------------------------------------------
+
+  it('uses the prompt as the user bubble text when no displayText is given', async () => {
+    const promptCalls: string[] = [];
+    const conv = {
+      history: [],
+      runStream(input: string): AsyncIterable<AgentEvent> {
+        promptCalls.push(input);
+        return (async function* () {
+          yield { type: 'done', output: 'ok', history: [] };
+        })();
+      },
+    } as unknown as Conversation;
+
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('Hello world');
+    });
+
+    expect(promptCalls).toEqual(['Hello world']);
+    expect(result.current.entries[0]).toMatchObject({
+      role: 'user',
+      text: 'Hello world',
+    });
+  });
+
+  it('uses displayText for the user bubble while the runner receives the prompt', async () => {
+    const promptCalls: string[] = [];
+    const conv = {
+      history: [],
+      runStream(input: string): AsyncIterable<AgentEvent> {
+        promptCalls.push(input);
+        return (async function* () {
+          yield { type: 'done', output: 'ok', history: [] };
+        })();
+      },
+    } as unknown as Conversation;
+
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('Summarize the active document.', '/summarize');
+    });
+
+    expect(promptCalls).toEqual(['Summarize the active document.']);
+    expect(result.current.entries[0]).toMatchObject({
+      role: 'user',
+      text: '/summarize',
+    });
+  });
+
+  it('treats empty-string displayText as a deliberate override', async () => {
+    const promptCalls: string[] = [];
+    const conv = {
+      history: [],
+      runStream(input: string): AsyncIterable<AgentEvent> {
+        promptCalls.push(input);
+        return (async function* () {
+          yield { type: 'done', output: 'ok', history: [] };
+        })();
+      },
+    } as unknown as Conversation;
+
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('hidden prompt', '');
+    });
+
+    expect(promptCalls).toEqual(['hidden prompt']);
+    expect(result.current.entries[0]).toMatchObject({
+      role: 'user',
+      text: '',
+    });
+  });
+
   it('assigns stable unique ids to every entry', async () => {
     const conv = mockConversation([{ type: 'done', output: 'ok', history: [] }]);
     const { result } = renderHook(() => useAgentStream(conv));

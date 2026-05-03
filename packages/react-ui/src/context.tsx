@@ -85,8 +85,12 @@ export interface UseAgentReturn {
    * this to imperatively persist conversation state.
    */
   history: Message[];
-  /** Sends a user message and starts a new agent run. */
-  sendMessage: (text: string) => void;
+  /**
+   * Sends a user message and starts a new agent run. The first argument is
+   * the prompt delivered to the LLM. The optional second argument overrides
+   * what is rendered in the user bubble; when omitted, the prompt is shown.
+   */
+  sendMessage: (text: string, displayText?: string) => void;
   /** Aborts the current run, if any. */
   cancel: () => void;
   /** `true` while a run is in progress. */
