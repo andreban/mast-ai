@@ -321,14 +321,103 @@ polish before the library is considered complete.
 
 ---
 
-## Issue 13 — Post-implementation deliverables
+## Issue 13 — `sendMessage(text, displayText?)` overload
+
+Foundation for any pipeline that needs the user bubble to render something
+different from the prompt sent to the LLM (mention chips, slash-command
+expansion, redaction, translation).
+
+**`packages/react-ui/src/hooks/useAgentStream.ts`**
+
+- Extend `sendMessage` signature to `(text: string, displayText?: string) => void`
+- The user `ConversationEntry.text` becomes `displayText ?? text`
+- The `text` argument is passed unchanged to `Conversation.runStream` so the
+  LLM sees the prompt
+- No change to `Conversation.history` semantics — core treats the input as it
+  always has
+
+**`packages/react-ui/src/context.tsx`**
+
+- Update `UseAgentReturn.sendMessage` signature to accept `displayText`
+- Forward the second argument to `useAgentStream`
+
+**Tests** (extend `useAgentStream.test.ts`)
+
+- Single-argument call still sets user-bubble text equal to the prompt
+- Two-argument call sets user-bubble text to `displayText` while the runner
+  receives `text`
+- `displayText` of empty string is treated as a deliberate override (not a
+  fallback to `text`)
+
+No demo wiring — the change is API-level and additive. Demo updates land
+with Issue 14.
+
+**Depends on:** Issue 3 (`AgentProvider` and `useAgent`)
+
+---
+
+## Issue 14 — Mention pipeline (`@`-trigger picker for ChatInput)
+
+Optional, opt-in feature mirroring the `@`-mention UX from
+[agent-text-editor](https://github.com/andreban/agent-text-editor) and similar
+editors. Default `<ChatInput>` behaviour is unchanged when the new prop is
+omitted.
+
+Implementation lives in a new `packages/react-ui/src/mentions/` directory
+following the layout in SPEC §13.9.
+
+### 14a — Pure utilities and types
+
+- `mentions/types.ts`: `MentionItem<T>`, `MentionSegment<T>`, `MentionsConfig<T>`
+- `mentions/utils.ts`: `extractMentionQuery`, `removeMentionTrigger`,
+  `buildInlineMentionPrompt`
+- Tests for each utility (regex edge cases, custom trigger character)
+- Re-exports added to `src/index.ts`
+
+### 14b — `useMentions` hook
+
+- Encapsulates segment / trailing / query / picker-index state
+- Exposes `setTrailingInput`, `handleKeyDown`, `selectItem`, `removeChip`,
+  `buildSubmission`, `clear`
+- Supports both `items` (sync filter on `label`) and `onSearch`
+  (async; stale resolutions ignored)
+- Tests covering segment management, picker keyboard navigation, async search
+
+### 14c — `<ChatInput mentions>` integration and CSS
+
+- Optional `mentions` prop on `<ChatInput>` and `<ConversationPanel>`
+- When provided: render the compound input (chips + textarea), the picker
+  popover, and call `sendMessage(prompt, displayText)` on submit
+- New CSS rules for `mast-mention-input`, `mast-mention-chip`,
+  `mast-mention-picker` (and friends) added to `styles/default.css` with
+  light/dark token overrides per SPEC §13.7
+- Accessibility: `role="listbox"` / `role="option"`, `aria-selected`,
+  `aria-activedescendant` on the textarea, descriptive remove-button
+  `aria-label` (SPEC §13.8)
+- Tests covering the integrated send path and the no-prop fallback
+
+### 14d — Demo wiring
+
+- Add a small in-memory list of "documents" (e.g. fake markdown files) to
+  `apps/demo-react-ui/src/App.tsx`
+- Pass `mentions={{ items, buildPrompt }}` to `<ConversationPanel>`
+- Demonstrate `buildPrompt` injecting a "The user has referenced..." preamble
+  while the user bubble shows the inline `@title` form
+- Manually verify keyboard navigation, chip removal, and Enter-vs-submit
+  precedence
+
+**Depends on:** Issue 13 (`sendMessage` overload), Issue 9 (ConversationPanel + CSS)
+
+---
+
+## Issue 15 — Post-implementation deliverables
 
 Sub-issues:
 
-- **13a — Developer documentation**: `docs/react-ui/USAGE.md` covering all topics
-  from SPEC §13.1
-- **13b — Skill update**: add `@mast-ai/react-ui` to `skills/mast-ai/SKILL.md`,
+- **15a — Developer documentation**: `docs/react-ui/USAGE.md` covering all topics
+  from SPEC §14.1 (including the new mention pipeline section)
+- **15b — Skill update**: add `@mast-ai/react-ui` to `skills/mast-ai/SKILL.md`,
   create `skills/mast-ai/references/react-ui.md`, add
-  `skills/mast-ai/assets/react-ui-basic.tsx` (as specified in SPEC §13.2)
+  `skills/mast-ai/assets/react-ui-basic.tsx` (as specified in SPEC §14.2)
 
-**Depends on:** Issue 12
+**Depends on:** Issue 12, Issue 14
