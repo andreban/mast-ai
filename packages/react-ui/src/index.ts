@@ -10,3 +10,7 @@ export { ThinkingBlock } from './components/ThinkingBlock';
 export type { ThinkingBlockProps } from './components/ThinkingBlock';
 export { ToolCallBlock } from './components/ToolCallBlock';
 export type { ToolCallBlockProps } from './components/ToolCallBlock';
+export { UserMessage } from './components/UserMessage';
+export type { UserMessageProps } from './components/UserMessage';
+export { AssistantMessage } from './components/AssistantMessage';
+export type { AssistantMessageProps } from './components/AssistantMessage';
