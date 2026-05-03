@@ -254,7 +254,10 @@ The mention picker adds a few extra tokens (`--mast-mention-chip-bg`,
 
 The default `<ToolCallBlock>` covers most cases: it shows the tool name, a
 spinner during execution, the args and result on demand, and any sub-agent
-narration. To take full control (e.g. to render a chart for a tool that returns
+narration. The block itself collapses behind its header — by default it stays
+open while the tool is running and collapses on completion. Pass
+`defaultOpen={true}` (always open) or `defaultOpen={false}` (always collapsed)
+to override. To take full control (e.g. to render a chart for a tool that returns
 plot data), supply a `renderToolCall` callback:
 
 ```tsx

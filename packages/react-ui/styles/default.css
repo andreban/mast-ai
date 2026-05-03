@@ -300,9 +300,6 @@
   border-radius: var(--mast-radius);
   padding: 0.5rem 0.75rem;
   font-size: var(--mast-text-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
 }
 
 .mast-tool-call-block[data-streaming='true'] .mast-tool-call-block-status {
@@ -331,6 +328,31 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.mast-tool-call-block-header::-webkit-details-marker {
+  display: none;
+}
+
+.mast-tool-call-block-chevron {
+  display: inline-block;
+  width: 0.75rem;
+  color: var(--mast-fg-muted);
+  transition: transform 0.15s ease;
+}
+
+.mast-tool-call-block[open] > .mast-tool-call-block-header > .mast-tool-call-block-chevron {
+  transform: rotate(90deg);
+}
+
+.mast-tool-call-block-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .mast-tool-call-block-status,

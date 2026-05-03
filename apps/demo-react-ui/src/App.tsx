@@ -325,41 +325,13 @@ function SetPageTitleApproval({
 }
 
 /**
- * Wraps `<ToolCallBlock>` in a `<details>` so the bubble starts collapsed and
- * only shows tool name + status until the user clicks to expand. The inner
- * `<ToolCallBlock>` header is hidden via CSS to avoid showing the name twice.
- */
-function CollapsibleToolCall({ entry }: { entry: ToolEventEntry }) {
-  const statusNode = entry.isStreaming ? (
-    <LoaderCircle size={14} className="mast-spin" aria-hidden="true" />
-  ) : entry.status === 'error' || entry.status === 'cancelled' ? (
-    <CircleX size={14} aria-hidden="true" />
-  ) : (
-    <CircleCheck size={14} aria-hidden="true" />
-  );
-  return (
-    <details
-      className="demo-collapsible-tool-call"
-      data-status={entry.status}
-      data-streaming={entry.isStreaming ? 'true' : undefined}
-    >
-      <summary className="demo-collapsible-tool-call-summary">
-        <span className="demo-collapsible-tool-call-status">{statusNode}</span>
-        <Wrench size={14} aria-hidden="true" />
-        <span className="demo-collapsible-tool-call-name">{entry.name}</span>
-      </summary>
-      <ToolCallBlock entry={entry} />
-    </details>
-  );
-}
-
-/**
  * Single render function dispatches across all states:
  *
  * - `set_page_title` awaiting approval → custom card (option a).
  * - any other tool awaiting approval → bundled `<InlineApproval>` (option b).
- * - everything else → `<ToolCallBlock>` wrapped in a collapsible `<details>`
- *   so the conversation stays scannable.
+ * - everything else → `<ToolCallBlock>` (collapses on completion via its
+ *   built-in `defaultOpen='streaming'` behaviour, so the conversation stays
+ *   scannable).
  */
 const renderToolCall = (entry: ToolEventEntry, approval?: PendingApproval) => {
   if (approval) {
@@ -375,7 +347,7 @@ const renderToolCall = (entry: ToolEventEntry, approval?: PendingApproval) => {
       />
     );
   }
-  return <CollapsibleToolCall entry={entry} />;
+  return <ToolCallBlock entry={entry} />;
 };
 
 /** Header indicator that demonstrates reading `pendingApprovals` via `useAgent`. */
