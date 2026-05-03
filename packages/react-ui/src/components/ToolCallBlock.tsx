@@ -41,6 +41,10 @@ function formatJson(value: unknown): string {
  *   transition plus collapsible `args` and `result`. No sub-agent slots are
  *   rendered.
  *
+ * When `entry.nestedToolEvents` is non-empty, each nested tool call is rendered
+ * recursively inside the parent block so a sub-agent's tool calls appear
+ * indented beneath the sub-agent's narration.
+ *
  * Args/result expand/collapse uses native `<details>/<summary>` so the
  * component is keyboard-accessible without JavaScript.
  */
@@ -60,6 +64,7 @@ export function ToolCallBlock({ entry, className }: ToolCallBlockProps) {
   const icons = useIcons();
   const rootClass = ['mast-tool-call-block', className].filter(Boolean).join(' ');
   const hasSubAgentOutput = entry.subThinking !== undefined || entry.subText !== undefined;
+  const nestedToolEvents = entry.nestedToolEvents ?? [];
   const statusIcon = pickStatusIcon(entry, icons);
   const argsText = formatJson(entry.args);
   const resultText = formatJson(entry.result);
@@ -101,6 +106,14 @@ export function ToolCallBlock({ entry, className }: ToolCallBlockProps) {
               {entry.subText}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {nestedToolEvents.length > 0 ? (
+        <div className="mast-tool-call-block-nested" data-testid="mast-tool-call-nested">
+          {nestedToolEvents.map((nested) => (
+            <ToolCallBlock key={nested.id} entry={nested} />
+          ))}
         </div>
       ) : null}
 

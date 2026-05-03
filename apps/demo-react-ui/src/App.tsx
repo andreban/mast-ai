@@ -37,6 +37,7 @@ import {
   ParseIntegerTool,
   ReadDocTool,
   SetPageTitleTool,
+  createSummarizeDocumentsTool,
   demoDocs,
   type DemoDoc,
 } from './tools';
@@ -54,6 +55,7 @@ const registry = new ToolRegistry()
   .register(new ParseIntegerTool())
   .register(new ReadDocTool());
 const runner = new AgentRunner(new GoogleGenAIAdapter(apiKey ?? ''), registry);
+registry.register(createSummarizeDocumentsTool(runner));
 
 const agentConfig = createAgent({
   name: 'DemoAssistant',
@@ -64,8 +66,12 @@ const agentConfig = createAgent({
     'Use the set_page_title tool when the user asks to change or set the page title. ' +
     'Use the copy_to_clipboard tool when the user asks to copy something to the clipboard. ' +
     'Use the parse_integer tool when the user asks to parse a string as an integer. ' +
+    'When the user asks to summarise one or more referenced documents, call the ' +
+    'summarize_documents tool with the relevant ids. The summarizer will fetch each ' +
+    'document itself, so you do not need to call read_doc when delegating to it. ' +
+    "For other questions about a referenced document's contents, call read_doc directly. " +
     'When a user message starts with "The user has referenced the following documents:", ' +
-    'call the read_doc tool with each listed id to fetch its contents before answering. ' +
+    'use the listed ids to drive your tool calls. ' +
     'Do not assume document contents from the title alone.',
   tools: [
     'get_current_time',
@@ -74,6 +80,7 @@ const agentConfig = createAgent({
     'copy_to_clipboard',
     'parse_integer',
     'read_doc',
+    'summarize_documents',
   ],
 });
 

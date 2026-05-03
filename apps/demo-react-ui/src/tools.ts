@@ -1,7 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Tool, ToolContext } from '@mast-ai/core';
+import { createAgent, createAgentTool } from '@mast-ai/core';
+import type { AgentRunner, Tool, ToolContext } from '@mast-ai/core';
 import type { MentionItem } from '@mast-ai/react-ui';
 
 /** Payload attached to each `@`-mentionable doc in the demo. */
@@ -214,4 +215,45 @@ export class ParseIntegerTool implements Tool<ParseIntegerArgs, number> {
     }
     return parseInt(args.value, 10);
   }
+}
+
+/**
+ * Builds a sub-agent tool that summarises one or more demo docs by id. The
+ * sub-agent runs on the provided `runner` with its own restricted allowlist
+ * (`read_doc` only) so its `read_doc` calls show up as nested tool events on
+ * the parent's `summarize_documents` block.
+ */
+export function createSummarizeDocumentsTool(runner: AgentRunner): Tool {
+  const summarizerAgent = createAgent({
+    name: 'DocumentSummarizer',
+    instructions:
+      'You summarise documents the user has referenced. ' +
+      'For each document id you receive, call the read_doc tool to fetch its contents, ' +
+      'then produce a single concise paragraph summarising all of them together. ' +
+      'Do not assume document contents from the title alone.',
+    tools: ['read_doc'],
+  });
+
+  return createAgentTool(runner, summarizerAgent, {
+    name: 'summarize_documents',
+    description:
+      'Summarises one or more referenced documents by id. Internally fetches each ' +
+      'document with read_doc and returns a concise paragraph summary.',
+    parameters: {
+      type: 'object',
+      properties: {
+        ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'The document ids to summarise, e.g. ["doc-roadmap", "doc-style-guide"].',
+        },
+      },
+      required: ['ids'],
+    },
+    scope: 'read',
+    buildInput: (args) => {
+      const { ids } = args as { ids: string[] };
+      return `Summarise these document ids together: ${ids.join(', ')}.`;
+    },
+  });
 }

@@ -161,6 +161,76 @@ describe('<ToolCallBlock>', () => {
     });
   });
 
+  describe('nested tool events', () => {
+    it('does not render the nested container when nestedToolEvents is undefined', () => {
+      const { container } = render(<ToolCallBlock entry={makeEntry()} />);
+      expect(container.querySelector('.mast-tool-call-block-nested')).toBeNull();
+    });
+
+    it('renders nested entries recursively', () => {
+      const nestedCompleted: ToolEventEntry = {
+        id: 'nested-1',
+        type: 'tool_call_completed',
+        name: 'inner_tool',
+        args: { q: 1 },
+        result: 'inner_result',
+        isStreaming: false,
+        status: 'success',
+      };
+      const parent: ToolEventEntry = {
+        id: 'parent-1',
+        type: 'tool_call_completed',
+        name: 'agent_tool',
+        args: {},
+        result: 'outer_result',
+        isStreaming: false,
+        status: 'success',
+        nestedToolEvents: [nestedCompleted],
+      };
+      const { container } = render(<ToolCallBlock entry={parent} />);
+      const nestedContainer = container.querySelector('.mast-tool-call-block-nested');
+      expect(nestedContainer).not.toBeNull();
+      const nestedBlocks = nestedContainer!.querySelectorAll('[data-mast-tool-call-block]');
+      expect(nestedBlocks).toHaveLength(1);
+      expect(nestedBlocks[0].getAttribute('data-tool-name')).toBe('inner_tool');
+      expect(screen.getByText('inner_tool')).toBeDefined();
+    });
+
+    it('renders multiple nested entries in order', () => {
+      const parent: ToolEventEntry = {
+        id: 'parent',
+        type: 'tool_call_started',
+        name: 'agent_tool',
+        args: {},
+        isStreaming: true,
+        nestedToolEvents: [
+          {
+            id: 'nested-a',
+            type: 'tool_call_completed',
+            name: 'inner_a',
+            args: {},
+            result: 'a',
+            isStreaming: false,
+            status: 'success',
+          },
+          {
+            id: 'nested-b',
+            type: 'tool_call_started',
+            name: 'inner_b',
+            args: {},
+            isStreaming: true,
+          },
+        ],
+      };
+      const { container } = render(<ToolCallBlock entry={parent} />);
+      const nested = container.querySelectorAll(
+        '.mast-tool-call-block-nested [data-mast-tool-call-block]',
+      );
+      const names = Array.from(nested).map((el) => el.getAttribute('data-tool-name'));
+      expect(names).toEqual(['inner_a', 'inner_b']);
+    });
+  });
+
   describe('header content', () => {
     it('renders the tool name', () => {
       render(<ToolCallBlock entry={makeEntry({ name: 'get_current_time' })} />);
