@@ -1,7 +1,15 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
 import { AgentRunner } from '@mast-ai/core';
 import type { AgentConfig, Conversation, Message } from '@mast-ai/core';
@@ -20,8 +28,15 @@ import type { ConversationEntry, IconMap, ToolCallStatus } from './types.js';
  * Props accepted by {@link AgentProvider}.
  */
 export interface AgentProviderProps {
-  /** The {@link AgentRunner} that will execute agent runs. */
-  runner: AgentRunner;
+  /**
+   * The {@link AgentRunner} that will execute agent runs. Pass `null` for the
+   * "agent not yet configured" state (e.g. before the user has supplied an
+   * API key, signed in, or selected a provider): the provider mounts cleanly,
+   * `useAgent()` returns disabled-state defaults, and `<ChatInput>` greys out
+   * automatically. Switching from `null` to a real runner does not require
+   * remounting; the conversation starts fresh on the next `sendMessage`.
+   */
+  runner: AgentRunner | null;
   /** The agent configuration used for every turn. */
   agent: AgentConfig;
   /** The subtree that should have access to {@link useAgent}. */
@@ -124,6 +139,15 @@ export interface UseAgentReturn {
    * called.
    */
   pendingApprovals: PendingApproval[];
+  /**
+   * `true` when an `AgentRunner` is configured. `false` when `<AgentProvider>`
+   * was mounted with `runner={null}` (the "agent not yet configured" state).
+   * `<ChatInput>` reads this to disable its textarea and Send button; custom
+   * inputs built via `useAgent()` should do the same.
+   *
+   * When `false`, `sendMessage` is a no-op (it logs a development warning).
+   */
+  isReady: boolean;
 }
 
 const AgentContext = createContext<UseAgentReturn | null>(null);
@@ -172,6 +196,7 @@ export function AgentProvider({
   >(null);
 
   const wrappedRunner = useMemo(() => {
+    if (runner === null) return null;
     const hasApproval = onApprovalRequired !== undefined;
     const hasOverride = approvalOverride !== undefined && approvalOverride.length > 0;
     if (!hasApproval && !hasOverride) return runner;
@@ -190,13 +215,30 @@ export function AgentProvider({
     return new AgentRunner(runner.adapter, provider);
   }, [runner, onApprovalRequired, approvalOverride]);
 
-  const [conversation, setConversation] = useState<Conversation>(() => {
+  const [conversation, setConversation] = useState<Conversation | null>(() => {
+    if (wrappedRunner === null) return null;
     const conv = wrappedRunner.conversation(agent);
     if (initialHistoryRef.current && initialHistoryRef.current.length > 0) {
       conv.history = [...initialHistoryRef.current];
     }
     return conv;
   });
+
+  // Materialise a Conversation when the runner transitions from null to a
+  // real value, so consumers can swap in a runner after the app finishes
+  // configuring it (sign-in, API key entry, etc.) without remounting the
+  // provider. We deliberately do not tear down or replace an existing
+  // conversation when the runner reference changes — that case is out of
+  // scope and consumers should call `reset()` to start a fresh conversation.
+  useEffect(() => {
+    if (wrappedRunner !== null && conversation === null) {
+      const conv = wrappedRunner.conversation(agent);
+      if (initialHistoryRef.current && initialHistoryRef.current.length > 0) {
+        conv.history = [...initialHistoryRef.current];
+      }
+      setConversation(conv);
+    }
+  }, [wrappedRunner, conversation, agent]);
 
   const onTurnComplete = useCallback(
     (committedEntries: ConversationEntry[], committedHistory: Message[]) => {
@@ -249,9 +291,10 @@ export function AgentProvider({
     // proxy translates into the synthetic cancelled result.
     pendingApprovalsRef.current.forEach((p) => p.reject());
     resetStream();
-    setConversation(wrappedRunner.conversation(agent));
+    setConversation(wrappedRunner === null ? null : wrappedRunner.conversation(agent));
   }, [resetStream, wrappedRunner, agent]);
 
+  const isReady = wrappedRunner !== null;
   const value = useMemo<UseAgentReturn>(
     () => ({
       messages: entries,
@@ -261,8 +304,9 @@ export function AgentProvider({
       isRunning,
       reset,
       pendingApprovals,
+      isReady,
     }),
-    [entries, history, sendMessage, cancel, isRunning, reset, pendingApprovals],
+    [entries, history, sendMessage, cancel, isRunning, reset, pendingApprovals, isReady],
   );
 
   const wrappedChildren = disableRoot ? (

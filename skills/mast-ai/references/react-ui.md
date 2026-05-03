@@ -26,7 +26,7 @@ Wraps a subtree with agent context. Must be rendered around any component that c
 import { AgentProvider } from '@mast-ai/react-ui';
 
 interface AgentProviderProps {
-  runner: AgentRunner;
+  runner: AgentRunner | null; // null = "agent not yet configured" (no key, signed-out)
   agent: AgentConfig;
   children: ReactNode;
   icons?: IconMap;
@@ -41,6 +41,8 @@ interface AgentProviderProps {
 ```
 
 Internally creates a `Conversation` via `runner.conversation(agent)`. To switch conversations at runtime, remount with a React `key` and seed via `initialHistory` / `initialEntries`. `onConversationChange` fires only after a successful `done` event (not on cancel or error).
+
+`runner={null}` is the "agent not yet configured" state for chat UIs that mount before the user has supplied an API key, signed in, etc. `useAgent()` returns disabled-state defaults (`isReady: false`, empty messages/history, no-op `sendMessage` with a console warning), and `<ChatInput>` greys out automatically. Switching `null` → real runner does not require remounting; the conversation starts fresh on the next `sendMessage` (and picks up `initialHistory` if provided). Prefer this over constructing a stub runner whose adapter throws.
 
 By default, renders a `<div data-mast-root data-mast-theme={theme}>` around `children` so the library's CSS variables are scoped without extra setup. Pass `disableRoot` when placing `data-mast-root` somewhere else yourself (e.g. on a chat sidebar's outer container so non-library UI inside also picks up the variables).
 
@@ -59,6 +61,7 @@ interface UseAgentReturn {
   isRunning: boolean;
   reset: () => void;
   pendingApprovals: PendingApproval[];
+  isReady: boolean; // false when <AgentProvider> was mounted with runner={null}
 }
 ```
 

@@ -95,6 +95,7 @@ describe('useAgent', () => {
     expect(typeof result.current.cancel).toBe('function');
     expect(typeof result.current.reset).toBe('function');
     expect(result.current.isRunning).toBe(false);
+    expect(result.current.isReady).toBe(true);
   });
 
   it('sendMessage appends entries that are exposed via messages', async () => {
@@ -469,5 +470,160 @@ describe('useAgent', () => {
       result.current.sendMessage('two');
     });
     expect(result.current.history).toEqual(secondHistory);
+  });
+
+  // -------------------------------------------------------------------------
+  // Nullable runner ("agent not yet configured" state)
+  // -------------------------------------------------------------------------
+
+  describe('with runner={null}', () => {
+    let warnSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it('mounts cleanly and exposes disabled-state defaults', () => {
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <AgentProvider runner={null} agent={agentConfig}>
+          {children}
+        </AgentProvider>
+      );
+      const { result } = renderHook(() => useAgent(), { wrapper });
+
+      expect(result.current.isReady).toBe(false);
+      expect(result.current.isRunning).toBe(false);
+      expect(result.current.messages).toEqual([]);
+      expect(result.current.history).toEqual([]);
+      expect(result.current.pendingApprovals).toEqual([]);
+      expect(typeof result.current.sendMessage).toBe('function');
+      expect(typeof result.current.cancel).toBe('function');
+      expect(typeof result.current.reset).toBe('function');
+    });
+
+    it('sendMessage is a no-op (and warns) when no runner is configured', () => {
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <AgentProvider runner={null} agent={agentConfig}>
+          {children}
+        </AgentProvider>
+      );
+      const { result } = renderHook(() => useAgent(), { wrapper });
+
+      act(() => {
+        result.current.sendMessage('hello');
+      });
+
+      expect(result.current.messages).toEqual([]);
+      expect(result.current.isRunning).toBe(false);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect((warnSpy.mock.calls[0][0] as string) ?? '').toMatch(/no AgentRunner is configured/);
+    });
+
+    it('cancel and reset are safe when no runner is configured', () => {
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <AgentProvider runner={null} agent={agentConfig}>
+          {children}
+        </AgentProvider>
+      );
+      const { result } = renderHook(() => useAgent(), { wrapper });
+
+      expect(() =>
+        act(() => {
+          result.current.cancel();
+          result.current.reset();
+        }),
+      ).not.toThrow();
+
+      expect(result.current.messages).toEqual([]);
+      expect(result.current.history).toEqual([]);
+      expect(result.current.isReady).toBe(false);
+    });
+
+    it('renders the [data-mast-root] wrapper even with a null runner', () => {
+      const { container } = render(
+        <AgentProvider runner={null} agent={agentConfig}>
+          <span data-testid="child">child</span>
+        </AgentProvider>,
+      );
+
+      const root = container.querySelector('[data-mast-root]');
+      expect(root).not.toBeNull();
+      expect(root!.querySelector('[data-testid="child"]')).not.toBeNull();
+    });
+
+    it('switches to a real runner without remounting and starts a fresh conversation', async () => {
+      const finalHistory: Message[] = [userMessage('hi'), assistantMessage('Hi back')];
+      const { runner, runStreamSpy } = makeMockRunner([
+        { type: 'text_delta', delta: 'Hi back' },
+        { type: 'done', output: 'Hi back', history: finalHistory },
+      ]);
+
+      const probeRef: { current: ReturnType<typeof useAgent> | null } = { current: null };
+      function Probe() {
+        probeRef.current = useAgent();
+        return null;
+      }
+      const App = ({ runner: r }: { runner: AgentRunner | null }) => (
+        <AgentProvider runner={r} agent={agentConfig}>
+          <Probe />
+        </AgentProvider>
+      );
+
+      const { rerender } = render(<App runner={null} />);
+      expect(probeRef.current!.isReady).toBe(false);
+
+      // Swap in a real runner and let the materialise effect run.
+      await act(async () => {
+        rerender(<App runner={runner} />);
+      });
+
+      expect(probeRef.current!.isReady).toBe(true);
+      expect(runner.conversation).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        probeRef.current!.sendMessage('hi');
+      });
+
+      expect(runStreamSpy).toHaveBeenCalledTimes(1);
+      expect(probeRef.current!.messages).toHaveLength(2);
+      expect(probeRef.current!.history).toEqual(finalHistory);
+    });
+
+    it('seeds initialHistory once a real runner becomes available', async () => {
+      const seeded: Message[] = [
+        userMessage('previous question'),
+        assistantMessage('prior answer'),
+      ];
+      const { runner, created } = makeMockRunner([
+        { type: 'done', output: 'next', history: [...seeded] },
+      ]);
+
+      const probeRef: { current: ReturnType<typeof useAgent> | null } = { current: null };
+      function Probe() {
+        probeRef.current = useAgent();
+        return null;
+      }
+      const App = ({ runner: r }: { runner: AgentRunner | null }) => (
+        <AgentProvider runner={r} agent={agentConfig} initialHistory={seeded}>
+          <Probe />
+        </AgentProvider>
+      );
+
+      const { rerender } = render(<App runner={null} />);
+      // No conversation yet, so initialHistory is not surfaced via useAgent().history.
+      expect(probeRef.current!.history).toEqual([]);
+
+      await act(async () => {
+        rerender(<App runner={runner} />);
+      });
+
+      expect(created).toHaveLength(1);
+      expect(created[0].history).toEqual(seeded);
+      expect(probeRef.current!.history).toEqual(seeded);
+    });
   });
 });

@@ -222,7 +222,15 @@ Wraps a subtree with agent context. Manages a `Conversation` instance from
 
 ```tsx
 interface AgentProviderProps {
-  runner: AgentRunner;
+  /**
+   * Drives every agent run. Pass `null` for the "agent not yet configured"
+   * state (no API key yet, signed-out, etc.): the provider mounts cleanly,
+   * `useAgent()` returns disabled-state defaults, and `<ChatInput>` greys
+   * out automatically. Switching from `null` to a real runner does not
+   * require remounting; the conversation starts fresh on the next
+   * `sendMessage`.
+   */
+  runner: AgentRunner | null;
   agent: AgentConfig;
   children: React.ReactNode;
   icons?: IconMap;
@@ -588,6 +596,9 @@ interface UseAgentReturn {
    * Send a user message and start a new turn. The first argument is the prompt
    * delivered to the LLM. The optional second argument overrides what is
    * rendered in the user bubble; when omitted, the prompt is shown.
+   *
+   * No-op (with a console warning) when the provider was mounted with
+   * `runner={null}`.
    */
   sendMessage: (text: string, displayText?: string) => void;
   cancel: () => void;
@@ -600,6 +611,13 @@ interface UseAgentReturn {
    * until one is called.
    */
   pendingApprovals: PendingApproval[];
+  /**
+   * `true` when an `AgentRunner` is configured. `false` when the provider
+   * was mounted with `runner={null}`. `<ChatInput>` reads this to disable
+   * its textarea and Send button; custom inputs built via `useAgent()`
+   * should do the same.
+   */
+  isReady: boolean;
 }
 
 interface PendingApproval {
