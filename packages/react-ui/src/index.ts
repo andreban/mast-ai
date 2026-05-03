@@ -14,3 +14,5 @@ export { UserMessage } from './components/UserMessage';
 export type { UserMessageProps } from './components/UserMessage';
 export { AssistantMessage } from './components/AssistantMessage';
 export type { AssistantMessageProps } from './components/AssistantMessage';
+export { ChatInput } from './components/ChatInput';
+export type { ChatInputProps } from './components/ChatInput';

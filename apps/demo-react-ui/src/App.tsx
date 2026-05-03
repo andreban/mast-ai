@@ -1,12 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, type KeyboardEvent } from 'react';
 import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
 import {
   AgentProvider,
   AssistantMessage,
+  ChatInput,
   UserMessage,
   useAgent,
   type IconMap,
@@ -41,22 +41,7 @@ const icons: IconMap = {
 };
 
 function ChatUI() {
-  const { messages, sendMessage, cancel, isRunning } = useAgent();
-  const [input, setInput] = useState('');
-
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text || isRunning) return;
-    setInput('');
-    sendMessage(text);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSend();
-    }
-  };
+  const { messages } = useAgent();
 
   return (
     <div>
@@ -74,24 +59,7 @@ function ChatUI() {
           </li>
         ))}
       </ul>
-      <textarea
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        rows={3}
-        placeholder="Type a message and press Enter."
-        disabled={isRunning}
-      />
-      <div>
-        <button type="button" onClick={handleSend} disabled={isRunning || !input.trim()}>
-          Send
-        </button>
-        {isRunning ? (
-          <button type="button" onClick={cancel}>
-            Cancel
-          </button>
-        ) : null}
-      </div>
+      <ChatInput />
     </div>
   );
 }
