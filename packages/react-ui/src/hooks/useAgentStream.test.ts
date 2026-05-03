@@ -419,6 +419,200 @@ describe('useAgentStream', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Nested tool calls (sub-agent fires its own tool calls)
+  // -------------------------------------------------------------------------
+
+  it('appends a nested ToolEventEntry on a child tool_call_started', async () => {
+    const subEvents = new Map<string, AgentEvent[]>([
+      [
+        'agent_tool',
+        [
+          { type: 'tool_call_started', name: 'inner_tool', args: { q: 1 } },
+          { type: 'tool_call_completed', name: 'inner_tool', result: 'inner_result' },
+        ],
+      ],
+    ]);
+    const conv = mockConversation(
+      [
+        { type: 'tool_call_started', name: 'agent_tool', args: {} },
+        { type: 'tool_call_completed', name: 'agent_tool', result: 'outer_result' },
+        { type: 'done', output: 'done', history: [] },
+      ],
+      subEvents,
+    );
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('run nested');
+    });
+
+    const parent = result.current.entries[1].toolEvents[0];
+    expect(parent.name).toBe('agent_tool');
+    expect(parent.nestedToolEvents).toHaveLength(1);
+    expect(parent.nestedToolEvents![0]).toMatchObject({
+      type: 'tool_call_completed',
+      name: 'inner_tool',
+      args: { q: 1 },
+      result: 'inner_result',
+      isStreaming: false,
+      status: 'success',
+    });
+  });
+
+  it('marks a nested entry isStreaming: true while the child tool is in flight', async () => {
+    const { conversation, resume } = pausableConversation(
+      [{ type: 'tool_call_started', name: 'agent_tool', args: {} }],
+      [
+        { type: 'tool_call_completed', name: 'agent_tool', result: 'outer_result' },
+        { type: 'done', output: 'done', history: [] },
+      ],
+    );
+
+    // Patch runStream so the child fires tool_call_started but not completed
+    // while the gate is closed.
+    const base = conversation.runStream.bind(conversation);
+    (conversation as unknown as { runStream: typeof base }).runStream = function (
+      input: string,
+      signal?: AbortSignal,
+      onToolEvent?: OnToolEvent,
+    ) {
+      const inner = base(input, signal, onToolEvent);
+      return (async function* () {
+        for await (const event of inner) {
+          yield event;
+          if (event.type === 'tool_call_started' && onToolEvent) {
+            onToolEvent('agent_tool', {
+              type: 'tool_call_started',
+              name: 'inner_tool',
+              args: {},
+            });
+          }
+        }
+      })();
+    };
+
+    const { result } = renderHook(() => useAgentStream(conversation));
+
+    act(() => {
+      result.current.sendMessage('run');
+    });
+
+    await waitFor(() => {
+      const parent = result.current.entries[1].toolEvents[0];
+      expect(parent?.nestedToolEvents).toHaveLength(1);
+    });
+
+    const parent = result.current.entries[1].toolEvents[0];
+    expect(parent.nestedToolEvents![0]).toMatchObject({
+      type: 'tool_call_started',
+      name: 'inner_tool',
+      isStreaming: true,
+    });
+
+    resume();
+    await act(async () => {});
+  });
+
+  it('records error status on a nested tool_call_completed with error: true', async () => {
+    const subEvents = new Map<string, AgentEvent[]>([
+      [
+        'agent_tool',
+        [
+          { type: 'tool_call_started', name: 'inner_tool', args: {} },
+          {
+            type: 'tool_call_completed',
+            name: 'inner_tool',
+            result: 'boom',
+            error: true,
+          },
+        ],
+      ],
+    ]);
+    const conv = mockConversation(
+      [
+        { type: 'tool_call_started', name: 'agent_tool', args: {} },
+        { type: 'tool_call_completed', name: 'agent_tool', result: 'outer_result' },
+        { type: 'done', output: 'done', history: [] },
+      ],
+      subEvents,
+    );
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('run');
+    });
+
+    const parent = result.current.entries[1].toolEvents[0];
+    expect(parent.nestedToolEvents![0].status).toBe('error');
+  });
+
+  it('routes multiple nested tool calls under the same parent in order', async () => {
+    const subEvents = new Map<string, AgentEvent[]>([
+      [
+        'agent_tool',
+        [
+          { type: 'tool_call_started', name: 'inner_a', args: {} },
+          { type: 'tool_call_completed', name: 'inner_a', result: 'a' },
+          { type: 'tool_call_started', name: 'inner_b', args: {} },
+          { type: 'tool_call_completed', name: 'inner_b', result: 'b' },
+        ],
+      ],
+    ]);
+    const conv = mockConversation(
+      [
+        { type: 'tool_call_started', name: 'agent_tool', args: {} },
+        { type: 'tool_call_completed', name: 'agent_tool', result: 'outer_result' },
+        { type: 'done', output: 'done', history: [] },
+      ],
+      subEvents,
+    );
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('run');
+    });
+
+    const nested = result.current.entries[1].toolEvents[0].nestedToolEvents!;
+    expect(nested.map((n) => n.name)).toEqual(['inner_a', 'inner_b']);
+    expect(nested.map((n) => n.result)).toEqual(['a', 'b']);
+    expect(nested.every((n) => !n.isStreaming)).toBe(true);
+  });
+
+  it('still routes child thinking and text deltas to the parent entry, not nested', async () => {
+    const subEvents = new Map<string, AgentEvent[]>([
+      [
+        'agent_tool',
+        [
+          { type: 'thinking', delta: 'planning ' },
+          { type: 'tool_call_started', name: 'inner_tool', args: {} },
+          { type: 'text_delta', delta: 'narration ' },
+          { type: 'tool_call_completed', name: 'inner_tool', result: 'inner' },
+        ],
+      ],
+    ]);
+    const conv = mockConversation(
+      [
+        { type: 'tool_call_started', name: 'agent_tool', args: {} },
+        { type: 'tool_call_completed', name: 'agent_tool', result: 'outer_result' },
+        { type: 'done', output: 'done', history: [] },
+      ],
+      subEvents,
+    );
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('run');
+    });
+
+    const parent = result.current.entries[1].toolEvents[0];
+    expect(parent.subThinking).toBe('planning ');
+    expect(parent.subText).toBe('narration ');
+    expect(parent.nestedToolEvents).toHaveLength(1);
+    expect(parent.nestedToolEvents![0].subThinking).toBeUndefined();
+    expect(parent.nestedToolEvents![0].subText).toBeUndefined();
+  });
+
+  // -------------------------------------------------------------------------
   // Concurrent tool calls
   // -------------------------------------------------------------------------
 

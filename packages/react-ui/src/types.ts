@@ -57,6 +57,19 @@ export interface ToolEventEntry {
   subText?: string;
 
   /**
+   * Tool calls fired by a sub-agent running inside this tool's execution.
+   * Populated incrementally via `onToolEvent` → `tool_call_started` /
+   * `tool_call_completed` events forwarded from the child runner.
+   * `undefined` when the tool is not a sub-agent or has not yet emitted
+   * any nested tool calls.
+   *
+   * Currently scoped to a single level of nesting. The state machine routes
+   * grandchild events back to the outermost matching parent; deeper
+   * disambiguation is a future extension.
+   */
+  nestedToolEvents?: ToolEventEntry[];
+
+  /**
    * `true` while the tool is executing; `false` once `tool_call_completed` is received.
    * Drives the spinner → check-mark transition in `<ToolCallBlock>`.
    */

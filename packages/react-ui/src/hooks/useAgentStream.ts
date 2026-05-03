@@ -54,6 +54,32 @@ function updateToolEvent(
   });
 }
 
+/**
+ * Returns a new array where the first nested `ToolEventEntry` (under the
+ * parent identified by `parentToolName`) that matches `childName` and is
+ * still streaming is replaced by the result of `updater`. All other entries
+ * and tool events are unchanged.
+ */
+function updateNestedToolEvent(
+  entries: ConversationEntry[],
+  entryId: string,
+  parentToolName: string,
+  childName: string,
+  updater: (n: ToolEventEntry) => ToolEventEntry,
+): ConversationEntry[] {
+  return updateToolEvent(entries, entryId, parentToolName, (parent) => {
+    let patched = false;
+    const nested = (parent.nestedToolEvents ?? []).map((n) => {
+      if (!patched && n.name === childName && n.isStreaming) {
+        patched = true;
+        return updater(n);
+      }
+      return n;
+    });
+    return { ...parent, nestedToolEvents: nested };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -180,6 +206,8 @@ export interface UseAgentStreamReturn {
  * | `tool_call_started` | Push new `ToolEventEntry` with `isStreaming: true` |
  * | `onToolEvent` → `thinking` | Append delta to matching `ToolEventEntry.subThinking` |
  * | `onToolEvent` → `text_delta` | Append delta to matching `ToolEventEntry.subText` |
+ * | `onToolEvent` → `tool_call_started` | Push new nested `ToolEventEntry` onto parent's `nestedToolEvents` |
+ * | `onToolEvent` → `tool_call_completed` | Set `result` and `isStreaming: false` on matching nested entry |
  * | `onToolEvent` → `done` | Ignored |
  * | `tool_call_completed` | Set `result` and `isStreaming: false` on matching entry |
  * | `done` | Set `text = output` and `isStreaming: false` on assistant entry |
@@ -278,6 +306,31 @@ export function useAgentStream(
                   updateToolEvent(prev, assistantId, toolName, (t) => ({
                     ...t,
                     subText: (t.subText ?? '') + event.delta,
+                  })),
+                );
+              } else if (event.type === 'tool_call_started') {
+                const nested: ToolEventEntry = {
+                  id: crypto.randomUUID(),
+                  type: 'tool_call_started',
+                  name: event.name,
+                  args: event.args,
+                  isStreaming: true,
+                };
+                setEntries((prev) =>
+                  updateToolEvent(prev, assistantId, toolName, (t) => ({
+                    ...t,
+                    nestedToolEvents: [...(t.nestedToolEvents ?? []), nested],
+                  })),
+                );
+              } else if (event.type === 'tool_call_completed') {
+                const completedEvent = event;
+                setEntries((prev) =>
+                  updateNestedToolEvent(prev, assistantId, toolName, completedEvent.name, (n) => ({
+                    ...n,
+                    type: 'tool_call_completed',
+                    result: completedEvent.result,
+                    isStreaming: false,
+                    status: completedEvent.error ? 'error' : 'success',
                   })),
                 );
               }
