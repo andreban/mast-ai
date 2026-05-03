@@ -10,7 +10,7 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./styles.css": "./styles/default.css"
+    "./styles.css": "./dist/styles.css"
   },
   "scripts": {
     "build": "vite build && tsc",

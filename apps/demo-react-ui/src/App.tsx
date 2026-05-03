@@ -1,9 +1,10 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
+import { useState } from 'react';
 import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
-import { AgentProvider, ChatInput, MessageList, type IconMap } from '@mast-ai/react-ui';
+import { AgentProvider, ConversationPanel, type IconMap } from '@mast-ai/react-ui';
 import { Brain, CircleCheck, LoaderCircle, Send, Square, Wrench } from 'lucide-react';
 
 import { GetCurrentTimeTool } from './tools';
@@ -33,12 +34,39 @@ const icons: IconMap = {
   stop: <Square size={16} />,
 };
 
+type ThemeChoice = 'system' | 'light' | 'dark';
+
+const NEXT_THEME: Record<ThemeChoice, ThemeChoice> = {
+  system: 'light',
+  light: 'dark',
+  dark: 'system',
+};
+
+const THEME_LABEL: Record<ThemeChoice, string> = {
+  system: 'Theme: System',
+  light: 'Theme: Light',
+  dark: 'Theme: Dark',
+};
+
 export default function App() {
+  const [theme, setTheme] = useState<ThemeChoice>('system');
+  const panelTheme = theme === 'system' ? undefined : theme;
+
   return (
     <AgentProvider runner={runner} agent={agentConfig} icons={icons}>
-      <h1>MAST React UI Demo</h1>
-      <MessageList />
-      <ChatInput />
+      <div className="demo-shell">
+        <header className="demo-header">
+          <h1>MAST React UI Demo</h1>
+          <button
+            type="button"
+            className="demo-theme-toggle"
+            onClick={() => setTheme((current) => NEXT_THEME[current])}
+          >
+            {THEME_LABEL[theme]}
+          </button>
+        </header>
+        <ConversationPanel theme={panelTheme} />
+      </div>
     </AgentProvider>
   );
 }
