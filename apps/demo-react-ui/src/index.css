@@ -1,0 +1,57 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0b0f17;
+    color: #f9fafb;
+  }
+}
+
+.demo-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.demo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.demo-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.demo-theme-toggle {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.demo-shell [data-mast-root] {
+  flex: 1 1 auto;
+  min-height: 0;
+}

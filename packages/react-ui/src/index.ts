@@ -20,3 +20,5 @@ export { MessageItem } from './components/MessageItem';
 export type { MessageItemProps } from './components/MessageItem';
 export { MessageList } from './components/MessageList';
 export type { MessageListProps } from './components/MessageList';
+export { ConversationPanel } from './components/ConversationPanel';
+export type { ConversationPanelProps } from './components/ConversationPanel';
