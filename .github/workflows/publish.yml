@@ -44,9 +44,11 @@ jobs:
 
       - run: npm run lint
 
-      - run: npm test --workspaces --if-present
-
+      # Build before tests so workspace packages that depend on
+      # @mast-ai/core can resolve its `dist/index.js` entry.
       - run: npm run build -w @mast-ai/core -w @mast-ai/google-genai -w @mast-ai/built-in-ai -w @mast-ai/react-ui
+
+      - run: npm test --workspaces --if-present
 
       - name: Publish @mast-ai/core
         run: npm publish --provenance -w @mast-ai/core
