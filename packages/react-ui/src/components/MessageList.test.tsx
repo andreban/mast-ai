@@ -220,6 +220,67 @@ describe('<MessageList>', () => {
     expect(await screen.findByText('tool:demo_tool')).toBeDefined();
   });
 
+  it('forwards getToolLabel to the default <ToolCallBlock> header', async () => {
+    const user = userEvent.setup();
+    const { runner } = makeMockRunner([
+      {
+        type: 'tool_call_started',
+        name: 'delegate_to_skill',
+        args: { skillName: 'Proofreader' },
+      },
+      {
+        type: 'tool_call_completed',
+        name: 'delegate_to_skill',
+        result: 'ok',
+      },
+      { type: 'done', output: '', history: [] },
+    ]);
+
+    const getToolLabel = vi.fn((entry: ToolEventEntry) => {
+      if (entry.name === 'delegate_to_skill') {
+        const args = entry.args as { skillName?: string } | undefined;
+        return args?.skillName ?? entry.name;
+      }
+      return undefined;
+    });
+
+    renderWithProvider(
+      runner,
+      <>
+        <SendButton text="run tool" />
+        <MessageList getToolLabel={getToolLabel} />
+      </>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'send run tool' }));
+
+    const header = await screen.findByText('Proofreader');
+    expect(header.className).toContain('mast-tool-call-block-name');
+    expect(screen.queryByText('delegate_to_skill')).toBeNull();
+    expect(getToolLabel).toHaveBeenCalled();
+  });
+
+  it('falls back to entry.name when getToolLabel returns undefined for an entry', async () => {
+    const user = userEvent.setup();
+    const { runner } = makeMockRunner([
+      { type: 'tool_call_started', name: 'plain_tool', args: {} },
+      { type: 'tool_call_completed', name: 'plain_tool', result: 'ok' },
+      { type: 'done', output: '', history: [] },
+    ]);
+
+    renderWithProvider(
+      runner,
+      <>
+        <SendButton text="run tool" />
+        <MessageList getToolLabel={() => undefined} />
+      </>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'send run tool' }));
+
+    expect(await screen.findByText('plain_tool')).toBeDefined();
+  });
+
   // ---------------------------------------------------------------------------
   // renderApproval slot
   //

@@ -10,6 +10,7 @@ import type { PendingApproval } from '../approval.js';
 import type { ToolEventEntry } from '../types.js';
 import type { RenderApproval } from './AssistantMessage.js';
 import { MessageItem } from './MessageItem.js';
+import type { GetToolLabel } from './ToolLabelContext.js';
 
 /**
  * Props accepted by {@link MessageList}.
@@ -36,6 +37,17 @@ export interface MessageListProps {
    * assistant text renderer for the entire list.
    */
   renderMessage?: (text: string) => ReactNode;
+  /**
+   * Forwarded to each {@link MessageItem} so consumers can override the
+   * `<ToolCallBlock>` header label for the entire list. The resolver is read
+   * via context inside `<ToolCallBlock>`, so it also applies to nested
+   * sub-agent tool calls.
+   *
+   * Returning `undefined` or `null` for a given entry falls back to
+   * `entry.name`, which is useful for selectively overriding only a subset of
+   * tool names.
+   */
+  getToolLabel?: GetToolLabel;
 }
 
 /**
@@ -66,6 +78,7 @@ export function MessageList({
   renderToolCall,
   renderApproval,
   renderMessage,
+  getToolLabel,
 }: MessageListProps) {
   const { messages } = useAgent();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -116,6 +129,7 @@ export function MessageList({
                 renderToolCall={renderToolCall}
                 renderApproval={renderApproval}
                 renderMessage={renderMessage}
+                getToolLabel={getToolLabel}
               />
             </div>
           );

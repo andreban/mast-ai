@@ -10,6 +10,7 @@ import type { ConversationEntry, ToolEventEntry } from '../types.js';
 import { InlineApproval } from './InlineApproval.js';
 import { ThinkingBlock } from './ThinkingBlock.js';
 import { ToolCallBlock } from './ToolCallBlock.js';
+import { ToolLabelContext, type GetToolLabel } from './ToolLabelContext.js';
 
 /**
  * Slot for replacing only the inline approval card while keeping the default
@@ -63,6 +64,21 @@ export interface AssistantMessageProps {
    * are provided.
    */
   renderApproval?: RenderApproval;
+  /**
+   * Resolves the header label for each {@link ToolEventEntry} rendered inside
+   * this message. Forwarded via context to every nested `<ToolCallBlock>`,
+   * including those rendered for sub-agent tool calls.
+   *
+   * Use this for the common case of relabelling delegation-style tools (e.g.
+   * `delegate_to_skill` showing the target skill's name) without needing to
+   * write a custom `renderToolCall` purely to override `entry.name`.
+   *
+   * Resolution order inside `<ToolCallBlock>`: explicit `label` prop, then this
+   * resolver, then `entry.name`. Returning `undefined` or `null` from the
+   * resolver lets the block fall back to `entry.name` for that specific entry,
+   * which is useful for selectively overriding only a subset of tool names.
+   */
+  getToolLabel?: GetToolLabel;
 }
 
 interface MarkdownTextProps {
@@ -121,6 +137,7 @@ export function AssistantMessage({
   renderMessage,
   renderToolCall,
   renderApproval,
+  getToolLabel,
 }: AssistantMessageProps) {
   const rootClass = ['mast-assistant-message', className].filter(Boolean).join(' ');
   const { pendingApprovals } = useAgent();
@@ -152,26 +169,28 @@ export function AssistantMessage({
   };
 
   return (
-    <div
-      data-mast-assistant-message
-      data-streaming={entry.isStreaming ? 'true' : undefined}
-      className={rootClass}
-    >
-      {entry.thinking ? (
-        <ThinkingBlock content={entry.thinking} isStreaming={entry.isStreaming} />
-      ) : null}
-      {entry.toolEvents.map((toolEvent, index) => (
-        <Fragment key={`${toolEvent.id}-${index}`}>{renderToolEvent(toolEvent)}</Fragment>
-      ))}
-      {entry.text ? (
-        renderMessage ? (
-          renderMessage(entry.text)
-        ) : (
-          <Suspense fallback={<p className="mast-assistant-message-text">{entry.text}</p>}>
-            <MarkdownText>{entry.text}</MarkdownText>
-          </Suspense>
-        )
-      ) : null}
-    </div>
+    <ToolLabelContext.Provider value={getToolLabel}>
+      <div
+        data-mast-assistant-message
+        data-streaming={entry.isStreaming ? 'true' : undefined}
+        className={rootClass}
+      >
+        {entry.thinking ? (
+          <ThinkingBlock content={entry.thinking} isStreaming={entry.isStreaming} />
+        ) : null}
+        {entry.toolEvents.map((toolEvent, index) => (
+          <Fragment key={`${toolEvent.id}-${index}`}>{renderToolEvent(toolEvent)}</Fragment>
+        ))}
+        {entry.text ? (
+          renderMessage ? (
+            renderMessage(entry.text)
+          ) : (
+            <Suspense fallback={<p className="mast-assistant-message-text">{entry.text}</p>}>
+              <MarkdownText>{entry.text}</MarkdownText>
+            </Suspense>
+          )
+        ) : null}
+      </div>
+    </ToolLabelContext.Provider>
   );
 }

@@ -1,9 +1,13 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
+import { useContext } from 'react';
+import type { ReactNode } from 'react';
+
 import { useIcons } from '../icons.js';
 import type { ToolEventEntry } from '../types.js';
 import { ThinkingBlock } from './ThinkingBlock.js';
+import { ToolLabelContext } from './ToolLabelContext.js';
 
 /**
  * Props accepted by {@link ToolCallBlock}.
@@ -24,6 +28,16 @@ export interface ToolCallBlockProps {
    * - `false`: closed by default, regardless of streaming state.
    */
   defaultOpen?: boolean | 'streaming';
+  /**
+   * Overrides `entry.name` in the header. Useful for delegation-style tools
+   * whose interesting label lives in the args (e.g. `delegate_to_skill` should
+   * display the target skill's name, not the wrapper tool's name).
+   *
+   * Takes precedence over the `getToolLabel` resolver supplied via
+   * `<AssistantMessage>` / `<MessageList>` / `<ConversationPanel>`. When
+   * omitted, falls back to the resolver, then to `entry.name`.
+   */
+  label?: ReactNode;
 }
 
 function formatJson(value: unknown): string {
@@ -86,8 +100,14 @@ function resolveOpen(
   return defaultOpen;
 }
 
-export function ToolCallBlock({ entry, className, defaultOpen = 'streaming' }: ToolCallBlockProps) {
+export function ToolCallBlock({
+  entry,
+  className,
+  defaultOpen = 'streaming',
+  label,
+}: ToolCallBlockProps) {
   const icons = useIcons();
+  const getToolLabel = useContext(ToolLabelContext);
   const rootClass = ['mast-tool-call-block', className].filter(Boolean).join(' ');
   const hasSubAgentOutput = entry.subThinking !== undefined || entry.subText !== undefined;
   const nestedToolEvents = entry.nestedToolEvents ?? [];
@@ -95,6 +115,7 @@ export function ToolCallBlock({ entry, className, defaultOpen = 'streaming' }: T
   const argsText = formatJson(entry.args);
   const resultText = formatJson(entry.result);
   const open = resolveOpen(defaultOpen, entry.isStreaming);
+  const resolvedLabel = label ?? getToolLabel?.(entry) ?? entry.name;
 
   return (
     <details
@@ -119,7 +140,7 @@ export function ToolCallBlock({ entry, className, defaultOpen = 'streaming' }: T
         <span className="mast-tool-call-block-wrench" aria-hidden="true">
           {icons.wrench}
         </span>
-        <span className="mast-tool-call-block-name">{entry.name}</span>
+        <span className="mast-tool-call-block-name">{resolvedLabel}</span>
       </summary>
 
       <div className="mast-tool-call-block-body">

@@ -237,6 +237,7 @@ If a new `@mast-ai/<name>` package is added to the repo, its first publish must 
 - Do not add `Co-Authored-By` trailers to commit messages.
 - Always run `npm run lint`, `npm run format`, `npm run build`, and `npm test` before committing and fix any failures.
 - Always use `Edit` to modify existing files — never rewrite them wholesale with `Write`. Small diffs make reviews easier.
+- Before committing and opening a PR, check whether the demos under `apps/` and the skills under `skills/` need updates to reflect the change (new APIs, renamed exports, behaviour changes, new capabilities worth showcasing). Update them as part of the same PR when they do.
 - Always ask the user to manually test before committing. Never commit or open a pull request until the user has confirmed the test passed.
 - **Branch strategy:**
   1. Before starting work on an issue, check out `main` and pull the latest (`git checkout main && git pull`).

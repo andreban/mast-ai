@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import type { PendingApproval } from '../approval.js';
 import type { ConversationEntry, ToolEventEntry } from '../types.js';
 import { AssistantMessage, type RenderApproval } from './AssistantMessage.js';
+import type { GetToolLabel } from './ToolLabelContext.js';
 import { UserMessage } from './UserMessage.js';
 
 /**
@@ -31,6 +32,11 @@ export interface MessageItemProps {
    * `'user'`.
    */
   renderMessage?: (text: string) => ReactNode;
+  /**
+   * Forwarded to {@link AssistantMessage}. Has no effect when `entry.role` is
+   * `'user'`.
+   */
+  getToolLabel?: GetToolLabel;
 }
 
 /**
@@ -45,6 +51,7 @@ export function MessageItem({
   renderToolCall,
   renderApproval,
   renderMessage,
+  getToolLabel,
 }: MessageItemProps) {
   if (entry.role === 'user') {
     return <UserMessage entry={entry} className={className} />;
@@ -56,6 +63,7 @@ export function MessageItem({
       renderToolCall={renderToolCall}
       renderApproval={renderApproval}
       renderMessage={renderMessage}
+      getToolLabel={getToolLabel}
     />
   );
 }
