@@ -879,12 +879,17 @@ surface and a reference implementation.
 
 ### Stack
 
-| Concern     | Choice                                                                |
-| ----------- | --------------------------------------------------------------------- |
-| Bundler     | Vite                                                                  |
-| LLM adapter | `@mast-ai/google-genai` (API key via `VITE_GEMINI_API_KEY` in `.env`) |
-| Icons       | `lucide-react` (demonstrates icon override)                           |
-| Markdown    | `react-markdown` + `remark-gfm` + `rehype-sanitize`                   |
+| Concern     | Choice                                                            |
+| ----------- | ----------------------------------------------------------------- |
+| Bundler     | Vite                                                              |
+| LLM adapter | `@mast-ai/google-genai` (API key entered in-app, kept in `localStorage`) |
+| Icons       | `lucide-react` (demonstrates icon override)                       |
+| Markdown    | `react-markdown` + `remark-gfm` + `rehype-sanitize`               |
+
+The Gemini API key is **not** read from a Vite env var; baking it into the
+bundle would leak it on any public deployment. The app gates rendering on a
+key stored in `localStorage` and exposes a "Reset API key" button in the
+header to clear it.
 
 ### What it demonstrates
 
@@ -900,6 +905,8 @@ surface and a reference implementation.
    - `copy_to_clipboard` — write, modal approval via `window.confirm` outside the chat.
    - `parse_integer` — read, no approval; throws on invalid input to surface the
      `'error'` status in `<ToolCallBlock>`.
+   Tool bubbles are wrapped in a `<details>` so they start collapsed and can be
+   expanded for arguments, sub-agent output, and the final result.
 4. **Dark mode** — a toggle button that sets `theme="dark"` / `"light"` on
    `<ConversationPanel>`, demonstrating manual theme control alongside the OS default.
 5. **Approval flow** — single `onApprovalRequired` callback dispatches by tool name:
@@ -910,6 +917,9 @@ surface and a reference implementation.
    Save and restore are wired through `onConversationChange` plus `initialHistory` /
    `initialEntries`; switching conversations remounts the provider via a `key`
    keyed on the active conversation id. Storage backend is `localStorage`.
+8. **In-app instructions** — a static right-hand panel listing example prompts
+   (one per tool, one for `@`-mentions) and UI tips so a fresh visitor can drive
+   the demo without external docs.
 
 ### File structure
 
@@ -917,13 +927,12 @@ surface and a reference implementation.
 apps/demo-react-ui/
 ├── src/
 │   ├── main.tsx        — mounts App
-│   ├── App.tsx         — AgentProvider setup, tool registration, theme toggle, renderToolCall, conversation list + localStorage persistence
+│   ├── App.tsx         — API key gate + AgentProvider setup, tool registration, theme toggle, renderToolCall, conversation list + localStorage persistence, instructions panel
 │   └── tools.ts        — five tool definitions covering every approval/status path
 ├── index.html
 ├── vite.config.ts
 ├── tsconfig.json
-├── package.json
-└── .env.example        — VITE_GEMINI_API_KEY=your_key_here
+└── package.json
 ```
 
 ---

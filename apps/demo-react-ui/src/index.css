@@ -23,7 +23,7 @@ body {
   flex-direction: column;
   gap: 1rem;
   height: 100%;
-  max-width: 64rem;
+  width: 100%;
   margin: 0 auto;
   padding: 1rem;
   box-sizing: border-box;
@@ -233,21 +233,9 @@ body {
   font-weight: 600;
 }
 
-.demo-set-title-approval-actions,
-.demo-simple-approval-actions {
+.demo-set-title-approval-actions {
   display: flex;
   gap: 0.5rem;
-}
-
-.demo-simple-approval {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--mast-tool-pending, #f59e0b);
-  border-radius: var(--mast-radius, 0.5rem);
-  background: var(--mast-thinking-bg, #fefce8);
 }
 
 .demo-approval-button {
@@ -266,5 +254,184 @@ body {
 .demo-approval-reject {
   background: transparent;
   border-color: currentColor;
+  color: inherit;
+}
+
+.demo-collapsible-tool-call {
+  border: 1px solid var(--mast-border, #e5e7eb);
+  border-radius: var(--mast-radius, 0.5rem);
+  background: var(--mast-tool-bg, #f0fdf4);
+  color: var(--mast-tool-fg, #166534);
+  font-size: var(--mast-text-sm, 0.875rem);
+}
+
+.demo-collapsible-tool-call[data-status='error'] {
+  background: var(--mast-tool-error-bg, #fef2f2);
+  color: var(--mast-tool-error-fg, #991b1b);
+}
+
+.demo-collapsible-tool-call[data-status='cancelled'] {
+  background: var(--mast-tool-cancelled-bg, #f3f4f6);
+  color: var(--mast-tool-cancelled-fg, #4b5563);
+}
+
+.demo-collapsible-tool-call-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.demo-collapsible-tool-call-summary::-webkit-details-marker {
+  display: none;
+}
+
+.demo-collapsible-tool-call-summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 0.75rem;
+  color: var(--mast-fg-muted, #6b7280);
+  transition: transform 0.15s ease;
+}
+
+.demo-collapsible-tool-call[open] > .demo-collapsible-tool-call-summary::before {
+  transform: rotate(90deg);
+}
+
+.demo-collapsible-tool-call[data-streaming='true'] .demo-collapsible-tool-call-status {
+  color: var(--mast-tool-pending, #f59e0b);
+}
+
+.demo-collapsible-tool-call-name {
+  font-family: var(--mast-font-mono, ui-monospace, monospace);
+  font-weight: 500;
+}
+
+/* The wrapped <ToolCallBlock> already provides its own header. Hide it so the
+   tool name is not shown twice once the section is expanded, and drop the
+   duplicate background and border. */
+.demo-collapsible-tool-call > .mast-tool-call-block {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0 0.6rem 0.5rem;
+}
+
+.demo-collapsible-tool-call > .mast-tool-call-block > .mast-tool-call-block-header {
+  display: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Instructions panel                                                         */
+/* -------------------------------------------------------------------------- */
+
+.demo-instructions {
+  flex: 0 0 18rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  border: 1px solid rgba(127, 127, 127, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+  font-size: 0.875rem;
+}
+
+.demo-instructions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.demo-instructions-section h3 {
+  margin: 0;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(127, 127, 127, 1);
+}
+
+.demo-instructions-section p,
+.demo-instructions-section ul {
+  margin: 0;
+}
+
+.demo-instructions-section ul {
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.demo-instructions-section code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  padding: 0 0.2rem;
+  border-radius: 0.2rem;
+  background: rgba(127, 127, 127, 0.15);
+}
+
+/* -------------------------------------------------------------------------- */
+/* API key setup screen                                                       */
+/* -------------------------------------------------------------------------- */
+
+.demo-api-key-setup {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  min-height: 0;
+}
+
+.demo-api-key-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 28rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(127, 127, 127, 0.3);
+  border-radius: 0.75rem;
+  background: rgba(127, 127, 127, 0.05);
+}
+
+.demo-api-key-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.demo-api-key-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.demo-api-key-card code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+}
+
+.demo-api-key-card a {
+  color: inherit;
+}
+
+.demo-api-key-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8125rem;
+}
+
+.demo-api-key-label input {
+  font: inherit;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(127, 127, 127, 0.4);
+  border-radius: 0.375rem;
+  background: transparent;
   color: inherit;
 }
