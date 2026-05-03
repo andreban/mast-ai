@@ -1,0 +1,55 @@
+/*
+ * @mast-ai/react-ui — Tailwind / shadcn theme preset
+ *
+ * Maps every --mast-* token onto the standard shadcn HSL CSS variables
+ * (--background, --foreground, --primary, --muted, --border, --destructive,
+ * etc.) so library components inherit the consuming app's theme.
+ *
+ * Usage:
+ *   import '@mast-ai/react-ui/styles.css';
+ *   import '@mast-ai/react-ui/themes/tailwind-shadcn.css';
+ *
+ * The shadcn variables must be raw HSL triples (e.g. --background: 0 0% 100%)
+ * for hsl(var(--background)) to evaluate correctly. This is the default for
+ * shadcn projects scaffolded with `shadcn-ui add`. Tailwind v4 / shadcn v4
+ * setups that store full color() values should drop the hsl() wrapper.
+ *
+ * Two non-obvious tricks this preset relies on:
+ *
+ * 1. Listing all three selectors with equal specificity so source order
+ *    tie-breaks in the consumer's favor. A bare [data-mast-root] block loses
+ *    to the library's [data-mast-root][data-mast-theme='dark'] block in dark
+ *    mode and the dark theme would keep the library's hardcoded colors.
+ *
+ * 2. Setting data-mast-theme={theme} on the panel root in your app keeps the
+ *    library's dark detection in sync with shadcn's class-based dark mode
+ *    (.dark on <html>). Without it, the library follows OS preference and
+ *    can mismatch the app theme.
+ *
+ * See docs/react-ui/USAGE.md §5 for the full integration guide.
+ */
+
+[data-mast-root],
+[data-mast-root][data-mast-theme='dark'],
+[data-mast-root][data-mast-theme='light'] {
+  --mast-bg: hsl(var(--background));
+  --mast-bg-subtle: hsl(var(--muted) / 0.2);
+  --mast-fg: hsl(var(--foreground));
+  --mast-fg-muted: hsl(var(--muted-foreground));
+  --mast-border: hsl(var(--border));
+  --mast-accent: hsl(var(--primary));
+  --mast-accent-fg: hsl(var(--primary-foreground));
+  --mast-thinking-bg: hsl(var(--muted));
+  --mast-thinking-fg: hsl(var(--muted-foreground));
+  --mast-tool-bg: hsl(var(--muted) / 0.4);
+  --mast-tool-fg: hsl(var(--muted-foreground));
+  --mast-tool-pending: hsl(var(--primary));
+  --mast-tool-error-bg: hsl(var(--destructive) / 0.1);
+  --mast-tool-error-fg: hsl(var(--destructive));
+  --mast-tool-cancelled-bg: hsl(var(--muted));
+  --mast-tool-cancelled-fg: hsl(var(--muted-foreground));
+  --mast-user-bubble: hsl(var(--primary));
+  --mast-user-fg: hsl(var(--primary-foreground));
+  --mast-mention-chip-bg: hsl(var(--primary) / 0.1);
+  --mast-mention-chip-fg: hsl(var(--primary));
+}

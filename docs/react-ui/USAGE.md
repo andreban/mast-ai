@@ -17,7 +17,7 @@ common use cases. The corresponding API reference lives in
 2. [Basic setup with `GoogleGenAIAdapter`](#2-basic-setup-with-googlegenaiadapter)
 3. [Registering tools](#3-registering-tools)
 4. [Custom icons (`lucide-react` example)](#4-custom-icons-lucide-react-example)
-5. [Dark mode and theming](#5-dark-mode-and-theming)
+5. [Theming](#5-theming)
 6. [Custom tool call rendering (`renderToolCall`)](#6-custom-tool-call-rendering-rendertoolcall)
 7. [Custom message rendering (`renderMessage`)](#7-custom-message-rendering-rendermessage)
 8. [Composing a custom layout with primitives](#8-composing-a-custom-layout-with-primitives)
@@ -209,7 +209,14 @@ defined in the default stylesheet and rotates the loader icon.
 
 ---
 
-## 5. Dark mode and theming
+## 5. Theming
+
+Every visual value in the default stylesheet is a CSS custom property scoped
+under `[data-mast-root]`, so consumers can override individual tokens, swap the
+whole palette, or remap every token onto an existing design system without
+`!important` and without forking the stylesheet.
+
+### 5.1 Dark mode
 
 The default stylesheet ships a light theme and an automatic dark theme that
 follows `prefers-color-scheme`. Apps that manage their own theme switching can
@@ -223,31 +230,198 @@ force a value with the `theme` prop on `<ConversationPanel>`:
 
 The prop sets `data-mast-theme` on the panel root. The default stylesheet
 selects on that attribute so OS preferences are overridden without
-`!important`.
+`!important`. When composing primitives directly (see §8), set
+`data-mast-theme={theme}` yourself on the element that carries `data-mast-root`.
 
-### Overriding individual tokens
+### 5.2 Token reference
 
-Every colour, font, and spacing value is a CSS custom property scoped under
-`[data-mast-root]`. Override at any level:
+Every token below is defined on `[data-mast-root]` in the default stylesheet
+and is safe to override at any scope.
+
+| Token                             | Used by                                                        |
+| --------------------------------- | -------------------------------------------------------------- |
+| `--mast-bg`                       | Panel background, args/result panes, mention picker background |
+| `--mast-bg-subtle`                | Message list background, code blocks, picker hover row         |
+| `--mast-fg`                       | Body text                                                      |
+| `--mast-fg-muted`                 | Secondary text (chevrons, "show args" labels, descriptions)    |
+| `--mast-border`                   | Panel border, code-block border, sub-agent indent rule         |
+| `--mast-accent`                   | Send button, primary approval action                           |
+| `--mast-accent-fg`                | Foreground on `--mast-accent`                                  |
+| `--mast-thinking-bg`              | `<ThinkingBlock>` background, inline approval card background  |
+| `--mast-thinking-fg`              | `<ThinkingBlock>` text, inline approval card text              |
+| `--mast-tool-bg`                  | `<ToolCallBlock>` background (success / running)               |
+| `--mast-tool-fg`                  | `<ToolCallBlock>` text (success / running)                     |
+| `--mast-tool-pending`             | Streaming spinner color, cancel button, approval card border   |
+| `--mast-tool-error-bg`            | `<ToolCallBlock>` background when `status: 'error'`            |
+| `--mast-tool-error-fg`            | `<ToolCallBlock>` text when `status: 'error'`                  |
+| `--mast-tool-cancelled-bg`        | `<ToolCallBlock>` background when `status: 'cancelled'`        |
+| `--mast-tool-cancelled-fg`        | `<ToolCallBlock>` text when `status: 'cancelled'`              |
+| `--mast-user-bubble`              | User message bubble background                                 |
+| `--mast-user-fg`                  | User message bubble text                                       |
+| `--mast-mention-chip-bg`          | `@`-mention chip background (input and user bubble)            |
+| `--mast-mention-chip-fg`          | `@`-mention chip text                                          |
+| `--mast-mention-picker-bg`        | Mention picker popover background (defaults to `--mast-bg`)    |
+| `--mast-mention-picker-active-bg` | Highlighted picker row (defaults to `--mast-bg-subtle`)        |
+| `--mast-mention-picker-shadow`    | Mention picker drop shadow                                     |
+| `--mast-font`                     | All UI text                                                    |
+| `--mast-font-mono`                | Code blocks, tool names, `<pre>` content                       |
+| `--mast-text-sm`                  | Secondary text size (sub-text, status labels, picker rows)     |
+| `--mast-text-base`                | Body text size                                                 |
+| `--mast-gap`                      | Vertical / horizontal gap inside the panel                     |
+| `--mast-radius`                   | Border radius for buttons, blocks, and the panel itself        |
+
+Tokens whose default is `var(--mast-bg)` or `var(--mast-bg-subtle)` inherit
+from the base color tokens automatically, so overriding `--mast-bg` once is
+usually enough.
+
+### 5.3 Overriding individual tokens
+
+Set whichever tokens you want to change on any selector that contains a
+`[data-mast-root]` element. The default stylesheet uses single-attribute
+selectors, so an unscoped override wins by source order if its CSS is loaded
+after `@mast-ai/react-ui/styles.css`.
 
 ```css
-/* App-wide brand accent */
+/* App-wide brand accent. */
 [data-mast-root] {
   --mast-accent: #ec4899;
   --mast-accent-fg: #ffffff;
   --mast-radius: 0.25rem;
 }
 
-/* Different palette inside a sidebar variant */
+/* Different palette inside a sidebar variant. */
 .app-sidebar [data-mast-root] {
   --mast-bg: #0f172a;
   --mast-fg: #e2e8f0;
 }
 ```
 
-The full token list lives in [`SPEC.md` §2.2](./SPEC.md#22-css-custom-properties).
-The mention picker adds a few extra tokens (`--mast-mention-chip-bg`,
-`--mast-mention-picker-bg`, …) documented in [§13.7](./SPEC.md#137-styling).
+### 5.4 Mapping onto an existing design system (Tailwind / shadcn)
+
+Apps with their own design tokens typically want library components to inherit
+the app theme rather than ship a parallel palette. The pattern is to remap
+every `--mast-*` token onto the consumer's variables in a single block. Two
+non-obvious things tripped up the first integration we did:
+
+**Specificity tie-break.** A bare `[data-mast-root]` selector loses to the
+library's own `[data-mast-root][data-mast-theme='dark']` block in dark mode,
+so the dark theme keeps the library's hardcoded colors. Listing all three
+selectors in one rule forces equal specificity and lets source order (the
+consumer's CSS loaded after the library's) tie-break in favor of the override.
+
+**App-driven dark mode.** Tailwind and shadcn use a `.dark` class on `<html>`
+to swap variables. The library's `data-mast-theme` attribute is independent
+and follows OS preference by default. Pass `data-mast-theme={theme}` from your
+theme state to keep the library in sync with the app theme, otherwise OS dark
+mode and an app forced to light (or vice versa) will mix.
+
+**`hsl(var(--*))` vs raw color literals.** shadcn projects scaffolded with
+`shadcn-ui add` store colors as raw HSL triples (`--background: 0 0% 100%`),
+so the consumer expression must wrap them in `hsl(...)`. Tailwind v4 / shadcn
+v4 setups instead store full color values (`--background: oklch(...)` or
+`hsl(0 0% 100%)`), in which case you drop the `hsl()` wrapper and reference
+the variable directly. Mixing the two forms produces invalid `color` values
+that browsers silently fall back from.
+
+Drop the following block into your global stylesheet, after the
+`@mast-ai/react-ui/styles.css` import:
+
+```css
+[data-mast-root],
+[data-mast-root][data-mast-theme='dark'],
+[data-mast-root][data-mast-theme='light'] {
+  --mast-bg: hsl(var(--background));
+  --mast-bg-subtle: hsl(var(--muted) / 0.2);
+  --mast-fg: hsl(var(--foreground));
+  --mast-fg-muted: hsl(var(--muted-foreground));
+  --mast-border: hsl(var(--border));
+  --mast-accent: hsl(var(--primary));
+  --mast-accent-fg: hsl(var(--primary-foreground));
+  --mast-thinking-bg: hsl(var(--muted));
+  --mast-thinking-fg: hsl(var(--muted-foreground));
+  --mast-tool-bg: hsl(var(--muted) / 0.4);
+  --mast-tool-fg: hsl(var(--muted-foreground));
+  --mast-tool-pending: hsl(var(--primary));
+  --mast-tool-error-bg: hsl(var(--destructive) / 0.1);
+  --mast-tool-error-fg: hsl(var(--destructive));
+  --mast-tool-cancelled-bg: hsl(var(--muted));
+  --mast-tool-cancelled-fg: hsl(var(--muted-foreground));
+  --mast-user-bubble: hsl(var(--primary));
+  --mast-user-fg: hsl(var(--primary-foreground));
+  --mast-mention-chip-bg: hsl(var(--primary) / 0.1);
+  --mast-mention-chip-fg: hsl(var(--primary));
+}
+```
+
+Then sync the library theme to your app theme on the panel root:
+
+```tsx
+import { ConversationPanel } from '@mast-ai/react-ui';
+import { useTheme } from 'next-themes'; // or your own theme provider
+
+function Chat() {
+  const { resolvedTheme } = useTheme(); // 'light' | 'dark'
+  return <ConversationPanel theme={resolvedTheme === 'dark' ? 'dark' : 'light'} />;
+}
+```
+
+If you compose primitives directly instead of using `<ConversationPanel>`,
+forward `data-mast-theme` onto the element that carries `data-mast-root`:
+
+```tsx
+<aside data-mast-root data-mast-theme={resolvedTheme}>
+  <MessageList />
+  <ChatInput />
+</aside>
+```
+
+### 5.5 Importing the bundled Tailwind / shadcn preset
+
+The preset above also ships as an importable stylesheet. Add it after the
+default styles import to skip writing the mapping yourself:
+
+```ts
+import '@mast-ai/react-ui/styles.css';
+import '@mast-ai/react-ui/themes/tailwind-shadcn.css';
+```
+
+The preset assumes the standard shadcn variables (`--background`,
+`--foreground`, `--primary`, `--primary-foreground`, `--muted`,
+`--muted-foreground`, `--border`, `--destructive`) are defined as raw HSL
+triples on `:root` and `.dark`, which is the default shadcn layout. Tailwind
+v4 / shadcn v4 projects that store full color values should copy the snippet
+in §5.4 and drop the `hsl()` wrapper instead.
+
+You still need to forward the app theme via `data-mast-theme` (§5.4) so the
+library's dark detection stays in sync with the `.dark` class.
+
+### 5.6 Plain CSS without a design system
+
+For apps that do not use Tailwind or shadcn, override the tokens directly in
+your global stylesheet. The library's automatic dark mode applies whenever
+`data-mast-theme` is unset, so you only need a second block for explicit
+themes:
+
+```css
+[data-mast-root] {
+  --mast-bg: #fafafa;
+  --mast-fg: #1c1917;
+  --mast-accent: #f97316;
+  --mast-accent-fg: #ffffff;
+  --mast-radius: 0.375rem;
+  --mast-font: 'Inter', system-ui, sans-serif;
+}
+
+[data-mast-root][data-mast-theme='dark'] {
+  --mast-bg: #1c1917;
+  --mast-fg: #fafafa;
+  --mast-accent: #fb923c;
+}
+```
+
+Set tokens to `inherit` (or a `var()` reference) to pull values from a parent
+element. Combined with `<ConversationPanel theme={theme}>`, this gives full
+control over the panel's appearance without touching the library bundle.
 
 ---
 

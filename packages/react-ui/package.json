@@ -10,7 +10,8 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./themes/tailwind-shadcn.css": "./dist/themes/tailwind-shadcn.css"
   },
   "files": [
     "dist"

@@ -280,7 +280,16 @@ Override individual tokens by setting CSS custom properties under `[data-mast-ro
 }
 ```
 
-Mention picker tokens: `--mast-mention-chip-bg`, `--mast-mention-picker-bg`, etc. The full token list is in `docs/react-ui/SPEC.md` §2.2 and §13.7.
+For Tailwind / shadcn apps, import the bundled preset to remap every `--mast-*` token onto the standard shadcn HSL variables in one line:
+
+```ts
+import '@mast-ai/react-ui/styles.css';
+import '@mast-ai/react-ui/themes/tailwind-shadcn.css';
+```
+
+Two gotchas when writing the mapping by hand: list `[data-mast-root]`, `[data-mast-root][data-mast-theme='dark']`, and `[data-mast-root][data-mast-theme='light']` together so source order tie-breaks against the library's dark-mode block, and pass `data-mast-theme={theme}` on the panel root so the library tracks the app's class-based dark mode (`.dark` on `<html>`).
+
+The full token list, gotcha rationale, and a plain-CSS example are in `docs/react-ui/USAGE.md` §5.
 
 ## Icons
 
