@@ -12,6 +12,14 @@ import { ThinkingBlock } from './ThinkingBlock.js';
 import { ToolCallBlock } from './ToolCallBlock.js';
 
 /**
+ * Slot for replacing only the inline approval card while keeping the default
+ * `<ToolCallBlock>` rendering for non-approval tool events. Receives the
+ * matching {@link ToolEventEntry} and the live {@link PendingApproval} handle
+ * exposing `approve()`, `reject()`, and `respondWith()`.
+ */
+export type RenderApproval = (entry: ToolEventEntry, approval: PendingApproval) => ReactNode;
+
+/**
  * Props accepted by {@link AssistantMessage}.
  */
 export interface AssistantMessageProps {
@@ -38,8 +46,23 @@ export interface AssistantMessageProps {
    * When this prop is omitted, the library defaults to rendering
    * `<InlineApproval>` for tool events with a pending approval handle and
    * `<ToolCallBlock>` otherwise.
+   *
+   * Takes a back seat to {@link AssistantMessageProps.renderApproval} when
+   * both are provided and the entry has a pending approval handle.
    */
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
+  /**
+   * Replaces only the inline approval card. Called once per tool event whose
+   * call is awaiting an inline approval decision (i.e. has a matching
+   * {@link PendingApproval} handle); non-approval tool events fall through to
+   * `renderToolCall` or the default `<ToolCallBlock>`.
+   *
+   * Use this slot to customise the approval prompt without rebuilding the
+   * tool-call rendering for every other event. Takes precedence over
+   * `renderToolCall` for entries with a pending approval handle when both
+   * are provided.
+   */
+  renderApproval?: RenderApproval;
 }
 
 interface MarkdownTextProps {
@@ -97,6 +120,7 @@ export function AssistantMessage({
   className,
   renderMessage,
   renderToolCall,
+  renderApproval,
 }: AssistantMessageProps) {
   const rootClass = ['mast-assistant-message', className].filter(Boolean).join(' ');
   const { pendingApprovals } = useAgent();
@@ -111,6 +135,7 @@ export function AssistantMessage({
       ? pendingApprovals.find((p) => p.toolName === toolEvent.name)
       : undefined;
 
+    if (approval && renderApproval) return renderApproval(toolEvent, approval);
     if (renderToolCall) return renderToolCall(toolEvent, approval);
 
     if (approval) {

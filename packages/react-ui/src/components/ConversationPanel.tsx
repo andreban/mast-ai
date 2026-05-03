@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import type { PendingApproval } from '../approval.js';
 import type { MentionsConfig } from '../mentions/types.js';
 import type { ToolEventEntry } from '../types.js';
+import type { RenderApproval } from './AssistantMessage.js';
 import { ChatInput } from './ChatInput.js';
 import { MessageList } from './MessageList.js';
 
@@ -27,6 +28,13 @@ export interface ConversationPanelProps {
    * awaiting an inline approval decision.
    */
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
+  /**
+   * Replaces only the inline approval card. Use this slot to customise the
+   * approval prompt without rebuilding the rest of the tool-call rendering.
+   * Takes precedence over `renderToolCall` for entries with a pending
+   * approval handle when both are provided.
+   */
+  renderApproval?: RenderApproval;
   /** Replaces the default assistant text renderer for the entire list. */
   renderMessage?: (text: string) => ReactNode;
   /** Placeholder text for the {@link ChatInput} field. */
@@ -52,6 +60,7 @@ export function ConversationPanel({
   theme,
   className,
   renderToolCall,
+  renderApproval,
   renderMessage,
   inputPlaceholder,
   mentions,
@@ -60,7 +69,11 @@ export function ConversationPanel({
 
   return (
     <div data-mast-root data-mast-theme={theme} className={rootClass}>
-      <MessageList renderToolCall={renderToolCall} renderMessage={renderMessage} />
+      <MessageList
+        renderToolCall={renderToolCall}
+        renderApproval={renderApproval}
+        renderMessage={renderMessage}
+      />
       <ChatInput placeholder={inputPlaceholder} mentions={mentions} />
     </div>
   );

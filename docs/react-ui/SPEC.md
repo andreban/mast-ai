@@ -277,6 +277,19 @@ interface ConversationPanelProps {
    */
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => React.ReactNode;
 
+  /**
+   * Replace only the inline approval card. Called once per tool event whose
+   * call is awaiting an inline approval decision; non-approval tool events
+   * fall through to renderToolCall (or the default <ToolCallBlock>).
+   *
+   * Use this slot to customise the approval prompt (e.g. render
+   * "Rename document 'Old' to 'New'?" instead of the raw arg JSON) without
+   * forking the rest of the tool-call rendering. Takes precedence over
+   * renderToolCall for entries with a pending approval handle when both
+   * are provided.
+   */
+  renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => React.ReactNode;
+
   /** Replace the default markdown renderer. Receives the raw text string. */
   renderMessage?: (text: string) => React.ReactNode;
 
@@ -304,7 +317,8 @@ entry (currently streaming) changes size.
 ```tsx
 interface MessageListProps {
   className?: string;
-  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => React.ReactNode;
+  renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => React.ReactNode;
   renderMessage?: (text: string) => React.ReactNode;
 }
 ```
@@ -337,7 +351,8 @@ Renders a single `ConversationEntry`. Delegates to `<UserMessage>` or
 interface MessageItemProps {
   entry: ConversationEntry;
   className?: string;
-  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => React.ReactNode;
+  renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => React.ReactNode;
   renderMessage?: (text: string) => React.ReactNode;
 }
 ```
@@ -352,7 +367,14 @@ Renders an assistant turn: optional `<ThinkingBlock>`, zero or more
 interface AssistantMessageProps {
   entry: ConversationEntry;
   className?: string;
-  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => React.ReactNode;
+  /**
+   * Replace only the inline approval card. Called once per tool event with a
+   * pending approval handle; non-approval events fall through to
+   * renderToolCall (or the default <ToolCallBlock>). Takes precedence over
+   * renderToolCall for awaiting entries when both are provided.
+   */
+  renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => React.ReactNode;
   renderMessage?: (text: string) => React.ReactNode;
 }
 ```
@@ -737,17 +759,28 @@ interface PendingApproval {
 ```
 
 The library handles promise-resolver plumbing — consumers never call `new Promise`
-themselves. Two ergonomic entry points use this queue:
+themselves. Three ergonomic entry points use this queue:
 
-**(a) Custom rendering via `renderToolCall`.** The single `renderToolCall` prop on
-`<ConversationPanel>` / `<MessageList>` receives `(entry, approval?)`; when `approval`
-is present the consumer can render any UI they like and wire the buttons directly to
-`approval.approve()` / `approval.reject()`.
+**(a) Approval-only slot via `renderApproval`.** The `renderApproval` prop on
+`<ConversationPanel>` / `<MessageList>` / `<MessageItem>` / `<AssistantMessage>`
+is called once per tool event with a pending approval handle; non-approval events
+fall through to `renderToolCall` or the default `<ToolCallBlock>`. Use this when
+you only want to customise the approval card (e.g. render a friendly summary
+instead of the raw arg JSON) without rebuilding the rest of the tool-call
+rendering. Takes precedence over `renderToolCall` for awaiting entries when both
+are provided.
 
-**(b) Built-in `<InlineApproval>` component.** Exported as a stand-alone component
-that renders a default approve/reject card. Compose it inside `renderToolCall` for
-tools that should use the default skin, or omit `renderToolCall` entirely — the
-library uses it as the default for any awaiting entry with a handle.
+**(b) Full tool-call rendering via `renderToolCall`.** The `renderToolCall` prop
+receives `(entry, approval?)`; when `approval` is present the consumer can render
+any UI they like and wire the buttons directly to `approval.approve()` /
+`approval.reject()`. Use this when the approval card and the rest of the
+tool-call rendering should both be customised together.
+
+**(c) Built-in `<InlineApproval>` component.** Exported as a stand-alone component
+that renders a default approve/reject card. Compose it inside `renderToolCall`
+or `renderApproval` for tools that should use the default skin, or omit both
+slots entirely — the library uses it as the default for any awaiting entry with
+a handle.
 
 When `reset()` is called while approvals are pending, the library calls `reject()`
 on each so their proxies finish and the run terminates cleanly.

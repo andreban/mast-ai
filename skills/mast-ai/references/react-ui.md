@@ -71,6 +71,7 @@ interface ConversationPanelProps {
   theme?: 'light' | 'dark'; // omit to follow prefers-color-scheme
   className?: string;
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
+  renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => ReactNode;
   renderMessage?: (text: string) => ReactNode;
   inputPlaceholder?: string;
   mentions?: MentionsConfig;
@@ -147,7 +148,7 @@ Return values:
 
 ### Inline approvals
 
-When `onApprovalRequired` returns `INLINE_APPROVAL`, a `PendingApproval` is added to `useAgent().pendingApprovals` and the runner pauses. `<ConversationPanel renderToolCall>` receives the handle as the second arg:
+When `onApprovalRequired` returns `INLINE_APPROVAL`, a `PendingApproval` is added to `useAgent().pendingApprovals` and the runner pauses:
 
 ```typescript
 interface PendingApproval {
@@ -159,7 +160,13 @@ interface PendingApproval {
 }
 ```
 
-Either compose the bundled `<InlineApproval entry approve reject respondWith />` inside `renderToolCall`, or render a custom card. The library handles all promise plumbing, so consumers never call `new Promise`.
+Three rendering entry points:
+
+- **`renderApproval`** (narrow): replaces only the approval card. Called once per tool event with a pending approval handle; non-approval events fall through to `renderToolCall` or the default `<ToolCallBlock>`. Use this when you only want to customise the approval prompt (e.g. render `Rename "Old" to "New"?` instead of the raw arg JSON). Compose `<InlineApproval entry approve reject respondWith />` inside the slot as the fallback for tools you have not customised.
+- **`renderToolCall`** (full): receives `(entry, approval?)` for every tool event. Use this when the approval card and the rest of the tool-call rendering should both be customised together.
+- **`<InlineApproval>`** (default): used automatically for any awaiting entry when neither slot is provided.
+
+`renderApproval` takes precedence over `renderToolCall` for awaiting entries when both are provided. The library handles all promise plumbing, so consumers never call `new Promise`.
 
 ## Nested Sub-Agent Tool Calls
 
