@@ -100,13 +100,14 @@ interface PlainChatInputProps {
 }
 
 function PlainChatInput({ className, placeholder, sendLabel, cancelLabel }: PlainChatInputProps) {
-  const { sendMessage, cancel, isRunning } = useAgent();
+  const { sendMessage, cancel, isRunning, isReady } = useAgent();
   const icons = useIcons();
   const [value, setValue] = useState('');
 
   const rootClass = ['mast-chat-input', className].filter(Boolean).join(' ');
   const trimmed = value.trim();
-  const canSend = !isRunning && trimmed.length > 0;
+  const canSend = isReady && !isRunning && trimmed.length > 0;
+  const disabled = !isReady || isRunning;
 
   const submit = () => {
     if (!canSend) return;
@@ -139,7 +140,7 @@ function PlainChatInput({ className, placeholder, sendLabel, cancelLabel }: Plai
         value={value}
         placeholder={placeholder}
         rows={rowsForText(value)}
-        disabled={isRunning}
+        disabled={disabled}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={handleKeyDown}
       />
@@ -188,7 +189,7 @@ function MentionsChatInput({
   cancelLabel,
   mentions,
 }: MentionsChatInputProps) {
-  const { sendMessage, cancel, isRunning } = useAgent();
+  const { sendMessage, cancel, isRunning, isReady } = useAgent();
   const icons = useIcons();
   const pickerIdPrefix = useId();
   const {
@@ -207,7 +208,8 @@ function MentionsChatInput({
 
   const rootClass = ['mast-chat-input', 'mast-mention-input', className].filter(Boolean).join(' ');
   const hasContent = segments.length > 0 || trailingInput.trim().length > 0;
-  const canSend = !isRunning && hasContent;
+  const canSend = isReady && !isRunning && hasContent;
+  const disabled = !isReady || isRunning;
   const pickerOpen = mentionQuery !== null && filteredItems.length > 0;
   const activeId = pickerOpen ? `${pickerIdPrefix}-${pickerIndex}` : undefined;
 
@@ -276,7 +278,7 @@ function MentionsChatInput({
             value={trailingInput}
             placeholder={segments.length === 0 ? placeholder : ''}
             rows={rowsForText(trailingInput)}
-            disabled={isRunning}
+            disabled={disabled}
             onChange={(event) => setTrailingInput(event.target.value)}
             onKeyDown={handleKeyDown}
             role="combobox"

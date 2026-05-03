@@ -209,4 +209,18 @@ describe('<ChatInput>', () => {
     expect(root!.className).toContain('mast-chat-input');
     expect(root!.className).toContain('custom-class');
   });
+
+  it('disables the textarea and Send button when the provider has runner={null}', () => {
+    render(
+      <AgentProvider runner={null} agent={agentConfig}>
+        <ChatInput />
+      </AgentProvider>,
+    );
+
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    expect(textarea.disabled).toBe(true);
+
+    const sendButton = screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement;
+    expect(sendButton.disabled).toBe(true);
+  });
 });

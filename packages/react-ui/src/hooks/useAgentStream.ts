@@ -193,6 +193,12 @@ export interface UseAgentStreamReturn {
  * of the conversation. Sub-agent events are captured via `onToolEvent` and
  * routed to the matching `ToolEventEntry` by tool name.
  *
+ * Pass `null` for `conversation` to model the "agent not yet configured"
+ * state — `sendMessage` becomes a no-op (with a development warning),
+ * `history` is empty, and `isRunning` is always `false`. The hook switches
+ * back to live behaviour once a non-null `conversation` is supplied on a
+ * later render.
+ *
  * This hook is consumed by `<AgentProvider>` and is not part of the public API.
  * It is exported so that it can be used independently in advanced scenarios.
  *
@@ -223,12 +229,23 @@ export interface UseAgentStreamReturn {
  * ```
  */
 export function useAgentStream(
-  conversation: Conversation,
+  conversation: Conversation | null,
   options?: UseAgentStreamOptions,
 ): UseAgentStreamReturn {
   const [entries, setEntries] = useState<ConversationEntry[]>(() => options?.initialEntries ?? []);
-  const [history, setHistory] = useState<Message[]>(() => [...conversation.history]);
+  const [history, setHistory] = useState<Message[]>(() =>
+    conversation ? [...conversation.history] : [],
+  );
   const [isRunning, setIsRunning] = useState(false);
+
+  // When the provider materialises a Conversation after mount (e.g. the
+  // runner went from null to a real value), pick up its seeded history so
+  // the live `history` value reflects what the LLM will actually see.
+  useEffect(() => {
+    if (conversation) {
+      setHistory([...conversation.history]);
+    }
+  }, [conversation]);
   // Bumped after every `done` event to trigger the onTurnComplete effect once
   // the new entries and history have been committed by React.
   const [completedTurnId, setCompletedTurnId] = useState(0);
@@ -275,6 +292,15 @@ export function useAgentStream(
   const sendMessage = useCallback(
     (text: string, displayText?: string) => {
       if (isRunning) return;
+      if (conversation === null) {
+        // Surface accidental drops so consumers do not silently swallow user
+        // input when their gating around the runner-null state slips.
+        console.warn(
+          'useAgent().sendMessage was called while no AgentRunner is configured. ' +
+            'Pass a non-null `runner` to <AgentProvider> to enable the agent.',
+        );
+        return;
+      }
 
       // `??` (not `||`) so an explicit empty-string displayText is respected as
       // a deliberate override rather than collapsing back to `text`.

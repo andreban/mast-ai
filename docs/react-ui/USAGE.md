@@ -26,6 +26,7 @@ common use cases. The corresponding API reference lives in
 11. [Nested sub-agent tool calls](#11-nested-sub-agent-tool-calls)
 12. [Mention pipeline (`@`-mentions)](#12-mention-pipeline--mentions)
 13. [Overriding tool call labels (`getToolLabel`)](#13-overriding-tool-call-labels-gettoollabel)
+14. [Agent not yet configured (`runner={null}`)](#14-agent-not-yet-configured-runnernull)
 
 ---
 
@@ -1248,6 +1249,65 @@ const renderToolCall = (entry: ToolEventEntry) => {
 The resolver from `getToolLabel` is still consulted for the bundled block, so
 the `delegate_to_skill` example above keeps working alongside the chart
 override.
+
+---
+
+## 14. Agent not yet configured (`runner={null}`)
+
+`<AgentProvider runner={null}>` mounts cleanly without an `AgentRunner`. Use it
+for the "agent not yet configured" state: before the user has supplied an API
+key, signed in, or selected a provider. The provider exposes disabled-state
+defaults via `useAgent()` and `<ChatInput>` greys out automatically, so the
+chat UI can sit inside a fixed shell that mounts before the runner exists.
+
+```tsx
+import { useMemo, useState } from 'react';
+import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
+import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
+import { AgentProvider, ConversationPanel } from '@mast-ai/react-ui';
+
+function App() {
+  const [apiKey, setApiKey] = useState<string | null>(() => localStorage.getItem('gemini-key'));
+
+  const runner = useMemo(() => {
+    if (!apiKey) return null;
+    return new AgentRunner(new GoogleGenAIAdapter(apiKey), new ToolRegistry());
+  }, [apiKey]);
+
+  const agent = createAgent({ name: 'Assistant', instructions: '…' });
+
+  return (
+    <AppShell onSubmitKey={setApiKey}>
+      <AgentProvider runner={runner} agent={agent}>
+        <ConversationPanel />
+      </AgentProvider>
+    </AppShell>
+  );
+}
+```
+
+When `runner` is `null`:
+
+- `useAgent().isReady` is `false`. Use this to grey out custom inputs the same
+  way the bundled `<ChatInput>` does.
+- `useAgent().messages`, `history`, and `pendingApprovals` are empty.
+- `useAgent().isRunning` is always `false`.
+- `useAgent().sendMessage(…)` is a no-op and logs a console warning so silent
+  drops are easy to spot during development.
+- `cancel()` and `reset()` are safe no-ops.
+- `<ChatInput>` disables its textarea and Send button.
+- `<MessageList>` renders the empty list.
+
+When `runner` switches from `null` to a real value the provider materialises a
+fresh `Conversation` automatically; the next `sendMessage` starts a new turn.
+No remount is required, but anything streamed before the runner existed is
+discarded (there was nothing to stream).
+
+This is the recommended pattern for "agent not yet configured" UI. Avoid the
+older workaround of constructing a stub `AgentRunner` whose adapter throws on
+call: it forces consumers to gate the input separately, and the stub's
+`generate()` will fire if any code path slips past the gate. `runner={null}`
+makes the disabled state explicit and uniformly handled by the library.
 
 ---
 
