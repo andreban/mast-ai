@@ -77,6 +77,10 @@ at any scope without `!important`.
   --mast-tool-bg: #f0fdf4;
   --mast-tool-fg: #166534;
   --mast-tool-pending: #f59e0b;
+  --mast-tool-error-bg: #fef2f2;
+  --mast-tool-error-fg: #991b1b;
+  --mast-tool-cancelled-bg: #f3f4f6;
+  --mast-tool-cancelled-fg: #4b5563;
   --mast-user-bubble: #dbeafe;
   --mast-user-fg: #1e3a8a;
 
@@ -106,6 +110,10 @@ at any scope without `!important`.
     --mast-tool-bg: #052e16;
     --mast-tool-fg: #86efac;
     --mast-tool-pending: #fbbf24;
+    --mast-tool-error-bg: #450a0a;
+    --mast-tool-error-fg: #fecaca;
+    --mast-tool-cancelled-bg: #1f2937;
+    --mast-tool-cancelled-fg: #d1d5db;
     --mast-user-bubble: #1e3a8a;
     --mast-user-fg: #bfdbfe;
   }
@@ -131,6 +139,22 @@ root element. `ConversationPanel` accepts a `theme` prop that sets this attribut
 
 All default classes use the `mast-` prefix (e.g. `mast-message`, `mast-thinking-block`).
 This avoids collisions with Tailwind utility classes and other CSS frameworks.
+
+### 2.4 Theme presets
+
+The package ships optional theme presets that remap every `--mast-*` token onto
+an existing design system in one import. Presets are plain CSS published under
+`@mast-ai/react-ui/themes/<name>.css`.
+
+| Preset                                         | Maps `--mast-*` onto                                                                           |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `@mast-ai/react-ui/themes/tailwind-shadcn.css` | shadcn HSL variables (`--background`, `--foreground`, `--primary`, `--muted`, `--destructive`) |
+
+Presets use a triple-selector rule (`[data-mast-root], [data-mast-root][data-mast-theme='dark'], [data-mast-root][data-mast-theme='light']`)
+to match the specificity of the library's own dark-theme block, so source order
+tie-breaks in favour of the preset when it is loaded after `styles.css`. See
+[`USAGE.md` §5](./USAGE.md#5-theming) for the full integration guide,
+including how to forward `data-mast-theme` for class-based dark-mode setups.
 
 ---
 
@@ -676,6 +700,8 @@ packages/react-ui/
 │       └── ChatInput.tsx
 ├── styles/
 │   └── default.css            — emitted as dist/styles.css
+├── themes/
+│   └── tailwind-shadcn.css    — emitted as dist/themes/tailwind-shadcn.css
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts             — library mode; externalises react, @mast-ai/core
@@ -704,7 +730,8 @@ export type { GetToolLabel } from './components/ToolLabelContext';
 ```
 
 CSS is a separate export path (`@mast-ai/react-ui/styles.css`) handled by the build
-output, not imported from `index.ts`.
+output, not imported from `index.ts`. Theme presets are published as additional CSS
+export paths under `@mast-ai/react-ui/themes/<name>.css` (see §2.4).
 
 ---
 
