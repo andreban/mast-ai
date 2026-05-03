@@ -112,9 +112,14 @@ export interface UseAgentStreamReturn {
    * progress is a no-op (the caller should disable the input while `isRunning`
    * is true).
    *
-   * @param text - The user's message text.
+   * @param text - The prompt sent to the LLM via `Conversation.runStream`.
+   * @param displayText - Optional override for the text rendered in the user
+   *   bubble. When provided, the user `ConversationEntry.text` is set to this
+   *   value while `text` is still passed unchanged to the runner. An empty
+   *   string is treated as a deliberate override (it does not fall back to
+   *   `text`).
    */
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string, displayText?: string) => void;
 
   /**
    * Aborts the current run.
@@ -240,10 +245,12 @@ export function useAgentStream(
   }, []);
 
   const sendMessage = useCallback(
-    (text: string) => {
+    (text: string, displayText?: string) => {
       if (isRunning) return;
 
-      const userEntry = makeEntry('user', text, false);
+      // `??` (not `||`) so an explicit empty-string displayText is respected as
+      // a deliberate override rather than collapsing back to `text`.
+      const userEntry = makeEntry('user', displayText ?? text, false);
       const assistantEntry = makeEntry('assistant', '', true);
       const assistantId = assistantEntry.id;
 
