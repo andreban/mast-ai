@@ -71,6 +71,21 @@ export interface AgentProviderProps {
    * a run is cancelled or errors before completion.
    */
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
+  /**
+   * Forces a theme on the auto-rendered `[data-mast-root]` wrapper. When
+   * omitted, the panel follows the OS preference via the default stylesheet's
+   * `prefers-color-scheme` media query. Ignored when `disableRoot` is `true`.
+   */
+  theme?: 'light' | 'dark';
+  /**
+   * Disable the auto-rendered `<div data-mast-root>` wrapper around `children`.
+   * Use this when you want to place `data-mast-root` somewhere else in the
+   * tree yourself, e.g. on a chat sidebar's outer container so additional
+   * non-library UI inside also picks up the library's CSS variables.
+   *
+   * Default: `false` (the wrapper is rendered).
+   */
+  disableRoot?: boolean;
 }
 
 /**
@@ -130,6 +145,8 @@ export function AgentProvider({
   initialHistory,
   initialEntries,
   onConversationChange,
+  theme,
+  disableRoot,
 }: AgentProviderProps) {
   const onConversationChangeRef = useRef(onConversationChange);
   onConversationChangeRef.current = onConversationChange;
@@ -248,9 +265,17 @@ export function AgentProvider({
     [entries, history, sendMessage, cancel, isRunning, reset, pendingApprovals],
   );
 
+  const wrappedChildren = disableRoot ? (
+    children
+  ) : (
+    <div data-mast-root data-mast-theme={theme}>
+      {children}
+    </div>
+  );
+
   return (
     <AgentContext.Provider value={value}>
-      <IconProvider icons={icons}>{children}</IconProvider>
+      <IconProvider icons={icons}>{wrappedChildren}</IconProvider>
     </AgentContext.Provider>
   );
 }
