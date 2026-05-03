@@ -106,6 +106,12 @@ with the agent runner, and exposes the streaming state to descendants through
 `useAgent()`. `<ConversationPanel>` renders a complete chat UI and must be
 nested inside the provider.
 
+By default `<AgentProvider>` also renders a `<div data-mast-root>` wrapper
+around its children so the library's CSS variables are in scope without any
+extra setup. Pass `theme="light" | "dark"` to force a value (the default
+follows OS preference), or `disableRoot` to opt out — see §8 for the
+opt-out pattern.
+
 > Do not bake the API key into a public bundle. The reference demo
 > (`apps/demo-react-ui`) prompts for the key at runtime and stores it in
 > `localStorage`; production apps should fetch a short-lived token from a
@@ -220,18 +226,25 @@ whole palette, or remap every token onto an existing design system without
 
 The default stylesheet ships a light theme and an automatic dark theme that
 follows `prefers-color-scheme`. Apps that manage their own theme switching can
-force a value with the `theme` prop on `<ConversationPanel>`:
+force a value via the `theme` prop on either `<AgentProvider>` (which sets it
+on the auto-rendered `data-mast-root` wrapper) or `<ConversationPanel>` (which
+sets it on the panel root):
 
 ```tsx
+<AgentProvider runner={runner} agent={agent} theme="dark">
+  <ConversationPanel />
+</AgentProvider>
+
 <ConversationPanel theme="dark" />   // force dark
 <ConversationPanel theme="light" />  // force light
 <ConversationPanel />                // follow OS (default)
 ```
 
-The prop sets `data-mast-theme` on the panel root. The default stylesheet
+The prop sets `data-mast-theme` on the matching root. The default stylesheet
 selects on that attribute so OS preferences are overridden without
-`!important`. When composing primitives directly (see §8), set
-`data-mast-theme={theme}` yourself on the element that carries `data-mast-root`.
+`!important`. When composing primitives directly with `disableRoot` (see §8),
+set `data-mast-theme={theme}` yourself on the element that carries
+`data-mast-root`.
 
 ### 5.2 Token reference
 
@@ -503,14 +516,18 @@ highlighter, or escape every character because your domain is plain text.
 
 `<ConversationPanel>` is a thin wrapper around `<MessageList>` and
 `<ChatInput>`. For a sidebar, a docked panel, or any non-default layout, drop
-those primitives directly into your own JSX:
+those primitives directly into your own JSX. Pass `disableRoot` on
+`<AgentProvider>` so it does not emit its own `data-mast-root` wrapper, and
+place the attribute on whichever element should anchor the CSS custom
+properties — typically the outermost container so non-library UI inside (a
+header, badges, surrounding chrome) also picks up the variables:
 
 ```tsx
 import { AgentProvider, MessageList, ChatInput } from '@mast-ai/react-ui';
 
 function AgentSidebar() {
   return (
-    <aside className="my-sidebar" data-mast-root>
+    <aside className="my-sidebar" data-mast-root data-mast-theme={theme}>
       <header className="my-sidebar-header">
         <h2>Assistant</h2>
         <button onClick={closeSidebar}>×</button>
@@ -521,14 +538,21 @@ function AgentSidebar() {
   );
 }
 
-<AgentProvider runner={runner} agent={agent}>
+<AgentProvider runner={runner} agent={agent} disableRoot>
   <AgentSidebar />
 </AgentProvider>;
 ```
 
-Add `data-mast-root` to whichever element should anchor the CSS custom
-properties. `<ConversationPanel>` does this for you; bespoke wrappers must do
-it themselves.
+If you skip `disableRoot`, the provider still renders its default
+`<div data-mast-root>` around your subtree — the inner `data-mast-root` on the
+sidebar wins for CSS scoping, but the wrapper is wasted. Set `disableRoot`
+whenever you place `data-mast-root` somewhere else yourself.
+
+Also use `disableRoot` when you want the library's CSS variables to extend
+to non-library UI rendered alongside the chat (e.g. a settings dialog
+button or a status badge in the chat sidebar's header). The auto-rendered
+wrapper sits inside the provider and only covers `children`; placing
+`data-mast-root` on your own outer container keeps everything in scope.
 
 Other primitives exported for compositional use: `<MessageItem>`,
 `<UserMessage>`, `<AssistantMessage>`, `<ThinkingBlock>`, `<ToolCallBlock>`,

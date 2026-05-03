@@ -270,8 +270,35 @@ interface AgentProviderProps {
    * Not called when a run is cancelled or errors before completion.
    */
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
+
+  /**
+   * Forces a theme on the auto-rendered [data-mast-root] wrapper. When
+   * omitted, the panel follows the OS preference via the default stylesheet's
+   * prefers-color-scheme media query. Ignored when disableRoot is true.
+   */
+  theme?: 'light' | 'dark';
+
+  /**
+   * Disable the auto-rendered <div data-mast-root> wrapper around children.
+   * Use this when placing data-mast-root somewhere else in the tree yourself
+   * (e.g. on a chat sidebar's outer container so additional non-library UI
+   * inside also picks up the library's CSS variables). Default: false.
+   */
+  disableRoot?: boolean;
 }
 ```
+
+Renders (default — `disableRoot` omitted or `false`):
+
+```html
+<div data-mast-root data-mast-theme="{theme}">{children}</div>
+```
+
+When `disableRoot` is `true`, `children` are rendered directly without a
+wrapper element — the consumer is responsible for placing `data-mast-root`
+on the appropriate element themselves. `<ConversationPanel>` already places
+its own `data-mast-root` on the panel root, so the default and `disableRoot`
+modes both work with it; the default leaves a redundant outer wrapper.
 
 **Internal state managed by `AgentProvider`:**
 

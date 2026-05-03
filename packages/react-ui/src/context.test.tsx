@@ -384,6 +384,52 @@ describe('useAgent', () => {
     expect(result.current.history).toEqual([]);
   });
 
+  // -------------------------------------------------------------------------
+  // Auto-rendered [data-mast-root] wrapper
+  // -------------------------------------------------------------------------
+
+  it('renders a [data-mast-root] wrapper around children by default', () => {
+    const { runner } = makeMockRunner();
+    const { container } = render(
+      <AgentProvider runner={runner} agent={agentConfig}>
+        <span data-testid="child">child</span>
+      </AgentProvider>,
+    );
+
+    const root = container.querySelector('[data-mast-root]');
+    expect(root).not.toBeNull();
+    expect(root!.tagName).toBe('DIV');
+    expect(root!.querySelector('[data-testid="child"]')).not.toBeNull();
+    // No `data-mast-theme` is set when the prop is omitted, so the default
+    // stylesheet's `prefers-color-scheme` media query takes over.
+    expect(root!.hasAttribute('data-mast-theme')).toBe(false);
+  });
+
+  it('forwards the `theme` prop onto the auto-rendered wrapper as data-mast-theme', () => {
+    const { runner } = makeMockRunner();
+    const { container } = render(
+      <AgentProvider runner={runner} agent={agentConfig} theme="dark">
+        <span>child</span>
+      </AgentProvider>,
+    );
+
+    const root = container.querySelector('[data-mast-root]');
+    expect(root).not.toBeNull();
+    expect(root!.getAttribute('data-mast-theme')).toBe('dark');
+  });
+
+  it('omits the wrapper entirely when disableRoot is true', () => {
+    const { runner } = makeMockRunner();
+    const { container } = render(
+      <AgentProvider runner={runner} agent={agentConfig} disableRoot>
+        <span data-testid="child">child</span>
+      </AgentProvider>,
+    );
+
+    expect(container.querySelector('[data-mast-root]')).toBeNull();
+    expect(container.querySelector('[data-testid="child"]')).not.toBeNull();
+  });
+
   it('useAgent().history reflects the latest core history after each turn', async () => {
     const firstHistory: Message[] = [userMessage('one'), assistantMessage('first')];
     const secondHistory: Message[] = [

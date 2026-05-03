@@ -35,10 +35,14 @@ interface AgentProviderProps {
   initialHistory?: Message[]; // read once on mount
   initialEntries?: ConversationEntry[]; // read once on mount
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
+  theme?: 'light' | 'dark'; // forwarded to the auto-rendered [data-mast-root] wrapper
+  disableRoot?: boolean; // omit the auto-rendered <div data-mast-root> wrapper
 }
 ```
 
 Internally creates a `Conversation` via `runner.conversation(agent)`. To switch conversations at runtime, remount with a React `key` and seed via `initialHistory` / `initialEntries`. `onConversationChange` fires only after a successful `done` event (not on cancel or error).
+
+By default, renders a `<div data-mast-root data-mast-theme={theme}>` around `children` so the library's CSS variables are scoped without extra setup. Pass `disableRoot` when placing `data-mast-root` somewhere else yourself (e.g. on a chat sidebar's outer container so non-library UI inside also picks up the variables).
 
 ## useAgent
 
@@ -80,7 +84,7 @@ interface ConversationPanelProps {
 
 ## Primitives
 
-For non-default layouts (sidebar, docked panel, etc.), drop the primitives into your own JSX. Add `data-mast-root` to whatever element should anchor the CSS custom properties.
+For non-default layouts (sidebar, docked panel, etc.), drop the primitives into your own JSX. Pass `disableRoot` on `<AgentProvider>` so it does not emit its own wrapper, and add `data-mast-root` to whatever element should anchor the CSS custom properties.
 
 ```typescript
 import {
@@ -268,7 +272,7 @@ const {
 
 ## Theming
 
-The default stylesheet ships a light theme and an automatic dark theme that follows `prefers-color-scheme`. Apps that manage their own theme can force a value with `theme="light" | "dark"` on `<ConversationPanel>` (sets `data-mast-theme`).
+The default stylesheet ships a light theme and an automatic dark theme that follows `prefers-color-scheme`. Apps that manage their own theme can force a value with `theme="light" | "dark"` on either `<AgentProvider>` (forwarded to the auto-rendered wrapper) or `<ConversationPanel>` — both set `data-mast-theme`.
 
 Override individual tokens by setting CSS custom properties under `[data-mast-root]`:
 
