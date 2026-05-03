@@ -5,9 +5,22 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andreban/mast-ai.git",
+    "directory": "packages/google-genai"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc",
-    "prepare": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc",
+    "prepublishOnly": "npm run build",
     "dev": "tsc --watch",
     "test": "vitest",
     "lint": "eslint src",
@@ -15,7 +28,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
-    "@mast-ai/core": "*"
+    "@mast-ai/core": "^0.1.0"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

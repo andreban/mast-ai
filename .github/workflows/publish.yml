@@ -1,0 +1,61 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v0.2.0). Must already exist.'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: '**/package.json'
+
+      - name: Verify tag matches package versions
+        run: |
+          TAG_REF="${{ github.event.inputs.tag || github.ref_name }}"
+          TAG_VERSION="${TAG_REF#v}"
+          for pkg in core google-genai built-in-ai react-ui; do
+            PKG_VERSION=$(node -p "require('./packages/$pkg/package.json').version")
+            if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+              echo "Version mismatch: tag is $TAG_VERSION but @mast-ai/$pkg is $PKG_VERSION"
+              exit 1
+            fi
+          done
+
+      - run: npm install
+
+      - run: npm run lint
+
+      - run: npm test --workspaces --if-present
+
+      - run: npm run build -w @mast-ai/core -w @mast-ai/google-genai -w @mast-ai/built-in-ai -w @mast-ai/react-ui
+
+      - name: Publish @mast-ai/core
+        run: npm publish --provenance -w @mast-ai/core
+
+      - name: Publish @mast-ai/google-genai
+        run: npm publish --provenance -w @mast-ai/google-genai
+
+      - name: Publish @mast-ai/built-in-ai
+        run: npm publish --provenance -w @mast-ai/built-in-ai
+
+      - name: Publish @mast-ai/react-ui
+        run: npm publish --provenance -w @mast-ai/react-ui

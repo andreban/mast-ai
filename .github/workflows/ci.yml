@@ -13,12 +13,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: '**/package.json'
 
-      - run: npm install --ignore-scripts
+      - run: npm install
 
       - run: npm run lint
 
-      - name: Check formatting
-        run: npm run format -- --check
+      - run: npm run format:check
 
-      - run: npm run build -w packages/core -w packages/google-genai -w packages/built-in-ai
+      - run: npm run build -w @mast-ai/core -w @mast-ai/google-genai -w @mast-ai/built-in-ai -w @mast-ai/react-ui
+
+      - run: npm test --workspaces --if-present

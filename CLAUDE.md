@@ -159,6 +159,79 @@ Before starting work on a feature, check its subdirectory in `docs/` for context
 - Implementation details (key decisions, non-obvious choices, patterns introduced) belong in the PR description, not in issue comments. When starting work on an issue with dependencies, read the PRs that closed those issues for implementation context.
 - Always include `Closes #N` in the PR description so GitHub auto-closes the issue on merge.
 
+## Releases
+
+The four `@mast-ai/*` packages are published to npm in lockstep — every release bumps all four to the same version, even if some packages have no source changes. Pre-1.0 the surfaces are tightly coupled, so version drift would add more confusion than value.
+
+Releases are cut by pushing a `vX.Y.Z` tag to `main`. The `.github/workflows/publish.yml` workflow then runs lint, tests, and build, and publishes all four packages to npm via OIDC trusted publishing (no `NPM_TOKEN` involved).
+
+### Choosing the next version
+
+Use the highest-severity change across all four packages:
+
+- **Major** — any breaking change to a public API (removed/renamed exports, changed signatures, observable behaviour change callers may depend on).
+- **Minor** — any new public API; no breaking changes.
+- **Patch** — bug fixes and internals only; no public surface change.
+
+While the project is on `0.x`, treat **minor** bumps as the breaking-change line (per [semver §4](https://semver.org/#spec-item-4)). Switch to strict semver once `1.0` ships.
+
+### Reviewing changes since the last release
+
+```bash
+npm view @mast-ai/core version          # last version actually on the registry
+git tag --sort=-v:refname | head -5     # last few local tags
+```
+
+Then walk each package's commits since that tag:
+
+```bash
+PREV=v0.1.0  # replace with the last published tag
+for pkg in core google-genai built-in-ai react-ui; do
+  echo "--- @mast-ai/$pkg ---"
+  git log "$PREV"..HEAD --oneline -- "packages/$pkg/"
+done
+```
+
+For each package with non-empty output, classify the changes by inspecting the public surface (`packages/<name>/src/index.ts`) and its diff:
+
+```bash
+git diff "$PREV"..HEAD -- "packages/<name>/src/index.ts"
+```
+
+Look for: removed/renamed exports or changed signatures (**major**), new exports or new optional fields (**minor**), internal-only changes (**patch**). Workspace dependency bumps don't themselves classify the release — the underlying `@mast-ai/core` change is what matters; a dependent gets the same severity as the `core` change it picks up.
+
+### Cutting a release
+
+After determining the next version `X.Y.Z`:
+
+```bash
+git checkout main && git pull
+git checkout -b chore/release-vX.Y.Z
+
+npm run bump-version X.Y.Z   # bumps all four packages + their @mast-ai/core deps
+npm install                  # refresh node_modules
+npm run format               # normalise package.json formatting
+
+# Confirm full local CI passes
+npm run lint
+npm test --workspaces --if-present
+npm run build
+```
+
+Open a PR with the version bump, get it merged into `main`, then tag and push:
+
+```bash
+git checkout main && git pull
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+The tag push triggers `Publish`. If a publish step fails partway through (e.g. a network blip after `core` succeeds but before `react-ui`), re-run the workflow manually from the Actions tab via `workflow_dispatch` with the same tag — already-published packages will fail with `403` and the remaining ones will go through. Resolve by either bumping a patch version or unpublishing the partial release within npm's 72-hour window.
+
+### Bootstrapping a new package
+
+If a new `@mast-ai/<name>` package is added to the repo, its first publish must be done manually (`npm login` + `npm publish -w @mast-ai/<name>`) because npm's trusted-publishing config requires the package to already exist on the registry. After the first publish, configure the trusted publisher on npmjs.org (Settings → Publishing access → GitHub Actions, repo `andreban/mast-ai`, workflow `publish.yml`). All subsequent releases go through the workflow.
+
 ## Git Conventions
 
 - Do not add `Co-Authored-By` trailers to commit messages.

@@ -186,8 +186,7 @@ function ApiKeySetup({ onSubmit }: ApiKeySetupProps) {
           <h2 className="demo-api-key-title">Enter your Gemini API key</h2>
           <p>
             The demo runs entirely in your browser. Your key is saved to this device's{' '}
-            <code>localStorage</code> and is sent only to Google's API, never to any other
-            server.
+            <code>localStorage</code> and is sent only to Google's API, never to any other server.
           </p>
           <p>
             Get a free key at{' '}
@@ -468,20 +467,25 @@ function InstructionsPanel() {
             approval.
           </li>
           <li>
-            <strong>“What is the page title?”</strong> — pauses for an inline approval
-            card.
+            <strong>“What is the page title?”</strong> — pauses for an inline approval card.
           </li>
           <li>
-            <strong>“Set the page title to <em>Hello</em>.”</strong> — opens a custom
-            Apply / Discard preview.
+            <strong>
+              “Set the page title to <em>Hello</em>.”
+            </strong>{' '}
+            — opens a custom Apply / Discard preview.
           </li>
           <li>
-            <strong>“Copy <em>foo</em> to the clipboard.”</strong> — pauses for a{' '}
-            <code>window.confirm</code> dialog.
+            <strong>
+              “Copy <em>foo</em> to the clipboard.”
+            </strong>{' '}
+            — pauses for a <code>window.confirm</code> dialog.
           </li>
           <li>
-            <strong>“Parse <em>abc</em> as an integer.”</strong> — surfaces the{' '}
-            <code>error</code> status on the bubble.
+            <strong>
+              “Parse <em>abc</em> as an integer.”
+            </strong>{' '}
+            — surfaces the <code>error</code> status on the bubble.
           </li>
         </ul>
       </section>
@@ -489,8 +493,8 @@ function InstructionsPanel() {
         <h3>@-mentions</h3>
         <p>
           Type <code>@</code> in the input to pick a demo doc. Try{' '}
-          <em>“Summarise @Roadmap and @Style Guide”</em> to see a sub-agent fan out
-          calls to <code>read_doc</code> nested under <code>summarize_documents</code>.
+          <em>“Summarise @Roadmap and @Style Guide”</em> to see a sub-agent fan out calls to{' '}
+          <code>read_doc</code> nested under <code>summarize_documents</code>.
         </p>
       </section>
       <section className="demo-instructions-section">
@@ -498,7 +502,9 @@ function InstructionsPanel() {
         <ul>
           <li>Click any tool bubble to expand its arguments and result.</li>
           <li>Use the theme button to cycle System / Light / Dark.</li>
-          <li>Conversations save to <code>localStorage</code> and reload on refresh.</li>
+          <li>
+            Conversations save to <code>localStorage</code> and reload on refresh.
+          </li>
           <li>Use “Reset API key” to wipe the saved Gemini key.</li>
         </ul>
       </section>

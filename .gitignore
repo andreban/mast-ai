@@ -59,6 +59,12 @@ build/Release
 node_modules/
 jspm_packages/
 
+# npm lockfile
+# Generated lockfiles capture only the current platform's optional deps
+# (npm/cli#4828), so a Windows-generated lockfile breaks Linux CI. Until npm
+# fixes this, we resolve fresh from package.json on every install.
+package-lock.json
+
 # Snowpack dependency directory (https://snowpack.dev/)
 
 web_modules/

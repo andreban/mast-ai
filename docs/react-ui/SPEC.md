@@ -879,12 +879,12 @@ surface and a reference implementation.
 
 ### Stack
 
-| Concern     | Choice                                                            |
-| ----------- | ----------------------------------------------------------------- |
-| Bundler     | Vite                                                              |
+| Concern     | Choice                                                                   |
+| ----------- | ------------------------------------------------------------------------ |
+| Bundler     | Vite                                                                     |
 | LLM adapter | `@mast-ai/google-genai` (API key entered in-app, kept in `localStorage`) |
-| Icons       | `lucide-react` (demonstrates icon override)                       |
-| Markdown    | `react-markdown` + `remark-gfm` + `rehype-sanitize`               |
+| Icons       | `lucide-react` (demonstrates icon override)                              |
+| Markdown    | `react-markdown` + `remark-gfm` + `rehype-sanitize`                      |
 
 The Gemini API key is **not** read from a Vite env var; baking it into the
 bundle would leak it on any public deployment. The app gates rendering on a
@@ -905,8 +905,8 @@ header to clear it.
    - `copy_to_clipboard` — write, modal approval via `window.confirm` outside the chat.
    - `parse_integer` — read, no approval; throws on invalid input to surface the
      `'error'` status in `<ToolCallBlock>`.
-   Tool bubbles are wrapped in a `<details>` so they start collapsed and can be
-   expanded for arguments, sub-agent output, and the final result.
+     Tool bubbles are wrapped in a `<details>` so they start collapsed and can be
+     expanded for arguments, sub-agent output, and the final result.
 4. **Dark mode** — a toggle button that sets `theme="dark"` / `"light"` on
    `<ConversationPanel>`, demonstrating manual theme control alongside the OS default.
 5. **Approval flow** — single `onApprovalRequired` callback dispatches by tool name:
