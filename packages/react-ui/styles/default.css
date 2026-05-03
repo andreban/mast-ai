@@ -1,1 +1,35 @@
 /* @mast-ai/react-ui default stylesheet — import as '@mast-ai/react-ui/styles.css' */
+
+[data-mast-user-message] {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mast-user-message-bubble {
+  background: var(--mast-user-bubble, #dbeafe);
+  color: var(--mast-user-fg, #1e3a8a);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--mast-radius, 0.5rem);
+  max-width: 80%;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+[data-mast-assistant-message] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mast-gap, 0.75rem);
+}
+
+.mast-assistant-message-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.mast-assistant-message-markdown > :first-child {
+  margin-top: 0;
+}
+
+.mast-assistant-message-markdown > :last-child {
+  margin-bottom: 0;
+}

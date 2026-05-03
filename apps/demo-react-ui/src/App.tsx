@@ -6,8 +6,8 @@ import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
 import {
   AgentProvider,
-  ThinkingBlock,
-  ToolCallBlock,
+  AssistantMessage,
+  UserMessage,
   useAgent,
   type IconMap,
 } from '@mast-ai/react-ui';
@@ -63,16 +63,11 @@ function ChatUI() {
       <ul>
         {messages.map((entry) => (
           <li key={entry.id}>
-            <strong>{entry.role}:</strong>{' '}
-            {entry.role === 'assistant' && entry.thinking ? (
-              <ThinkingBlock content={entry.thinking} isStreaming={entry.isStreaming} />
-            ) : null}
-            {entry.role === 'assistant' && entry.toolEvents.length > 0
-              ? entry.toolEvents.map((toolEvent, i) => (
-                  <ToolCallBlock key={`${toolEvent.name}-${i}`} entry={toolEvent} />
-                ))
-              : null}
-            {entry.text}
+            {entry.role === 'user' ? (
+              <UserMessage entry={entry} />
+            ) : (
+              <AssistantMessage entry={entry} />
+            )}
             {entry.isStreaming && entry.text === '' && entry.toolEvents.length === 0 ? (
               <em> (thinking...)</em>
             ) : null}
