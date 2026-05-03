@@ -3,14 +3,7 @@
 
 import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
-import {
-  AgentProvider,
-  AssistantMessage,
-  ChatInput,
-  UserMessage,
-  useAgent,
-  type IconMap,
-} from '@mast-ai/react-ui';
+import { AgentProvider, ChatInput, MessageList, type IconMap } from '@mast-ai/react-ui';
 import { Brain, CircleCheck, LoaderCircle, Send, Square, Wrench } from 'lucide-react';
 
 import { GetCurrentTimeTool } from './tools';
@@ -40,35 +33,12 @@ const icons: IconMap = {
   stop: <Square size={16} />,
 };
 
-function ChatUI() {
-  const { messages } = useAgent();
-
-  return (
-    <div>
-      <ul>
-        {messages.map((entry) => (
-          <li key={entry.id}>
-            {entry.role === 'user' ? (
-              <UserMessage entry={entry} />
-            ) : (
-              <AssistantMessage entry={entry} />
-            )}
-            {entry.isStreaming && entry.text === '' && entry.toolEvents.length === 0 ? (
-              <em> (thinking...)</em>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      <ChatInput />
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <AgentProvider runner={runner} agent={agentConfig} icons={icons}>
       <h1>MAST React UI Demo</h1>
-      <ChatUI />
+      <MessageList />
+      <ChatInput />
     </AgentProvider>
   );
 }
