@@ -169,6 +169,21 @@ function PendingApprovalsBadge() {
   return <span className="demo-pending-badge">{pendingApprovals.length} pending</span>;
 }
 
+/**
+ * Header button that calls `useAgent().reset()` to abort any in-flight run,
+ * clear the rendered conversation, and replace the underlying Conversation
+ * instance so the next message starts with empty core history.
+ */
+function NewConversationButton() {
+  const { reset, messages, isRunning } = useAgent();
+  const disabled = messages.length === 0 && !isRunning;
+  return (
+    <button type="button" className="demo-header-button" onClick={reset} disabled={disabled}>
+      New conversation
+    </button>
+  );
+}
+
 export default function App() {
   const [theme, setTheme] = useState<ThemeChoice>('system');
   const panelTheme = theme === 'system' ? undefined : theme;
@@ -185,9 +200,10 @@ export default function App() {
           <h1>MAST React UI Demo</h1>
           <div className="demo-header-controls">
             <PendingApprovalsBadge />
+            <NewConversationButton />
             <button
               type="button"
-              className="demo-theme-toggle"
+              className="demo-header-button"
               onClick={() => setTheme((current) => NEXT_THEME[current])}
             >
               {THEME_LABEL[theme]}
