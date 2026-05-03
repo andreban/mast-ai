@@ -41,7 +41,7 @@ body {
   font-size: 1.25rem;
 }
 
-.demo-theme-toggle {
+.demo-header-button {
   background: transparent;
   border: 1px solid currentColor;
   color: inherit;
@@ -49,6 +49,11 @@ body {
   border-radius: 0.5rem;
   cursor: pointer;
   font: inherit;
+}
+
+.demo-header-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .demo-shell [data-mast-root] {
