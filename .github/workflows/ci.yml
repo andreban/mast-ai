@@ -13,10 +13,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: '**/package.json'
 
-      # Using `npm install` rather than `npm ci` because the lockfile is
-      # generated on Windows and does not contain Linux-specific optional
-      # rollup binaries (npm/cli#4828). `npm ci` would fail to resolve them.
       - run: npm install
 
       - run: npm run lint

@@ -26,6 +26,7 @@ jobs:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
           cache: npm
+          cache-dependency-path: '**/package.json'
 
       - name: Verify tag matches package versions
         run: |
@@ -39,9 +40,6 @@ jobs:
             fi
           done
 
-      # Using `npm install` rather than `npm ci` because the lockfile is
-      # generated on Windows and does not contain Linux-specific optional
-      # rollup binaries (npm/cli#4828). `npm ci` would fail to resolve them.
       - run: npm install
 
       - run: npm run lint

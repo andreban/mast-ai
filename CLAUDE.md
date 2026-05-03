@@ -209,7 +209,7 @@ git checkout main && git pull
 git checkout -b chore/release-vX.Y.Z
 
 npm run bump-version X.Y.Z   # bumps all four packages + their @mast-ai/core deps
-npm install                  # refresh package-lock.json
+npm install                  # refresh node_modules
 npm run format               # normalise package.json formatting
 
 # Confirm full local CI passes
