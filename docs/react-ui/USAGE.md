@@ -25,6 +25,7 @@ common use cases. The corresponding API reference lives in
 10. [Approval flow](#10-approval-flow)
 11. [Nested sub-agent tool calls](#11-nested-sub-agent-tool-calls)
 12. [Mention pipeline (`@`-mentions)](#12-mention-pipeline--mentions)
+13. [Overriding tool call labels (`getToolLabel`)](#13-overriding-tool-call-labels-gettoollabel)
 
 ---
 
@@ -283,6 +284,24 @@ tools that do not need special handling.
 
 When a call is awaiting an inline approval decision the second argument is a
 `PendingApproval` handle; see §10.3 for the full pattern.
+
+If the only thing you need to override is the header text — say, a
+`delegate_to_skill` call where the interesting label is in the args — pass the
+`label` prop on `<ToolCallBlock>` instead of cloning the entry:
+
+```tsx
+const renderToolCall = (entry: ToolEventEntry) => {
+  if (entry.name === 'delegate_to_skill') {
+    const skillName = (entry.args as { skillName?: string } | undefined)?.skillName;
+    return <ToolCallBlock entry={entry} label={skillName ?? entry.name} />;
+  }
+  return <ToolCallBlock entry={entry} />;
+};
+```
+
+For lists where the only customisation is relabelling, the `getToolLabel` slot
+on `<ConversationPanel>` / `<MessageList>` / `<AssistantMessage>` is more
+direct — see §13.
 
 ---
 
@@ -980,6 +999,57 @@ calls `sendMessage(prompt, displayText)` from `useAgent()`:
 
 The two-argument overload is also useful outside the mention pipeline; see
 the slash-command example in §9.
+
+---
+
+## 13. Overriding tool call labels (`getToolLabel`)
+
+`<ToolCallBlock>` displays `entry.name` in its header by default. That works
+well for atomic tools (`read_doc`, `set_page_title`, `get_current_time`) but
+reads poorly for delegation-style tools whose interesting label lives in the
+args. A `delegate_to_skill` call for the "Proofreader" skill displays as
+`delegate_to_skill` rather than `Proofreader`.
+
+The `getToolLabel` slot on `<ConversationPanel>`, `<MessageList>`, and
+`<AssistantMessage>` resolves a header label per entry without forking the
+rest of the tool-call rendering:
+
+```tsx
+import { ConversationPanel, type GetToolLabel } from '@mast-ai/react-ui';
+
+const getToolLabel: GetToolLabel = (entry) => {
+  if (entry.name === 'delegate_to_skill') {
+    const args = entry.args as { skillName?: string } | undefined;
+    return args?.skillName;
+  }
+  // Returning undefined falls back to entry.name, so atomic tools render
+  // exactly as before.
+  return undefined;
+};
+
+<ConversationPanel getToolLabel={getToolLabel} />;
+```
+
+The resolver flows through context, so it also applies to nested sub-agent
+tool calls rendered recursively inside the parent block (see §11). Returning
+`undefined` or `null` for an entry falls back to `entry.name`, which makes it
+ergonomic to relabel one tool name while leaving everything else untouched.
+
+If you already have a `renderToolCall` callback (for example to render a chart
+for a specific tool), pass `label` directly on the bundled `<ToolCallBlock>`
+inside that callback. The `label` prop wins over `getToolLabel`, so the two
+work together cleanly:
+
+```tsx
+const renderToolCall = (entry: ToolEventEntry) => {
+  if (entry.name === 'plot_scatter') return <MyChart entry={entry} />;
+  return <ToolCallBlock entry={entry} />;
+};
+```
+
+The resolver from `getToolLabel` is still consulted for the bundled block, so
+the `delegate_to_skill` example above keeps working alongside the chart
+override.
 
 ---
 

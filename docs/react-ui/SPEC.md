@@ -293,6 +293,14 @@ interface ConversationPanelProps {
   /** Replace the default markdown renderer. Receives the raw text string. */
   renderMessage?: (text: string) => React.ReactNode;
 
+  /**
+   * Overrides the <ToolCallBlock> header label for the entire list. The
+   * resolver flows through context so it also applies to nested sub-agent
+   * tool calls. Returning undefined or null for an entry falls back to
+   * entry.name. See §4.8 for the resolution order.
+   */
+  getToolLabel?: GetToolLabel;
+
   /** Placeholder text for the input field. */
   inputPlaceholder?: string;
 }
@@ -320,6 +328,12 @@ interface MessageListProps {
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => React.ReactNode;
   renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => React.ReactNode;
   renderMessage?: (text: string) => React.ReactNode;
+  /**
+   * Overrides the <ToolCallBlock> header label for every entry rendered by the
+   * list. Forwarded via context so it also applies to nested sub-agent tool
+   * calls. See §4.8.
+   */
+  getToolLabel?: GetToolLabel;
 }
 ```
 
@@ -354,6 +368,7 @@ interface MessageItemProps {
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => React.ReactNode;
   renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => React.ReactNode;
   renderMessage?: (text: string) => React.ReactNode;
+  getToolLabel?: GetToolLabel;
 }
 ```
 
@@ -376,6 +391,12 @@ interface AssistantMessageProps {
    */
   renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => React.ReactNode;
   renderMessage?: (text: string) => React.ReactNode;
+  /**
+   * Overrides the <ToolCallBlock> header label for every tool event in this
+   * message. Forwarded via context so nested sub-agent tool calls also pick
+   * it up. See §4.8.
+   */
+  getToolLabel?: GetToolLabel;
 }
 ```
 
@@ -427,8 +448,29 @@ interface ToolCallBlockProps {
    * - false: closed by default regardless of streaming state.
    */
   defaultOpen?: boolean | 'streaming';
+  /**
+   * Overrides entry.name in the header. Useful for delegation-style tools
+   * whose interesting label lives in the args (e.g. delegate_to_skill should
+   * display the target skill's name, not the wrapper tool's name).
+   *
+   * Resolution order: the explicit `label` prop, then the `getToolLabel`
+   * resolver supplied via context (see §4.5 / §4.3 / §4.2), then entry.name.
+   */
+  label?: React.ReactNode;
 }
+
+type GetToolLabel = (entry: ToolEventEntry) => React.ReactNode;
 ```
+
+The `GetToolLabel` resolver type is also exported from the package root so
+consumers can type their own resolvers without re-deriving the signature.
+
+For consumers that only need to relabel a subset of tools, `<MessageList>`,
+`<AssistantMessage>`, and `<ConversationPanel>` accept a `getToolLabel` prop
+that flows through the bundled `<ToolCallBlock>` — including blocks rendered
+recursively for nested sub-agent tool calls — via `ToolLabelContext`. Returning
+`undefined` or `null` for an entry falls back to `entry.name`, which makes it
+ergonomic to relabel one tool while leaving everything else untouched.
 
 - The block itself is collapsible. The root is a `<details>` element with the header
   (status icon + tool name) as the `<summary>`; the body — sub-output, nested events,
@@ -630,6 +672,7 @@ packages/react-ui/
 │       ├── UserMessage.tsx
 │       ├── ThinkingBlock.tsx
 │       ├── ToolCallBlock.tsx
+│       ├── ToolLabelContext.tsx — context written by getToolLabel forwarders, read by ToolCallBlock
 │       └── ChatInput.tsx
 ├── styles/
 │   └── default.css            — emitted as dist/styles.css
@@ -657,6 +700,7 @@ export { ChatInput } from './components/ChatInput';
 
 // Types
 export type { ConversationEntry, ToolEventEntry, AgentProviderProps, IconMap } from './types';
+export type { GetToolLabel } from './components/ToolLabelContext';
 ```
 
 CSS is a separate export path (`@mast-ai/react-ui/styles.css`) handled by the build

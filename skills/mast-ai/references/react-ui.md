@@ -188,6 +188,31 @@ Currently scoped to a single level: grandchild events route back to the outermos
 <ToolCallBlock entry={entry} defaultOpen={false} />
 ```
 
+## Overriding the tool call header label
+
+`<ToolCallBlock>` shows `entry.name` in its header by default. For delegation-style tools whose interesting label lives in the args (e.g. `delegate_to_skill` should display the target skill's name), override the header without forking the rest of the rendering.
+
+Two slots, same precedence chain (`label` prop → `getToolLabel` from context → `entry.name`):
+
+- **`label?: ReactNode`** on `<ToolCallBlock>` itself — direct, per-instance override. Use inside a `renderToolCall` callback when you already need to dispatch on tool name.
+- **`getToolLabel?: (entry) => ReactNode`** on `<ConversationPanel>` / `<MessageList>` / `<AssistantMessage>` — list-wide resolver. Flows via context to every nested `<ToolCallBlock>` (including sub-agent tool calls). Returning `undefined` or `null` falls back to `entry.name`, so it is ergonomic to relabel one tool while leaving everything else untouched.
+
+```tsx
+import { ConversationPanel, type GetToolLabel } from '@mast-ai/react-ui';
+
+const getToolLabel: GetToolLabel = (entry) => {
+  if (entry.name === 'delegate_to_skill') {
+    const args = entry.args as { skillName?: string } | undefined;
+    return args?.skillName;
+  }
+  return undefined;
+};
+
+<ConversationPanel getToolLabel={getToolLabel} />;
+```
+
+Use `getToolLabel` when relabelling is the only customisation. Reach for `renderToolCall` + `<ToolCallBlock label>` when you also need to swap the body (e.g. render a chart for a specific tool). The two compose: the `label` prop wins over `getToolLabel`, but the resolver still applies to bundled blocks rendered for tools the callback did not customise.
+
 ## Mention Pipeline (`@`-mentions)
 
 Opt-in: when `mentions` is omitted, `<ChatInput>` renders an unchanged plain textarea.

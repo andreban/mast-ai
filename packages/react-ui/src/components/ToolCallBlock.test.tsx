@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { ToolEventEntry } from '../types.js';
 import { ToolCallBlock } from './ToolCallBlock.js';
+import { ToolLabelContext } from './ToolLabelContext.js';
 
 function makeEntry(overrides: Partial<ToolEventEntry> = {}): ToolEventEntry {
   return {
@@ -196,6 +197,45 @@ describe('<ToolCallBlock>', () => {
       expect(screen.getByText('inner_tool')).toBeDefined();
     });
 
+    it('forwards the ToolLabelContext resolver to nested entries', () => {
+      const parent: ToolEventEntry = {
+        id: 'parent',
+        type: 'tool_call_started',
+        name: 'invoke_writer',
+        args: {},
+        isStreaming: true,
+        nestedToolEvents: [
+          {
+            id: 'nested-1',
+            type: 'tool_call_completed',
+            name: 'delegate_to_skill',
+            args: { skillName: 'Proofreader' },
+            result: 'done',
+            isStreaming: false,
+            status: 'success',
+          },
+        ],
+      };
+      render(
+        <ToolLabelContext.Provider
+          value={(entry) => {
+            if (entry.name === 'delegate_to_skill') {
+              const args = entry.args as { skillName?: string } | undefined;
+              return args?.skillName;
+            }
+            return undefined;
+          }}
+        >
+          <ToolCallBlock entry={parent} />
+        </ToolLabelContext.Provider>,
+      );
+      // Parent uses entry.name (resolver returns undefined for it).
+      expect(screen.getByText('invoke_writer')).toBeDefined();
+      // Nested entry uses the resolver's value.
+      expect(screen.getByText('Proofreader')).toBeDefined();
+      expect(screen.queryByText('delegate_to_skill')).toBeNull();
+    });
+
     it('renders multiple nested entries in order', () => {
       const parent: ToolEventEntry = {
         id: 'parent',
@@ -235,6 +275,69 @@ describe('<ToolCallBlock>', () => {
     it('renders the tool name', () => {
       render(<ToolCallBlock entry={makeEntry({ name: 'get_current_time' })} />);
       expect(screen.getByText('get_current_time')).toBeDefined();
+    });
+
+    it('renders the label prop in place of entry.name when provided', () => {
+      render(
+        <ToolCallBlock entry={makeEntry({ name: 'delegate_to_skill' })} label="Proofreader" />,
+      );
+      expect(screen.getByText('Proofreader')).toBeDefined();
+      expect(screen.queryByText('delegate_to_skill')).toBeNull();
+    });
+
+    it('accepts a ReactNode label, not just a string', () => {
+      render(
+        <ToolCallBlock
+          entry={makeEntry({ name: 'delegate_to_skill' })}
+          label={<em data-testid="custom-label">Proofreader</em>}
+        />,
+      );
+      expect(screen.getByTestId('custom-label').textContent).toBe('Proofreader');
+    });
+
+    it('falls back to entry.name when label is omitted', () => {
+      render(<ToolCallBlock entry={makeEntry({ name: 'plain_tool' })} />);
+      expect(screen.getByText('plain_tool')).toBeDefined();
+    });
+
+    it('reads the label from ToolLabelContext when no label prop is set', () => {
+      render(
+        <ToolLabelContext.Provider
+          value={(entry) => (entry.name === 'delegate_to_skill' ? 'Proofreader' : undefined)}
+        >
+          <ToolCallBlock entry={makeEntry({ name: 'delegate_to_skill' })} />
+        </ToolLabelContext.Provider>,
+      );
+      expect(screen.getByText('Proofreader')).toBeDefined();
+      expect(screen.queryByText('delegate_to_skill')).toBeNull();
+    });
+
+    it('falls back to entry.name when the context resolver returns undefined', () => {
+      render(
+        <ToolLabelContext.Provider value={() => undefined}>
+          <ToolCallBlock entry={makeEntry({ name: 'plain_tool' })} />
+        </ToolLabelContext.Provider>,
+      );
+      expect(screen.getByText('plain_tool')).toBeDefined();
+    });
+
+    it('falls back to entry.name when the context resolver returns null', () => {
+      render(
+        <ToolLabelContext.Provider value={() => null}>
+          <ToolCallBlock entry={makeEntry({ name: 'plain_tool' })} />
+        </ToolLabelContext.Provider>,
+      );
+      expect(screen.getByText('plain_tool')).toBeDefined();
+    });
+
+    it('prefers the explicit label prop over the context resolver', () => {
+      render(
+        <ToolLabelContext.Provider value={() => 'from-context'}>
+          <ToolCallBlock entry={makeEntry({ name: 'tool' })} label="from-prop" />
+        </ToolLabelContext.Provider>,
+      );
+      expect(screen.getByText('from-prop')).toBeDefined();
+      expect(screen.queryByText('from-context')).toBeNull();
     });
 
     it('forwards className to the root element', () => {

@@ -9,6 +9,7 @@ import type { ToolEventEntry } from '../types.js';
 import type { RenderApproval } from './AssistantMessage.js';
 import { ChatInput } from './ChatInput.js';
 import { MessageList } from './MessageList.js';
+import type { GetToolLabel } from './ToolLabelContext.js';
 
 /**
  * Props accepted by {@link ConversationPanel}.
@@ -37,6 +38,16 @@ export interface ConversationPanelProps {
   renderApproval?: RenderApproval;
   /** Replaces the default assistant text renderer for the entire list. */
   renderMessage?: (text: string) => ReactNode;
+  /**
+   * Overrides the `<ToolCallBlock>` header label for the entire list. The
+   * resolver flows via context so it also applies to nested sub-agent tool
+   * calls. Returning `undefined` or `null` for a given entry falls back to
+   * `entry.name`.
+   *
+   * Common use case: relabelling delegation-style tools (e.g.
+   * `delegate_to_skill` showing the target skill's name).
+   */
+  getToolLabel?: GetToolLabel;
   /** Placeholder text for the {@link ChatInput} field. */
   inputPlaceholder?: string;
   /**
@@ -62,6 +73,7 @@ export function ConversationPanel({
   renderToolCall,
   renderApproval,
   renderMessage,
+  getToolLabel,
   inputPlaceholder,
   mentions,
 }: ConversationPanelProps) {
@@ -73,6 +85,7 @@ export function ConversationPanel({
         renderToolCall={renderToolCall}
         renderApproval={renderApproval}
         renderMessage={renderMessage}
+        getToolLabel={getToolLabel}
       />
       <ChatInput placeholder={inputPlaceholder} mentions={mentions} />
     </div>
