@@ -84,6 +84,14 @@ export class RunBuilder {
    */
   onToolEvent(handler: (toolName: string, event: AgentEvent) => void): this;
 
+  /**
+   * For tools that internally run a sub-agent: chain this on the sub-agent's
+   * RunBuilder to forward every non-`done` event to parentContext.onEvent.
+   * Filters `done` (which carries child history) automatically. No-op when
+   * parentContext.onEvent is undefined.
+   */
+  forwardTo(parentContext: ToolContext): this;
+
   runStream(input: string): AsyncIterable<AgentEvent>;
   run(input: string): Promise<AgentResult>;
   runTyped<T>(input: string): Promise<T>;
@@ -96,6 +104,15 @@ runner
     if (event.type === 'text_delta') updateSkillPanel(toolName, event.delta);
   })
   .runStream(input);
+
+// Usage — inside a custom tool that wraps a sub-agent
+async call(args, context: ToolContext): Promise<string> {
+  const builder = childRunner.runBuilder(childAgent).forwardTo(context);
+  for await (const event of builder.runStream(input)) {
+    if (event.type === 'done') return event.output;
+  }
+  throw new Error('child stream ended without done');
+}
 ```
 
 ## Conversation

@@ -768,6 +768,51 @@ Nesting is currently scoped to a single level (a sub-agent calling its own
 tools). Grandchild events route back to the outermost matching parent; deeper
 disambiguation is a future extension tracked in the SPEC.
 
+### 11.1 Custom sub-agent tools: use `forwardTo(context)`
+
+`createAgentTool` is the canonical wrapper, but some tools need custom logic
+around the sub-agent run (multi-step orchestration, conditional invocation,
+post-processing). Those tools should chain `forwardTo(context)` on the
+sub-agent's `RunBuilder` instead of hand-rolling the forwarding loop:
+
+```ts
+import type { Tool, ToolContext, AgentRunner, AgentConfig } from '@mast-ai/core';
+
+export function createInvokeWriterTool(runner: AgentRunner, agent: AgentConfig): Tool {
+  return {
+    definition: () => ({
+      name: 'invoke_writer',
+      description: 'Delegates a writing task to the writer agent.',
+      parameters: { type: 'object', properties: { task: { type: 'string' } } },
+      scope: 'write',
+    }),
+    async call(args, context: ToolContext): Promise<string> {
+      const { task } = args as { task: string };
+      const builder = runner.runBuilder(agent).forwardTo(context);
+      if (context.signal) builder.signal(context.signal);
+
+      for await (const event of builder.runStream(task)) {
+        if (event.type === 'done') return event.output;
+      }
+      throw new Error("Writer sub-agent ended without a 'done' event");
+    },
+  };
+}
+```
+
+`forwardTo(context)`:
+
+- Forwards every non-`done` child event to `context.onEvent`, populating
+  `subThinking` / `subText` / `nestedToolEvents` on the parent's tool entry.
+- Filters `done` events automatically (they carry the child's full history,
+  which must not leak to the parent runner's consumer).
+- Is a no-op when `context.onEvent` is undefined.
+- Composes with `history()`, `signal()`, and `onToolEvent()` in any order.
+
+Forgetting to call `forwardTo(context)` is a silent failure: the tool runs
+fine but the parent's tool block shows no streamed sub-output. Always
+chain it on any sub-agent `RunBuilder` invoked from a tool's `call`.
+
 ---
 
 ## 12. Mention pipeline (`@`-mentions)

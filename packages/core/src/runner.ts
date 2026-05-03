@@ -3,7 +3,7 @@
 
 import type { AgentConfig, AgentEvent, AgentResult, Message, ToolCall } from './types.js';
 import type { LlmAdapter, AdapterRequest } from './adapter/index.js';
-import { type ToolProvider, ToolRegistry } from './tool.js';
+import { type ToolContext, type ToolProvider, ToolRegistry } from './tool.js';
 import { AgentError } from './error.js';
 import { Conversation } from './conversation.js';
 
@@ -24,6 +24,7 @@ export class RunBuilder {
   private _history: Message[] = [];
   private _signal?: AbortSignal;
   private _onToolEvent?: (toolName: string, event: AgentEvent) => void;
+  private _forwardContext?: ToolContext;
 
   constructor(
     private readonly agent: AgentConfig,
@@ -53,9 +54,33 @@ export class RunBuilder {
     return this;
   }
 
+  /**
+   * Forwards every non-`done` event yielded by this run to
+   * `parentContext.onEvent`. Intended for tools that internally run a
+   * sub-agent: chain this so the parent runner's UI can populate
+   * `subThinking` / `subText` / `nestedToolEvents` on the parent's tool
+   * entry without manual forwarding boilerplate.
+   *
+   * `done` events are filtered out to avoid leaking child conversation
+   * history to the parent's consumers. If `parentContext.onEvent` is
+   * undefined, this is a no-op.
+   */
+  forwardTo(parentContext: ToolContext): this {
+    this._forwardContext = parentContext;
+    return this;
+  }
+
   /** Executes the run and returns a stream of {@link AgentEvent} objects. */
   runStream(input: string): AsyncIterable<AgentEvent> {
-    return this.execute(input, this._history, this._signal, this._onToolEvent);
+    const stream = this.execute(input, this._history, this._signal, this._onToolEvent);
+    const onEvent = this._forwardContext?.onEvent;
+    if (!onEvent) return stream;
+    return (async function* () {
+      for await (const event of stream) {
+        if (event.type !== 'done') onEvent(event);
+        yield event;
+      }
+    })();
   }
 
   /** Executes the run and returns the final text output. */
