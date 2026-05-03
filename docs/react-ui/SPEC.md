@@ -141,7 +141,10 @@ they are derived from. The UI types represent the _rendered state_ of a conversa
 the raw protocol messages.
 
 ```typescript
+export type ToolCallStatus = 'success' | 'error' | 'cancelled';
+
 export interface ToolEventEntry {
+  id: string; // stable key for matching pending approvals back to entries
   type: 'tool_call_started' | 'tool_call_completed';
   name: string;
   args?: unknown;
@@ -149,6 +152,8 @@ export interface ToolEventEntry {
   subThinking?: string; // accumulated thinking streamed from inside the tool/sub-agent
   subText?: string; // accumulated text streamed from inside the tool/sub-agent
   isStreaming: boolean; // true while the tool is executing
+  awaitingApproval?: boolean; // true while paused on the inline approval queue or onApprovalRequired
+  status?: ToolCallStatus; // populated when isStreaming flips to false
 }
 
 export interface ConversationEntry {
@@ -162,7 +167,15 @@ export interface ConversationEntry {
 ```
 
 The `useAgentStream` internal hook builds and maintains a `ConversationEntry[]` from
-the `AgentEvent` stream emitted by `AgentRunner`.
+the `AgentEvent` stream emitted by `AgentRunner`. `status` is derived as:
+
+- `'cancelled'` — set by the approval proxy when the user rejects the call.
+- `'error'` — set when `tool_call_completed.error` is `true` (tool threw or was missing).
+- `'success'` — set otherwise.
+
+A `'cancelled'` status set by the proxy is preserved when the runner emits the
+final `tool_call_completed` event so the synthetic cancelled result does not
+get reclassified as success.
 
 ---
 
@@ -182,15 +195,18 @@ interface AgentProviderProps {
 
   /**
    * Called before executing any tool call that has requiresApproval: true in
-   * its ToolDefinition. Return true to proceed, false to cancel, or a string
-   * to short-circuit execution with a synthetic result.
+   * its ToolDefinition. Return true to proceed, false to cancel, a string to
+   * short-circuit execution with a synthetic result, or INLINE_APPROVAL to
+   * defer to the inline approval queue surfaced via useAgent().pendingApprovals.
    *
    * Also called for any tool whose name appears in approvalOverride, regardless
    * of the tool's own requiresApproval flag — allowing context-specific policy
    * (e.g. a sandbox environment that auto-approves everything, or a production
    * deployment that adds approval to a third-party tool it did not define).
    */
-  onApprovalRequired?: (toolCall: ToolEventEntry) => Promise<boolean | string>;
+  onApprovalRequired?: (
+    toolCall: ToolEventEntry,
+  ) => Promise<boolean | string | typeof INLINE_APPROVAL>;
 
   /**
    * Runtime override of per-tool approval policy. Names in this set trigger
@@ -239,8 +255,17 @@ Renders a complete chat UI as a single composable unit. Internally renders
 interface ConversationPanelProps {
   className?: string;
 
-  /** Replace the default tool call renderer. Receives the ToolEventEntry. */
-  renderToolCall?: (entry: ToolEventEntry) => React.ReactNode;
+  /**
+   * Replace the default tool call renderer. Called once per ToolEventEntry.
+   * Receives a PendingApproval handle as the second argument when the call
+   * is awaiting an inline approval decision (i.e. onApprovalRequired returned
+   * INLINE_APPROVAL). Consumers compose <InlineApproval> and <ToolCallBlock>
+   * inside this function to dispatch on tool name, awaiting state, or status.
+   *
+   * When omitted, the library renders <InlineApproval> for entries with a
+   * pending approval handle and <ToolCallBlock> otherwise.
+   */
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => React.ReactNode;
 
   /** Replace the default markdown renderer. Receives the raw text string. */
   renderMessage?: (text: string) => React.ReactNode;
@@ -409,6 +434,21 @@ interface UseAgentReturn {
   cancel: () => void;
   isRunning: boolean;
   reset: () => void; // clears entries and history; starts a new Conversation
+  /**
+   * Tool calls awaiting an inline approval decision. Populated when
+   * onApprovalRequired resolves to INLINE_APPROVAL. Each entry exposes
+   * approve(), reject(), and respondWith() callbacks; the runner is paused
+   * until one is called.
+   */
+  pendingApprovals: PendingApproval[];
+}
+
+interface PendingApproval {
+  toolName: string;
+  args: unknown;
+  approve: () => void;
+  reject: () => void;
+  respondWith: (result: string) => void;
 }
 
 function useAgent(): UseAgentReturn;
@@ -431,14 +471,16 @@ pass replacements via the `icons` prop on `<AgentProvider>`.
 The following icons ship inside the package as hand-authored SVGs (~50–80 bytes each,
 ~500 bytes total gzipped):
 
-| Key      | Used in                              | Default appearance       |
-| -------- | ------------------------------------ | ------------------------ |
-| `brain`  | `<ThinkingBlock>` header             | Simple brain outline     |
-| `wrench` | `<ToolCallBlock>` header (pending)   | Simple wrench outline    |
-| `check`  | `<ToolCallBlock>` header (completed) | Checkmark circle         |
-| `loader` | Streaming / pending spinner          | Animated spinning circle |
-| `send`   | `<ChatInput>` send button            | Filled arrow             |
-| `stop`   | `<ChatInput>` cancel button          | Filled square            |
+| Key         | Used in                                       | Default appearance       |
+| ----------- | --------------------------------------------- | ------------------------ |
+| `brain`     | `<ThinkingBlock>` header                      | Simple brain outline     |
+| `wrench`    | `<ToolCallBlock>` header (pending)            | Simple wrench outline    |
+| `check`     | `<ToolCallBlock>` header (status: success)    | Checkmark circle         |
+| `error`     | `<ToolCallBlock>` header (status: error)      | Crossed-out circle       |
+| `cancelled` | `<ToolCallBlock>` header (status: cancelled)  | Slashed circle           |
+| `loader`    | Streaming / pending spinner                   | Animated spinning circle |
+| `send`      | `<ChatInput>` send button                     | Filled arrow             |
+| `stop`      | `<ChatInput>` cancel button                   | Filled square            |
 
 ### 6.3 `IconMap` type
 
@@ -447,6 +489,8 @@ export interface IconMap {
   brain?: React.ReactNode;
   wrench?: React.ReactNode;
   check?: React.ReactNode;
+  error?: React.ReactNode;
+  cancelled?: React.ReactNode;
   loader?: React.ReactNode;
   send?: React.ReactNode;
   stop?: React.ReactNode;
@@ -565,10 +609,12 @@ maintains `ConversationEntry[]` as follows:
 | Run starts                   | Append `{ role: 'assistant', text: '', isStreaming: true }`                                            |
 | `text_delta`                 | Mutate last entry: append `delta` to `text`                                                            |
 | `thinking`                   | Mutate last entry: append `delta` to `thinking`                                                        |
-| `tool_call_started`          | Mutate last entry: push `{ type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents` |
+| `tool_call_started`          | Mutate last entry: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents` |
 | `onToolEvent` → `thinking`   | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                      |
 | `onToolEvent` → `text_delta` | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                          |
-| `tool_call_completed`        | Mutate matching `ToolEventEntry`: set `result`, `isStreaming: false`                                   |
+| Approval proxy notifies      | Mutate matching `ToolEventEntry`: set `awaitingApproval` to `true`/`false`                             |
+| Approval proxy cancels       | Mutate matching `ToolEventEntry`: set `status: 'cancelled'` (sticky across `tool_call_completed`)      |
+| `tool_call_completed`        | Mutate matching `ToolEventEntry`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`) |
 | `done`                       | Mutate last entry: set `text = output`, `isStreaming = false`                                          |
 | Error / cancel               | Mutate last entry: set `isStreaming = false`; optionally append error text                             |
 
@@ -610,18 +656,57 @@ UI and returns:
 - `true` — proceed with the tool call as normal
 - `false` — cancel the tool call; the runner receives a synthetic "user cancelled" result
 - `string` — skip execution and inject this string as the tool result directly
+- `INLINE_APPROVAL` — defer to the inline approval queue (see §9.3)
 
 ```tsx
 <AgentProvider
   runner={runner}
   agent={agentConfig}
   onApprovalRequired={async (toolCall) => {
-    return await myConfirmationDialog(toolCall);
+    if (toolCall.name === 'rich_tool') return INLINE_APPROVAL; // resolved inline
+    return await myConfirmationDialog(toolCall); // resolved out-of-band
   }}
 >
 ```
 
-### 9.3 Runtime override: `approvalOverride`
+While `onApprovalRequired` (or the inline queue) is pending, the matching
+`ToolEventEntry.awaitingApproval` is set to `true` so renderers can show a paused
+indicator. The flag is cleared in a `try/finally` so it always resets, including when
+the callback throws.
+
+### 9.3 Inline approval queue
+
+Returning `INLINE_APPROVAL` from `onApprovalRequired` enqueues a `PendingApproval`
+handle on `useAgent().pendingApprovals` and pauses the runner until the consumer
+calls `approve()`, `reject()`, or `respondWith(result)`:
+
+```typescript
+interface PendingApproval {
+  toolName: string;
+  args: unknown;
+  approve: () => void; // resolves with `true`
+  reject: () => void; // resolves with `false`
+  respondWith: (result: string) => void; // resolves with the string
+}
+```
+
+The library handles promise-resolver plumbing — consumers never call `new Promise`
+themselves. Two ergonomic entry points use this queue:
+
+**(a) Custom rendering via `renderToolCall`.** The single `renderToolCall` prop on
+`<ConversationPanel>` / `<MessageList>` receives `(entry, approval?)`; when `approval`
+is present the consumer can render any UI they like and wire the buttons directly to
+`approval.approve()` / `approval.reject()`.
+
+**(b) Built-in `<InlineApproval>` component.** Exported as a stand-alone component
+that renders a default approve/reject card. Compose it inside `renderToolCall` for
+tools that should use the default skin, or omit `renderToolCall` entirely — the
+library uses it as the default for any awaiting entry with a handle.
+
+When `reset()` is called while approvals are pending, the library calls `reject()`
+on each so their proxies finish and the run terminates cleanly.
+
+### 9.4 Runtime override: `approvalOverride`
 
 The `approvalOverride` prop allows context-specific policy adjustments without touching
 tool definitions:
@@ -699,14 +784,19 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 
 **Approval flow**
 
-| Scenario                               | What is verified                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------- |
-| Tool with `requiresApproval: true`     | `onApprovalRequired` is called before tool executes                       |
-| Callback returns `false`               | Tool call is cancelled; runner receives synthetic "user cancelled" result |
-| Callback returns a string              | Injected as the tool result; tool does not execute                        |
-| `approvalOverride` adds a name         | Unlisted tool triggers approval                                           |
-| `approvalOverride` suppresses with `!` | Tool with `requiresApproval: true` executes without prompting             |
-| No `onApprovalRequired` provided       | Tools with `requiresApproval: true` execute silently                      |
+| Scenario                                  | What is verified                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| Tool with `requiresApproval: true`        | `onApprovalRequired` is called before tool executes                       |
+| Callback returns `false`                  | Tool call is cancelled; runner receives synthetic "user cancelled" result |
+| Callback returns a string                 | Injected as the tool result; tool does not execute                        |
+| `approvalOverride` adds a name            | Unlisted tool triggers approval                                           |
+| `approvalOverride` suppresses with `!`    | Tool with `requiresApproval: true` executes without prompting             |
+| No `onApprovalRequired` provided          | Tools with `requiresApproval: true` execute silently                      |
+| `awaitingApproval` flag                   | Set while the callback is pending; cleared on resolve, reject, or throw   |
+| `INLINE_APPROVAL` exposes `PendingApproval` | Handle appears on `useAgent().pendingApprovals` while waiting           |
+| `approve()` / `reject()` / `respondWith()` | Resolve the proxy and remove the handle from the queue                   |
+| `reset()` while pending                   | Rejects in-flight approvals so the run terminates                         |
+| Tool call status                          | `'success'` on normal return; `'error'` when `tool_call_completed.error` is true; `'cancelled'` when the user rejects |
 
 **Conversation persistence**
 
@@ -768,13 +858,21 @@ surface and a reference implementation.
 
 1. **Minimal setup** — `<AgentProvider>` + `<ConversationPanel>` with a single CSS import
    and a `GoogleGenAIAdapter`.
-2. **Custom icons** — all six icon slots overridden with `lucide-react` equivalents.
-3. **Tool call rendering** — two registered tools (`get_current_time`,
-   `get_page_title`) so tool call blocks appear in the conversation.
+2. **Custom icons** — all eight icon slots overridden with `lucide-react` equivalents
+   (including the new `error` and `cancelled` slots).
+3. **Tool call rendering** — five registered tools that exercise every status path:
+   - `get_current_time` — read, no approval (success).
+   - `get_page_title` — read, inline approval via the bundled `<InlineApproval>` (option b).
+   - `set_page_title` — write, inline approval via a custom `renderToolCall` card that
+     previews the proposed title (option a).
+   - `copy_to_clipboard` — write, modal approval via `window.confirm` outside the chat.
+   - `parse_integer` — read, no approval; throws on invalid input to surface the
+     `'error'` status in `<ToolCallBlock>`.
 4. **Dark mode** — a toggle button that sets `theme="dark"` / `"light"` on
    `<ConversationPanel>`, demonstrating manual theme control alongside the OS default.
-5. **Approval flow** — `get_page_title` has `requiresApproval: true`; the demo shows a
-   simple browser `confirm()` dialog wired to `onApprovalRequired`.
+5. **Approval flow** — single `onApprovalRequired` callback dispatches by tool name:
+   inline tools return `INLINE_APPROVAL`, the others fall through to `window.confirm`.
+6. **Pending approvals queue** — header badge driven by `useAgent().pendingApprovals`.
 
 ### File structure
 
@@ -782,8 +880,8 @@ surface and a reference implementation.
 apps/demo-react-ui/
 ├── src/
 │   ├── main.tsx        — mounts App
-│   ├── App.tsx         — AgentProvider setup, tool registration, theme toggle
-│   └── tools.ts        — get_current_time and get_page_title tool definitions
+│   ├── App.tsx         — AgentProvider setup, tool registration, theme toggle, renderToolCall
+│   └── tools.ts        — five tool definitions covering every approval/status path
 ├── index.html
 ├── vite.config.ts
 ├── tsconfig.json

@@ -44,11 +44,23 @@ function formatJson(value: unknown): string {
  * Args/result expand/collapse uses native `<details>/<summary>` so the
  * component is keyboard-accessible without JavaScript.
  */
+function pickStatusIcon(entry: ToolCallBlockProps['entry'], icons: ReturnType<typeof useIcons>) {
+  if (entry.isStreaming) return icons.loader;
+  switch (entry.status) {
+    case 'error':
+      return icons.error;
+    case 'cancelled':
+      return icons.cancelled;
+    default:
+      return icons.check;
+  }
+}
+
 export function ToolCallBlock({ entry, className }: ToolCallBlockProps) {
   const icons = useIcons();
   const rootClass = ['mast-tool-call-block', className].filter(Boolean).join(' ');
   const hasSubAgentOutput = entry.subThinking !== undefined || entry.subText !== undefined;
-  const statusIcon = entry.isStreaming ? icons.loader : icons.check;
+  const statusIcon = pickStatusIcon(entry, icons);
   const argsText = formatJson(entry.args);
   const resultText = formatJson(entry.result);
 
@@ -56,6 +68,7 @@ export function ToolCallBlock({ entry, className }: ToolCallBlockProps) {
     <div
       data-mast-tool-call-block
       data-streaming={entry.isStreaming ? 'true' : undefined}
+      data-status={entry.status}
       data-tool-name={entry.name}
       className={rootClass}
     >

@@ -4,7 +4,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Conversation } from '@mast-ai/core';
 import type { AgentEvent } from '@mast-ai/core';
-import type { ConversationEntry, ToolEventEntry } from '../types';
+import type { ConversationEntry, ToolCallStatus, ToolEventEntry } from '../types';
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -107,6 +107,24 @@ export interface UseAgentStreamReturn {
    * start a fresh conversation should also replace the `Conversation` instance.
    */
   reset: () => void;
+
+  /**
+   * Sets the `awaitingApproval` flag on the first matching streaming
+   * `ToolEventEntry` (by `name`) within the most recent assistant entry.
+   *
+   * Used by the approval proxy in `AgentProvider` to surface "awaiting human
+   * decision" as a first-class state on the entry, so renderers can show a
+   * pause indicator without correlating tool calls themselves.
+   */
+  setToolAwaitingApproval: (name: string, awaiting: boolean) => void;
+
+  /**
+   * Sets the `status` field on the first matching streaming `ToolEventEntry`
+   * (by `name`). Used by the approval proxy to mark a call as `'cancelled'`
+   * before the runner emits `tool_call_completed` so the eventual completion
+   * event preserves the cancellation rather than defaulting to `'success'`.
+   */
+  setToolStatus: (name: string, status: ToolCallStatus) => void;
 }
 
 /**
@@ -149,6 +167,33 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
   const [entries, setEntries] = useState<ConversationEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  const findStreamingAssistantId = (entries: ConversationEntry[]): string | undefined => {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i];
+      if (e.role === 'assistant' && e.isStreaming) return e.id;
+    }
+    return undefined;
+  };
+
+  const setToolAwaitingApproval = useCallback((name: string, awaiting: boolean) => {
+    setEntries((prev) => {
+      const assistantId = findStreamingAssistantId(prev);
+      if (assistantId === undefined) return prev;
+      return updateToolEvent(prev, assistantId, name, (t) => ({
+        ...t,
+        awaitingApproval: awaiting,
+      }));
+    });
+  }, []);
+
+  const setToolStatus = useCallback((name: string, status: ToolCallStatus) => {
+    setEntries((prev) => {
+      const assistantId = findStreamingAssistantId(prev);
+      if (assistantId === undefined) return prev;
+      return updateToolEvent(prev, assistantId, name, (t) => ({ ...t, status }));
+    });
+  }, []);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -207,6 +252,7 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
               );
             } else if (event.type === 'tool_call_started') {
               const toolEvent: ToolEventEntry = {
+                id: crypto.randomUUID(),
                 type: 'tool_call_started',
                 name: event.name,
                 args: event.args,
@@ -225,6 +271,9 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
                   type: 'tool_call_completed',
                   result: event.result,
                   isStreaming: false,
+                  // Preserve a status set by the proxy (e.g. 'cancelled'); only
+                  // fall back to error/success based on the runner's flag.
+                  status: t.status ?? (event.error ? 'error' : 'success'),
                 })),
               );
             } else if (event.type === 'done') {
@@ -262,5 +311,13 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
     setIsRunning(false);
   }, []);
 
-  return { entries, isRunning, sendMessage, cancel, reset };
+  return {
+    entries,
+    isRunning,
+    sendMessage,
+    cancel,
+    reset,
+    setToolAwaitingApproval,
+    setToolStatus,
+  };
 }

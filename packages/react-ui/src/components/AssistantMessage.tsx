@@ -4,7 +4,10 @@
 import { Fragment, Suspense, lazy } from 'react';
 import type { ReactNode } from 'react';
 
+import { useAgent } from '../context';
+import type { PendingApproval } from '../approval';
 import type { ConversationEntry, ToolEventEntry } from '../types';
+import { InlineApproval } from './InlineApproval';
 import { ThinkingBlock } from './ThinkingBlock';
 import { ToolCallBlock } from './ToolCallBlock';
 
@@ -23,10 +26,20 @@ export interface AssistantMessageProps {
    */
   renderMessage?: (text: string) => ReactNode;
   /**
-   * Replaces the default {@link ToolCallBlock} renderer. Called once per
-   * element of `entry.toolEvents`.
+   * Replaces the default tool-call renderer. Called once per element of
+   * `entry.toolEvents`.
+   *
+   * Receives the tool event and, when the call is awaiting an inline
+   * approval decision, a {@link PendingApproval} handle exposing
+   * `approve()`, `reject()`, and `respondWith()`. Consumers can dispatch on
+   * tool name, and use the bundled `<InlineApproval>` or `<ToolCallBlock>`
+   * components as building blocks.
+   *
+   * When this prop is omitted, the library defaults to rendering
+   * `<InlineApproval>` for tool events with a pending approval handle and
+   * `<ToolCallBlock>` otherwise.
    */
-  renderToolCall?: (entry: ToolEventEntry) => ReactNode;
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
 }
 
 interface MarkdownTextProps {
@@ -86,6 +99,32 @@ export function AssistantMessage({
   renderToolCall,
 }: AssistantMessageProps) {
   const rootClass = ['mast-assistant-message', className].filter(Boolean).join(' ');
+  const { pendingApprovals } = useAgent();
+
+  const renderToolEvent = (toolEvent: ToolEventEntry): ReactNode => {
+    // Resolve the matching pending-approval handle when the call is awaiting
+    // an inline decision. Without a handle (e.g. the consumer returned a
+    // boolean directly from `onApprovalRequired`) the default and custom
+    // renderers both see `undefined` and fall through to the standard tool
+    // call rendering.
+    const approval = toolEvent.awaitingApproval
+      ? pendingApprovals.find((p) => p.toolName === toolEvent.name)
+      : undefined;
+
+    if (renderToolCall) return renderToolCall(toolEvent, approval);
+
+    if (approval) {
+      return (
+        <InlineApproval
+          entry={toolEvent}
+          approve={approval.approve}
+          reject={approval.reject}
+          respondWith={approval.respondWith}
+        />
+      );
+    }
+    return <ToolCallBlock entry={toolEvent} />;
+  };
 
   return (
     <div
@@ -96,13 +135,9 @@ export function AssistantMessage({
       {entry.thinking ? (
         <ThinkingBlock content={entry.thinking} isStreaming={entry.isStreaming} />
       ) : null}
-      {entry.toolEvents.map((toolEvent, index) => {
-        const key = `${toolEvent.name}-${index}`;
-        if (renderToolCall) {
-          return <Fragment key={key}>{renderToolCall(toolEvent)}</Fragment>;
-        }
-        return <ToolCallBlock key={key} entry={toolEvent} />;
-      })}
+      {entry.toolEvents.map((toolEvent, index) => (
+        <Fragment key={`${toolEvent.id}-${index}`}>{renderToolEvent(toolEvent)}</Fragment>
+      ))}
       {entry.text ? (
         renderMessage ? (
           renderMessage(entry.text)

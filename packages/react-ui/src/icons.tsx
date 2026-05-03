@@ -49,6 +49,25 @@ function CheckIcon() {
   );
 }
 
+function ErrorIcon() {
+  return (
+    <svg {...baseSvgProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9 9 6 6" />
+      <path d="m15 9-6 6" />
+    </svg>
+  );
+}
+
+function CancelledIcon() {
+  return (
+    <svg {...baseSvgProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M5.5 5.5 18.5 18.5" />
+    </svg>
+  );
+}
+
 function LoaderIcon() {
   return (
     <svg {...baseSvgProps} className="mast-spin">
@@ -81,6 +100,8 @@ export const defaultIcons: Required<IconMap> = {
   brain: <BrainIcon />,
   wrench: <WrenchIcon />,
   check: <CheckIcon />,
+  error: <ErrorIcon />,
+  cancelled: <CancelledIcon />,
   loader: <LoaderIcon />,
   send: <SendIcon />,
   stop: <StopIcon />,
@@ -104,6 +125,8 @@ export function IconProvider({ icons, children }: { icons?: IconMap; children: R
       brain: icons.brain ?? defaultIcons.brain,
       wrench: icons.wrench ?? defaultIcons.wrench,
       check: icons.check ?? defaultIcons.check,
+      error: icons.error ?? defaultIcons.error,
+      cancelled: icons.cancelled ?? defaultIcons.cancelled,
       loader: icons.loader ?? defaultIcons.loader,
       send: icons.send ?? defaultIcons.send,
       stop: icons.stop ?? defaultIcons.stop,

@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { useAgent } from '../context';
+import type { PendingApproval } from '../approval';
 import type { ToolEventEntry } from '../types';
 import { MessageItem } from './MessageItem';
 
@@ -17,9 +18,11 @@ export interface MessageListProps {
   className?: string;
   /**
    * Forwarded to each {@link MessageItem} so consumers can replace the default
-   * tool call renderer for the entire list.
+   * tool call renderer for the entire list. Receives a {@link PendingApproval}
+   * handle as the second argument when the call is awaiting an inline approval
+   * decision.
    */
-  renderToolCall?: (entry: ToolEventEntry) => ReactNode;
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
   /**
    * Forwarded to each {@link MessageItem} so consumers can replace the default
    * assistant text renderer for the entire list.

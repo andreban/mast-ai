@@ -3,6 +3,7 @@
 
 import type { ReactNode } from 'react';
 
+import type { PendingApproval } from '../approval';
 import type { ConversationEntry, ToolEventEntry } from '../types';
 import { AssistantMessage } from './AssistantMessage';
 import { UserMessage } from './UserMessage';
@@ -19,7 +20,7 @@ export interface MessageItemProps {
    * Forwarded to {@link AssistantMessage}. Has no effect when `entry.role` is
    * `'user'`.
    */
-  renderToolCall?: (entry: ToolEventEntry) => ReactNode;
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
   /**
    * Forwarded to {@link AssistantMessage}. Has no effect when `entry.role` is
    * `'user'`.

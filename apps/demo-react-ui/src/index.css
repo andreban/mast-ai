@@ -55,3 +55,87 @@ body {
   flex: 1 1 auto;
   min-height: 0;
 }
+
+.demo-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.demo-pending-badge {
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--mast-tool-pending, #f59e0b);
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.demo-set-title-approval {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 2px solid var(--mast-accent, #2563eb);
+  border-radius: var(--mast-radius, 0.5rem);
+  background: var(--mast-bg, #ffffff);
+}
+
+.demo-set-title-approval-header {
+  font-weight: 600;
+}
+
+.demo-set-title-approval-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--mast-bg-subtle, #f9fafb);
+  border-radius: 0.25rem;
+}
+
+.demo-set-title-approval-label {
+  color: var(--mast-fg-muted, #6b7280);
+  font-size: 0.8125rem;
+}
+
+.demo-set-title-approval-preview code {
+  font-family: var(--mast-font-mono, ui-monospace, monospace);
+  font-weight: 600;
+}
+
+.demo-set-title-approval-actions,
+.demo-simple-approval-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.demo-simple-approval {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--mast-tool-pending, #f59e0b);
+  border-radius: var(--mast-radius, 0.5rem);
+  background: var(--mast-thinking-bg, #fefce8);
+}
+
+.demo-approval-button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.demo-approval-approve {
+  background: var(--mast-accent, #2563eb);
+  color: var(--mast-accent-fg, #ffffff);
+}
+
+.demo-approval-reject {
+  background: transparent;
+  border-color: currentColor;
+  color: inherit;
+}

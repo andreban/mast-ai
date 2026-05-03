@@ -36,7 +36,7 @@ export interface Message {
  */
 export type AgentEvent =
   | { type: 'tool_call_started'; name: string; args: unknown }
-  | { type: 'tool_call_completed'; name: string; result: unknown }
+  | { type: 'tool_call_completed'; name: string; result: unknown; error?: boolean }
   | { type: 'text_delta'; delta: string }
   | { type: 'thinking'; delta: string }
   | { type: 'done'; output: string; history: Message[] };

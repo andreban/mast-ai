@@ -3,6 +3,7 @@
 
 import type { ReactNode } from 'react';
 
+import type { PendingApproval } from '../approval';
 import type { ToolEventEntry } from '../types';
 import { ChatInput } from './ChatInput';
 import { MessageList } from './MessageList';
@@ -19,8 +20,12 @@ export interface ConversationPanelProps {
   theme?: 'light' | 'dark';
   /** Optional class added to the root `[data-mast-root]` element. */
   className?: string;
-  /** Replaces the default {@link ToolCallBlock} renderer for the entire list. */
-  renderToolCall?: (entry: ToolEventEntry) => ReactNode;
+  /**
+   * Replaces the default tool-call renderer for the entire list. Receives a
+   * {@link PendingApproval} handle as the second argument when the call is
+   * awaiting an inline approval decision.
+   */
+  renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
   /** Replaces the default assistant text renderer for the entire list. */
   renderMessage?: (text: string) => ReactNode;
   /** Placeholder text for the {@link ChatInput} field. */
