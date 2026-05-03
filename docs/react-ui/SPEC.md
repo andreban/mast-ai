@@ -395,9 +395,23 @@ Displays a single tool invocation with live streaming of sub-agent output.
 interface ToolCallBlockProps {
   entry: ToolEventEntry;
   className?: string;
+  /**
+   * Controls the open state of the body (sub-output, nested events,
+   * args, result). The header (status icon + tool name) is always visible.
+   *
+   * - 'streaming' (default): open while entry.isStreaming is true,
+   *   collapses on completion.
+   * - true:  open by default regardless of streaming state.
+   * - false: closed by default regardless of streaming state.
+   */
+  defaultOpen?: boolean | 'streaming';
 }
 ```
 
+- The block itself is collapsible. The root is a `<details>` element with the header
+  (status icon + tool name) as the `<summary>`; the body — sub-output, nested events,
+  args, result — collapses behind it. The default `defaultOpen='streaming'` keeps the
+  block expanded while live activity is streaming and collapses it on completion.
 - **Streaming state** (`isStreaming: true`): spinner icon; `subThinking` rendered in a
   collapsible `<ThinkingBlock>` that auto-expands while streaming; `subText` rendered
   as live markdown below the thinking block.
@@ -408,7 +422,8 @@ interface ToolCallBlockProps {
   only the spinner → check transition and args/result.
 - When `entry.nestedToolEvents` is non-empty, each nested tool call renders
   recursively inside the parent block, indented with a left border.
-- Uses `<details>/<summary>` for args and result expand/collapse.
+- Uses `<details>/<summary>` for the outer block, args, and result expand/collapse so
+  the component is keyboard-accessible without JavaScript.
 
 ### 4.9 `<ChatInput>`
 
@@ -905,8 +920,8 @@ header to clear it.
    - `copy_to_clipboard` — write, modal approval via `window.confirm` outside the chat.
    - `parse_integer` — read, no approval; throws on invalid input to surface the
      `'error'` status in `<ToolCallBlock>`.
-     Tool bubbles are wrapped in a `<details>` so they start collapsed and can be
-     expanded for arguments, sub-agent output, and the final result.
+     Tool bubbles use `<ToolCallBlock>`'s default `defaultOpen='streaming'` behaviour
+     so they stay open while the tool is running and collapse on completion.
 4. **Dark mode** — a toggle button that sets `theme="dark"` / `"light"` on
    `<ConversationPanel>`, demonstrating manual theme control alongside the OS default.
 5. **Approval flow** — single `onApprovalRequired` callback dispatches by tool name:

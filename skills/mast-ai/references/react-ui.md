@@ -167,6 +167,18 @@ Tools built with `createAgentTool` from `@mast-ai/core` automatically forward th
 
 Currently scoped to a single level: grandchild events route back to the outermost matching parent.
 
+## Collapsible `<ToolCallBlock>`
+
+`<ToolCallBlock>` itself is a `<details>`: the header (status icon + tool name) is the click target, and the body — sub-output, nested events, args, result — collapses behind it. Control the open state with `defaultOpen?: boolean | 'streaming'`:
+
+- `'streaming'` (default): open while `entry.isStreaming`, collapses on completion.
+- `true`: always open.
+- `false`: always collapsed.
+
+```tsx
+<ToolCallBlock entry={entry} defaultOpen={false} />
+```
+
 ## Mention Pipeline (`@`-mentions)
 
 Opt-in: when `mentions` is omitted, `<ChatInput>` renders an unchanged plain textarea.

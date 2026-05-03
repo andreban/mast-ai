@@ -94,7 +94,7 @@ describe('<ToolCallBlock>', () => {
 
     it('exposes the result in a collapsible <details> as formatted JSON', async () => {
       const user = userEvent.setup();
-      render(<ToolCallBlock entry={completed} />);
+      render(<ToolCallBlock entry={completed} defaultOpen />);
 
       const summary = screen.getByText('Result');
       const details = summary.closest('details');
@@ -145,7 +145,7 @@ describe('<ToolCallBlock>', () => {
         result: 'sunny',
         isStreaming: false,
       };
-      render(<ToolCallBlock entry={completed} />);
+      render(<ToolCallBlock entry={completed} defaultOpen />);
 
       const argsSummary = screen.getByText('Arguments');
       await user.click(argsSummary);
@@ -262,6 +262,69 @@ describe('<ToolCallBlock>', () => {
       const { container } = render(<ToolCallBlock entry={completed} />);
       const root = container.querySelector('[data-mast-tool-call-block]');
       expect(root!.getAttribute('data-streaming')).toBeNull();
+    });
+  });
+
+  describe('collapsible body', () => {
+    const completed: ToolEventEntry = {
+      type: 'tool_call_completed',
+      name: 'demo_tool',
+      args: { foo: 'bar' },
+      result: 'ok',
+      isStreaming: false,
+    };
+
+    it('renders the root as a <details> with the header inside a <summary>', () => {
+      const { container } = render(<ToolCallBlock entry={makeEntry()} />);
+      const root = container.querySelector('[data-mast-tool-call-block]');
+      expect(root).not.toBeNull();
+      expect(root!.tagName).toBe('DETAILS');
+      const header = root!.querySelector('.mast-tool-call-block-header');
+      expect(header).not.toBeNull();
+      expect(header!.tagName).toBe('SUMMARY');
+    });
+
+    it('auto-expands the body while streaming (default defaultOpen="streaming")', () => {
+      const { container } = render(<ToolCallBlock entry={makeEntry()} />);
+      const root = container.querySelector('[data-mast-tool-call-block]') as HTMLDetailsElement;
+      expect(root.open).toBe(true);
+    });
+
+    it('collapses the body when streaming completes (default defaultOpen="streaming")', () => {
+      const { container } = render(<ToolCallBlock entry={completed} />);
+      const root = container.querySelector('[data-mast-tool-call-block]') as HTMLDetailsElement;
+      expect(root.open).toBe(false);
+    });
+
+    it('keeps the body open when defaultOpen is true, even after completion', () => {
+      const { container } = render(<ToolCallBlock entry={completed} defaultOpen />);
+      const root = container.querySelector('[data-mast-tool-call-block]') as HTMLDetailsElement;
+      expect(root.open).toBe(true);
+    });
+
+    it('keeps the body collapsed when defaultOpen is false, even while streaming', () => {
+      const { container } = render(<ToolCallBlock entry={makeEntry()} defaultOpen={false} />);
+      const root = container.querySelector('[data-mast-tool-call-block]') as HTMLDetailsElement;
+      expect(root.open).toBe(false);
+    });
+
+    it('toggles open when the user clicks the header', async () => {
+      const user = userEvent.setup();
+      const { container } = render(<ToolCallBlock entry={completed} />);
+      const root = container.querySelector('[data-mast-tool-call-block]') as HTMLDetailsElement;
+      expect(root.open).toBe(false);
+
+      const header = root.querySelector('.mast-tool-call-block-header') as HTMLElement;
+      await user.click(header);
+      expect(root.open).toBe(true);
+    });
+
+    it('wraps body content in a .mast-tool-call-block-body container', () => {
+      const { container } = render(<ToolCallBlock entry={completed} defaultOpen />);
+      const body = container.querySelector('.mast-tool-call-block-body');
+      expect(body).not.toBeNull();
+      expect(body!.querySelector('.mast-tool-call-block-args')).not.toBeNull();
+      expect(body!.querySelector('.mast-tool-call-block-result')).not.toBeNull();
     });
   });
 });
