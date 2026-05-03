@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect, vi } from 'vitest';
-import { createAgentTool } from './agentTool';
-import { AgentRunner } from './runner';
-import { AgentError } from './error';
-import type { LlmAdapter, AdapterRequest, AdapterStreamChunk } from './adapter/index';
-import type { AgentConfig, AgentEvent } from './types';
-import type { ToolContext } from './tool';
+import { createAgentTool } from './agentTool.js';
+import { AgentRunner } from './runner.js';
+import { AgentError } from './error.js';
+import type { LlmAdapter, AdapterRequest, AdapterStreamChunk } from './adapter/index.js';
+import type { AgentConfig, AgentEvent } from './types.js';
+import type { ToolContext } from './tool.js';
 
 function streamingAdapter(chunks: AdapterStreamChunk[]): LlmAdapter {
   return {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Tool, ToolContext, ToolDefinition, ToolProvider } from '@mast-ai/core';
-import type { ToolCallStatus, ToolEventEntry } from './types';
+import type { ToolCallStatus, ToolEventEntry } from './types.js';
 
 /**
  * Sentinel value returned from {@link OnApprovalRequired} to defer the

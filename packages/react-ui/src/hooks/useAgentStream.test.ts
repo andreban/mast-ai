@@ -4,7 +4,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import type { AgentEvent, Conversation } from '@mast-ai/core';
-import { useAgentStream } from './useAgentStream';
+import { useAgentStream } from './useAgentStream.js';
 
 // ---------------------------------------------------------------------------
 // Mock helpers

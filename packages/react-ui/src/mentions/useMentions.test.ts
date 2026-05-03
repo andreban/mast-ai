@@ -5,8 +5,8 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { StrictMode, type KeyboardEvent } from 'react';
 
-import { useMentions } from './useMentions';
-import type { MentionItem } from './types';
+import { useMentions } from './useMentions.js';
+import type { MentionItem } from './types.js';
 
 interface DocPayload {
   path: string;

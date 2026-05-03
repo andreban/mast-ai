@@ -3,7 +3,7 @@
 
 import type { ReactNode } from 'react';
 
-import type { MentionItem } from './types';
+import type { MentionItem } from './types.js';
 
 /**
  * Props accepted by {@link MentionPicker}. Exported for consumers building
@@ -27,7 +27,7 @@ export interface MentionPickerProps<T = unknown> {
 }
 
 /**
- * Floating popover rendered above {@link import('../components/ChatInput').ChatInput}
+ * Floating popover rendered above {@link import('../components/ChatInput.js').ChatInput}
  * when an in-progress mention has at least one filtered item.
  *
  * Uses `role="listbox"` with `role="option"` rows so screen readers announce

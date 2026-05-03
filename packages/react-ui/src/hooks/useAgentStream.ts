@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Conversation, Message } from '@mast-ai/core';
 import type { AgentEvent } from '@mast-ai/core';
-import type { ConversationEntry, ToolCallStatus, ToolEventEntry } from '../types';
+import type { ConversationEntry, ToolCallStatus, ToolEventEntry } from '../types.js';
 
 // ---------------------------------------------------------------------------
 // Private helpers

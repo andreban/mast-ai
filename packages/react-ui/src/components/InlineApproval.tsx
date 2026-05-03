@@ -1,8 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useIcons } from '../icons';
-import type { ToolEventEntry } from '../types';
+import { useIcons } from '../icons.js';
+import type { ToolEventEntry } from '../types.js';
 
 /**
  * Props passed to a custom `renderApproval` slot and accepted by the

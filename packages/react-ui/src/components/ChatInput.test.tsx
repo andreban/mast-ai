@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { AgentConfig, AgentEvent, AgentRunner, Conversation } from '@mast-ai/core';
 
-import { AgentProvider } from '../context';
-import { ChatInput } from './ChatInput';
+import { AgentProvider } from '../context.js';
+import { ChatInput } from './ChatInput.js';
 
 // ---------------------------------------------------------------------------
 // Mock helpers

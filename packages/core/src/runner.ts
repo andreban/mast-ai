@@ -1,11 +1,11 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AgentConfig, AgentEvent, AgentResult, Message, ToolCall } from './types';
-import type { LlmAdapter, AdapterRequest } from './adapter/index';
-import { type ToolProvider, ToolRegistry } from './tool';
-import { AgentError } from './error';
-import { Conversation } from './conversation';
+import type { AgentConfig, AgentEvent, AgentResult, Message, ToolCall } from './types.js';
+import type { LlmAdapter, AdapterRequest } from './adapter/index.js';
+import { type ToolProvider, ToolRegistry } from './tool.js';
+import { AgentError } from './error.js';
+import { Conversation } from './conversation.js';
 
 type StreamExecutor = (
   input: string,

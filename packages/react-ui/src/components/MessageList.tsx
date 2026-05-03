@@ -5,10 +5,10 @@ import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
-import { useAgent } from '../context';
-import type { PendingApproval } from '../approval';
-import type { ToolEventEntry } from '../types';
-import { MessageItem } from './MessageItem';
+import { useAgent } from '../context.js';
+import type { PendingApproval } from '../approval.js';
+import type { ToolEventEntry } from '../types.js';
+import { MessageItem } from './MessageItem.js';
 
 /**
  * Props accepted by {@link MessageList}.

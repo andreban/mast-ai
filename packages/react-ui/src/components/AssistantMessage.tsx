@@ -4,12 +4,12 @@
 import { Fragment, Suspense, lazy } from 'react';
 import type { ReactNode } from 'react';
 
-import { useAgent } from '../context';
-import type { PendingApproval } from '../approval';
-import type { ConversationEntry, ToolEventEntry } from '../types';
-import { InlineApproval } from './InlineApproval';
-import { ThinkingBlock } from './ThinkingBlock';
-import { ToolCallBlock } from './ToolCallBlock';
+import { useAgent } from '../context.js';
+import type { PendingApproval } from '../approval.js';
+import type { ConversationEntry, ToolEventEntry } from '../types.js';
+import { InlineApproval } from './InlineApproval.js';
+import { ThinkingBlock } from './ThinkingBlock.js';
+import { ToolCallBlock } from './ToolCallBlock.js';
 
 /**
  * Props accepted by {@link AssistantMessage}.

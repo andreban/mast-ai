@@ -1,9 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { LlmAdapter, AdapterRequest, AdapterResponse, AdapterStreamChunk } from './index';
-import type { Message } from '../types';
-import type { ToolDefinition } from '../tool';
+import type { LlmAdapter, AdapterRequest, AdapterResponse, AdapterStreamChunk } from './index.js';
+import type { Message } from '../types.js';
+import type { ToolDefinition } from '../tool.js';
 
 /** Wire format for a request sent over the Universal Runtime Protocol (URP). */
 export interface UrpRequest {

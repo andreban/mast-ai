@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { AgentConfig, AgentEvent, AgentRunner, Conversation } from '@mast-ai/core';
 
-import { AgentProvider, useAgent } from '../context';
-import { ChatInput } from './ChatInput';
-import type { MentionItem, MentionsConfig } from '../mentions/types';
+import { AgentProvider, useAgent } from '../context.js';
+import { ChatInput } from './ChatInput.js';
+import type { MentionItem, MentionsConfig } from '../mentions/types.js';
 
 /** Inline spy that surfaces user-bubble text to the DOM for assertions. */
 function MessagesSpy() {

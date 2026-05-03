@@ -5,8 +5,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { ToolEventEntry } from '../types';
-import { ToolCallBlock } from './ToolCallBlock';
+import type { ToolEventEntry } from '../types.js';
+import { ToolCallBlock } from './ToolCallBlock.js';
 
 function makeEntry(overrides: Partial<ToolEventEntry> = {}): ToolEventEntry {
   return {

@@ -1,8 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Message, ToolCall } from '../types';
-import type { ToolDefinition } from '../tool';
+import type { Message, ToolCall } from '../types.js';
+import type { ToolDefinition } from '../tool.js';
 
 /** Provider-specific model configuration options forwarded verbatim to the adapter. */
 export interface ModelConfig {

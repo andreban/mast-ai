@@ -1,9 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useIcons } from '../icons';
-import type { ToolEventEntry } from '../types';
-import { ThinkingBlock } from './ThinkingBlock';
+import { useIcons } from '../icons.js';
+import type { ToolEventEntry } from '../types.js';
+import { ThinkingBlock } from './ThinkingBlock.js';
 
 /**
  * Props accepted by {@link ToolCallBlock}.
