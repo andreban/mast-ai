@@ -14,6 +14,7 @@ import {
   useAgent,
   type ConversationEntry,
   type IconMap,
+  type MentionsConfig,
   type OnApprovalRequired,
   type PendingApproval,
   type ToolEventEntry,
@@ -34,7 +35,10 @@ import {
   GetCurrentTimeTool,
   GetPageTitleTool,
   ParseIntegerTool,
+  ReadDocTool,
   SetPageTitleTool,
+  demoDocs,
+  type DemoDoc,
 } from './tools';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -47,7 +51,8 @@ const registry = new ToolRegistry()
   .register(new GetPageTitleTool())
   .register(new SetPageTitleTool())
   .register(new CopyToClipboardTool())
-  .register(new ParseIntegerTool());
+  .register(new ParseIntegerTool())
+  .register(new ReadDocTool());
 const runner = new AgentRunner(new GoogleGenAIAdapter(apiKey ?? ''), registry);
 
 const agentConfig = createAgent({
@@ -58,13 +63,17 @@ const agentConfig = createAgent({
     'Use the get_page_title tool when the user asks for the page title. ' +
     'Use the set_page_title tool when the user asks to change or set the page title. ' +
     'Use the copy_to_clipboard tool when the user asks to copy something to the clipboard. ' +
-    'Use the parse_integer tool when the user asks to parse a string as an integer.',
+    'Use the parse_integer tool when the user asks to parse a string as an integer. ' +
+    'When a user message starts with "The user has referenced the following documents:", ' +
+    'call the read_doc tool with each listed id to fetch its contents before answering. ' +
+    'Do not assume document contents from the title alone.',
   tools: [
     'get_current_time',
     'get_page_title',
     'set_page_title',
     'copy_to_clipboard',
     'parse_integer',
+    'read_doc',
   ],
 });
 
@@ -77,6 +86,27 @@ const icons: IconMap = {
   loader: <LoaderCircle size={16} className="mast-spin" />,
   send: <Send size={16} />,
   stop: <Square size={16} />,
+};
+
+// ---------------------------------------------------------------------------
+// Mention pipeline demo
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds an augmented prompt that lists referenced documents by id and
+ * title only, leaving the bodies for the agent to fetch on demand via the
+ * `read_doc` tool. This shrinks the per-turn prompt and exercises the
+ * displayText/prompt split: the user bubble shows `@Roadmap` while the
+ * LLM sees the id-only preamble.
+ */
+const mentionsConfig: MentionsConfig<DemoDoc> = {
+  items: demoDocs,
+  buildPrompt: (segments, trailing) => {
+    const inline = segments.map((s) => `${s.text}@${s.item.label}`).join('') + trailing;
+    if (segments.length === 0) return inline;
+    const refs = segments.map((s) => `- "${s.item.label}" (id: ${s.item.id})`).join('\n');
+    return `The user has referenced the following documents:\n${refs}\n\n${inline}`;
+  },
 };
 
 type ThemeChoice = 'system' | 'light' | 'dark';
@@ -400,7 +430,12 @@ export default function App() {
             <div className="demo-main-header">
               <PendingApprovalsBadge />
             </div>
-            <ConversationPanel theme={panelTheme} renderToolCall={renderToolCall} />
+            <ConversationPanel
+              theme={panelTheme}
+              renderToolCall={renderToolCall}
+              mentions={mentionsConfig as MentionsConfig}
+              inputPlaceholder="Type @ to reference a doc, then press Enter."
+            />
           </AgentProvider>
         </main>
       </div>

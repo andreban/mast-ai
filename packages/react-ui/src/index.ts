@@ -26,3 +26,11 @@ export { MessageList } from './components/MessageList';
 export type { MessageListProps } from './components/MessageList';
 export { ConversationPanel } from './components/ConversationPanel';
 export type { ConversationPanelProps } from './components/ConversationPanel';
+export { useMentions } from './mentions/useMentions';
+export type { UseMentionsReturn } from './mentions/useMentions';
+export {
+  buildInlineMentionPrompt,
+  extractMentionQuery,
+  removeMentionTrigger,
+} from './mentions/utils';
+export type { MentionItem, MentionSegment, MentionsConfig } from './mentions/types';

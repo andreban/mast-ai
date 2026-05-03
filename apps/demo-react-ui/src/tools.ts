@@ -2,6 +2,92 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Tool, ToolContext } from '@mast-ai/core';
+import type { MentionItem } from '@mast-ai/react-ui';
+
+/** Payload attached to each `@`-mentionable doc in the demo. */
+export interface DemoDoc {
+  path: string;
+  body: string;
+}
+
+/**
+ * In-memory document set powering both the `@`-mention picker and the
+ * `read_doc` tool. The picker only sends document IDs to the LLM via
+ * `mentionsConfig.buildPrompt`; the agent fetches the body lazily by
+ * calling `read_doc(id)`. Keeping the source of truth here means the tool
+ * lookup and the picker can never go out of sync.
+ */
+export const demoDocs: MentionItem<DemoDoc>[] = [
+  {
+    id: 'doc-roadmap',
+    label: 'Roadmap',
+    description: 'Q2 product roadmap',
+    data: {
+      path: 'docs/roadmap.md',
+      body: 'Q2 focus: stabilise the React UI surface and ship a packaged demo.',
+    },
+  },
+  {
+    id: 'doc-style-guide',
+    label: 'Style Guide',
+    description: 'Writing and code style',
+    data: {
+      path: 'docs/style.md',
+      body: 'Prefer short sentences. Avoid em dashes; prefer commas, colons, or parentheses.',
+    },
+  },
+  {
+    id: 'doc-meeting-notes',
+    label: 'Meeting Notes',
+    description: 'Last week with the design team',
+    data: {
+      path: 'docs/meetings/2026-04-29.md',
+      body: 'Decisions: ship the mention picker behind an opt-in flag; revisit theming next sprint.',
+    },
+  },
+];
+
+interface ReadDocArgs {
+  id: string;
+}
+
+/**
+ * Looks up a doc body by id from {@link demoDocs}. Used by the agent to
+ * resolve `@`-mentioned references on demand instead of receiving every
+ * doc body inlined into the prompt — the realistic pattern for non-trivial
+ * documents.
+ */
+export class ReadDocTool implements Tool<ReadDocArgs, string> {
+  definition() {
+    return {
+      name: 'read_doc',
+      description:
+        'Returns the contents of a referenced document by its id. Use the ids from any "The user has referenced..." preamble in the user message.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'The document id, e.g. "doc-roadmap".',
+          },
+        },
+        required: ['id'],
+      },
+      scope: 'read' as const,
+    };
+  }
+
+  async call(args: ReadDocArgs, _context: ToolContext): Promise<string> {
+    const doc = demoDocs.find((d) => d.id === args.id);
+    if (!doc) throw new Error(`No document with id '${args.id}'.`);
+    return JSON.stringify({
+      id: doc.id,
+      title: doc.label,
+      path: doc.data?.path,
+      body: doc.data?.body,
+    });
+  }
+}
 
 /** Returns the current time as an ISO 8601 string. */
 export class GetCurrentTimeTool implements Tool {
