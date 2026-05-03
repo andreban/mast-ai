@@ -6,9 +6,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReactNode } from 'react';
 import type { AgentConfig, AgentEvent, AgentRunner, Conversation, Message } from '@mast-ai/core';
 
-import { AgentProvider, useAgent } from './context';
-import { defaultIcons, useIcons } from './icons';
-import type { ConversationEntry, IconMap } from './types';
+import { AgentProvider, useAgent } from './context.js';
+import { defaultIcons, useIcons } from './icons.js';
+import type { ConversationEntry, IconMap } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Mock helpers

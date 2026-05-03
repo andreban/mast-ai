@@ -6,15 +6,15 @@ import type { ReactNode } from 'react';
 import { AgentRunner } from '@mast-ai/core';
 import type { AgentConfig, Conversation, Message } from '@mast-ai/core';
 
-import { useAgentStream } from './hooks/useAgentStream';
-import { IconProvider } from './icons';
+import { useAgentStream } from './hooks/useAgentStream.js';
+import { IconProvider } from './icons.js';
 import {
   withApprovalProxy,
   type ApprovalProxyHooks,
   type OnApprovalRequired,
   type PendingApproval,
-} from './approval';
-import type { ConversationEntry, IconMap, ToolCallStatus } from './types';
+} from './approval.js';
+import type { ConversationEntry, IconMap, ToolCallStatus } from './types.js';
 
 /**
  * Props accepted by {@link AgentProvider}.
@@ -38,7 +38,7 @@ export interface AgentProviderProps {
    * evaluates to `true`. Resolve with `true` to proceed, `false` to cancel
    * (the runner receives a synthetic "user cancelled" result), a string to
    * short-circuit execution with that string as the tool result, or
-   * {@link import('./approval').INLINE_APPROVAL} to defer to the inline
+   * {@link import('./approval.js').INLINE_APPROVAL} to defer to the inline
    * approval queue exposed via `useAgent().pendingApprovals`.
    *
    * Not called when no tool requires approval, and not called when the prop

@@ -4,11 +4,11 @@
 import { Fragment, useId, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 
-import { useAgent } from '../context';
-import { useIcons } from '../icons';
-import { MentionPicker } from '../mentions/MentionPicker';
-import { useMentions } from '../mentions/useMentions';
-import type { MentionsConfig } from '../mentions/types';
+import { useAgent } from '../context.js';
+import { useIcons } from '../icons.js';
+import { MentionPicker } from '../mentions/MentionPicker.js';
+import { useMentions } from '../mentions/useMentions.js';
+import type { MentionsConfig } from '../mentions/types.js';
 
 /**
  * Props accepted by {@link ChatInput}.

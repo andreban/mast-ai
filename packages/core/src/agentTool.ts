@@ -1,10 +1,10 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AgentConfig } from './types';
-import type { AgentRunner } from './runner';
-import type { Tool, ToolContext, ToolDefinition } from './tool';
-import { AgentError } from './error';
+import type { AgentConfig } from './types.js';
+import type { AgentRunner } from './runner.js';
+import type { Tool, ToolContext, ToolDefinition } from './tool.js';
+import { AgentError } from './error.js';
 
 /** Configuration for {@link createAgentTool}. */
 export interface AgentToolOptions {

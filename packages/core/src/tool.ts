@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AgentEvent } from './types';
+import type { AgentEvent } from './types.js';
 
 /** Static description of a tool that is sent to the model so it can decide when to call it. */
 export interface ToolDefinition {

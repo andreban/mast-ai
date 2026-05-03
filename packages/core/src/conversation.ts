@@ -1,8 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AgentConfig, AgentEvent, AgentResult, Message } from './types';
-import type { AgentRunner } from './runner';
+import type { AgentConfig, AgentEvent, AgentResult, Message } from './types.js';
+import type { AgentRunner } from './runner.js';
 
 /**
  * Stateful wrapper around {@link AgentRunner} that automatically accumulates

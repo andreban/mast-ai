@@ -4,15 +4,15 @@
 /** Current version of the `@mast-ai/core` package. */
 export const VERSION = '0.1.0';
 
-export * from './types';
-export * from './error';
-export * from './tool';
-export * from './agent';
-export * from './agentTool';
-export * from './runner';
-export * from './conversation';
+export * from './types.js';
+export * from './error.js';
+export * from './tool.js';
+export * from './agent.js';
+export * from './agentTool.js';
+export * from './runner.js';
+export * from './conversation.js';
 
-export * from './adapter/index';
-export * from './adapter/urp';
+export * from './adapter/index.js';
+export * from './adapter/urp.js';
 
-export * from './transport/http';
+export * from './transport/http.js';

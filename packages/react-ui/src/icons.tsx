@@ -4,7 +4,7 @@
 import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 
-import type { IconMap } from './types';
+import type { IconMap } from './types.js';
 
 /**
  * Shared SVG attributes for the bundled defaults. Each icon is a 16x16

@@ -16,8 +16,8 @@ import {
   type ToolDefinition,
 } from '@mast-ai/core';
 
-import { AgentProvider, useAgent } from './context';
-import { INLINE_APPROVAL, type OnApprovalRequired } from './approval';
+import { AgentProvider, useAgent } from './context.js';
+import { INLINE_APPROVAL, type OnApprovalRequired } from './approval.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

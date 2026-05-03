@@ -1,8 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AgentConfig } from './types';
-import { AgentError } from './error';
+import type { AgentConfig } from './types.js';
+import { AgentError } from './error.js';
 
 /**
  * Validates and returns an {@link AgentConfig}.

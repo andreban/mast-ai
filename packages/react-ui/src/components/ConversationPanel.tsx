@@ -3,11 +3,11 @@
 
 import type { ReactNode } from 'react';
 
-import type { PendingApproval } from '../approval';
-import type { MentionsConfig } from '../mentions/types';
-import type { ToolEventEntry } from '../types';
-import { ChatInput } from './ChatInput';
-import { MessageList } from './MessageList';
+import type { PendingApproval } from '../approval.js';
+import type { MentionsConfig } from '../mentions/types.js';
+import type { ToolEventEntry } from '../types.js';
+import { ChatInput } from './ChatInput.js';
+import { MessageList } from './MessageList.js';
 
 /**
  * Props accepted by {@link ConversationPanel}.

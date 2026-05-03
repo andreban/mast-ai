@@ -3,8 +3,8 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { buildInlineMentionPrompt, extractMentionQuery, removeMentionTrigger } from './utils';
-import type { MentionSegment } from './types';
+import { buildInlineMentionPrompt, extractMentionQuery, removeMentionTrigger } from './utils.js';
+import type { MentionSegment } from './types.js';
 
 describe('extractMentionQuery', () => {
   it('returns the query when the input ends with `@<chars>`', () => {

@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { AgentConfig, AgentEvent, AgentRunner, Conversation } from '@mast-ai/core';
 
-import { AgentProvider, useAgent } from '../context';
-import { MessageList } from './MessageList';
+import { AgentProvider, useAgent } from '../context.js';
+import { MessageList } from './MessageList.js';
 
 // ---------------------------------------------------------------------------
 // jsdom shims for @tanstack/react-virtual

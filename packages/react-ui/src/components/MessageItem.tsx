@@ -3,10 +3,10 @@
 
 import type { ReactNode } from 'react';
 
-import type { PendingApproval } from '../approval';
-import type { ConversationEntry, ToolEventEntry } from '../types';
-import { AssistantMessage } from './AssistantMessage';
-import { UserMessage } from './UserMessage';
+import type { PendingApproval } from '../approval.js';
+import type { ConversationEntry, ToolEventEntry } from '../types.js';
+import { AssistantMessage } from './AssistantMessage.js';
+import { UserMessage } from './UserMessage.js';
 
 /**
  * Props accepted by {@link MessageItem}.

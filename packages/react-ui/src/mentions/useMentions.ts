@@ -4,8 +4,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 
-import type { MentionItem, MentionSegment, MentionsConfig } from './types';
-import { buildInlineMentionPrompt, extractMentionQuery, removeMentionTrigger } from './utils';
+import type { MentionItem, MentionSegment, MentionsConfig } from './types.js';
+import { buildInlineMentionPrompt, extractMentionQuery, removeMentionTrigger } from './utils.js';
 
 /**
  * Return shape of {@link useMentions}.

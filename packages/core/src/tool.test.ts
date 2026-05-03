@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect, vi } from 'vitest';
-import { ToolRegistry, ToolRegistryView, type ToolProvider } from './tool';
-import type { Tool, ToolDefinition } from './tool';
+import { ToolRegistry, ToolRegistryView, type ToolProvider } from './tool.js';
+import type { Tool, ToolDefinition } from './tool.js';
 
 function makeTool(name: string, scope: 'read' | 'write'): Tool {
   return {
