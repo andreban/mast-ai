@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
 import type { Message } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
@@ -42,20 +42,23 @@ import {
   type DemoDoc,
 } from './tools';
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-if (!apiKey) {
-  console.warn('VITE_GEMINI_API_KEY is not set. Copy .env.example to .env and set your key.');
+/**
+ * Builds a fresh `AgentRunner` for the given API key. The key is held by the
+ * app in `localStorage` rather than baked in via a Vite env var, so the
+ * built bundle can be deployed publicly without leaking credentials.
+ */
+function createRunner(apiKey: string): AgentRunner {
+  const registry = new ToolRegistry()
+    .register(new GetCurrentTimeTool())
+    .register(new GetPageTitleTool())
+    .register(new SetPageTitleTool())
+    .register(new CopyToClipboardTool())
+    .register(new ParseIntegerTool())
+    .register(new ReadDocTool());
+  const next = new AgentRunner(new GoogleGenAIAdapter(apiKey), registry);
+  registry.register(createSummarizeDocumentsTool(next));
+  return next;
 }
-
-const registry = new ToolRegistry()
-  .register(new GetCurrentTimeTool())
-  .register(new GetPageTitleTool())
-  .register(new SetPageTitleTool())
-  .register(new CopyToClipboardTool())
-  .register(new ParseIntegerTool())
-  .register(new ReadDocTool());
-const runner = new AgentRunner(new GoogleGenAIAdapter(apiKey ?? ''), registry);
-registry.register(createSummarizeDocumentsTool(runner));
 
 const agentConfig = createAgent({
   name: 'DemoAssistant',
@@ -129,6 +132,94 @@ const THEME_LABEL: Record<ThemeChoice, string> = {
   light: 'Theme: Light',
   dark: 'Theme: Dark',
 };
+
+// ---------------------------------------------------------------------------
+// API key (browser-side only, kept in localStorage)
+// ---------------------------------------------------------------------------
+
+const API_KEY_STORAGE = 'demo-react-ui:api-key';
+
+function loadApiKey(): string | null {
+  try {
+    return localStorage.getItem(API_KEY_STORAGE);
+  } catch {
+    return null;
+  }
+}
+
+function saveApiKey(key: string) {
+  try {
+    localStorage.setItem(API_KEY_STORAGE, key);
+  } catch (err) {
+    console.warn('Failed to persist API key to localStorage', err);
+  }
+}
+
+function clearApiKey() {
+  try {
+    localStorage.removeItem(API_KEY_STORAGE);
+  } catch (err) {
+    console.warn('Failed to clear API key from localStorage', err);
+  }
+}
+
+interface ApiKeySetupProps {
+  onSubmit: (key: string) => void;
+}
+
+function ApiKeySetup({ onSubmit }: ApiKeySetupProps) {
+  const [value, setValue] = useState('');
+  const trimmed = value.trim();
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (trimmed) onSubmit(trimmed);
+  };
+
+  return (
+    <div className="demo-shell">
+      <header className="demo-header">
+        <h1>MAST React UI Demo</h1>
+      </header>
+      <div className="demo-api-key-setup">
+        <form className="demo-api-key-card" onSubmit={handleSubmit}>
+          <h2 className="demo-api-key-title">Enter your Gemini API key</h2>
+          <p>
+            The demo runs entirely in your browser. Your key is saved to this device's{' '}
+            <code>localStorage</code> and is sent only to Google's API, never to any other
+            server.
+          </p>
+          <p>
+            Get a free key at{' '}
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              aistudio.google.com/app/apikey
+            </a>
+            .
+          </p>
+          <label className="demo-api-key-label">
+            <span>API key</span>
+            <input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="AIzaSy..."
+              autoFocus
+            />
+          </label>
+          <button type="submit" className="demo-header-button" disabled={!trimmed}>
+            Save and continue
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Conversation persistence
@@ -235,12 +326,41 @@ function SetPageTitleApproval({
 }
 
 /**
+ * Wraps `<ToolCallBlock>` in a `<details>` so the bubble starts collapsed and
+ * only shows tool name + status until the user clicks to expand. The inner
+ * `<ToolCallBlock>` header is hidden via CSS to avoid showing the name twice.
+ */
+function CollapsibleToolCall({ entry }: { entry: ToolEventEntry }) {
+  const statusNode = entry.isStreaming ? (
+    <LoaderCircle size={14} className="mast-spin" aria-hidden="true" />
+  ) : entry.status === 'error' || entry.status === 'cancelled' ? (
+    <CircleX size={14} aria-hidden="true" />
+  ) : (
+    <CircleCheck size={14} aria-hidden="true" />
+  );
+  return (
+    <details
+      className="demo-collapsible-tool-call"
+      data-status={entry.status}
+      data-streaming={entry.isStreaming ? 'true' : undefined}
+    >
+      <summary className="demo-collapsible-tool-call-summary">
+        <span className="demo-collapsible-tool-call-status">{statusNode}</span>
+        <Wrench size={14} aria-hidden="true" />
+        <span className="demo-collapsible-tool-call-name">{entry.name}</span>
+      </summary>
+      <ToolCallBlock entry={entry} />
+    </details>
+  );
+}
+
+/**
  * Single render function dispatches across all states:
  *
  * - `set_page_title` awaiting approval → custom card (option a).
  * - any other tool awaiting approval → bundled `<InlineApproval>` (option b).
- * - everything else → bundled `<ToolCallBlock>` with success/error/cancelled
- *   status indicators.
+ * - everything else → `<ToolCallBlock>` wrapped in a collapsible `<details>`
+ *   so the conversation stays scannable.
  */
 const renderToolCall = (entry: ToolEventEntry, approval?: PendingApproval) => {
   if (approval) {
@@ -256,7 +376,7 @@ const renderToolCall = (entry: ToolEventEntry, approval?: PendingApproval) => {
       />
     );
   }
-  return <ToolCallBlock entry={entry} />;
+  return <CollapsibleToolCall entry={entry} />;
 };
 
 /** Header indicator that demonstrates reading `pendingApprovals` via `useAgent`. */
@@ -329,9 +449,68 @@ function ConversationList({ conversations, activeId, onSelect, onDelete }: Conve
   );
 }
 
+/**
+ * Right-hand "How to try it" panel. Static content, kept in the demo so a
+ * fresh visitor knows which example prompts exercise each tool, the mention
+ * picker, the approval flow, and the persistence layer.
+ */
+function InstructionsPanel() {
+  return (
+    <aside className="demo-instructions" aria-labelledby="demo-instructions-title">
+      <h2 id="demo-instructions-title" className="demo-sidebar-title">
+        How to try it
+      </h2>
+      <section className="demo-instructions-section">
+        <h3>Tools</h3>
+        <ul>
+          <li>
+            <strong>“What time is it?”</strong> — runs <code>get_current_time</code> with no
+            approval.
+          </li>
+          <li>
+            <strong>“What is the page title?”</strong> — pauses for an inline approval
+            card.
+          </li>
+          <li>
+            <strong>“Set the page title to <em>Hello</em>.”</strong> — opens a custom
+            Apply / Discard preview.
+          </li>
+          <li>
+            <strong>“Copy <em>foo</em> to the clipboard.”</strong> — pauses for a{' '}
+            <code>window.confirm</code> dialog.
+          </li>
+          <li>
+            <strong>“Parse <em>abc</em> as an integer.”</strong> — surfaces the{' '}
+            <code>error</code> status on the bubble.
+          </li>
+        </ul>
+      </section>
+      <section className="demo-instructions-section">
+        <h3>@-mentions</h3>
+        <p>
+          Type <code>@</code> in the input to pick a demo doc. Try{' '}
+          <em>“Summarise @Roadmap and @Style Guide”</em> to see a sub-agent fan out
+          calls to <code>read_doc</code> nested under <code>summarize_documents</code>.
+        </p>
+      </section>
+      <section className="demo-instructions-section">
+        <h3>UI tips</h3>
+        <ul>
+          <li>Click any tool bubble to expand its arguments and result.</li>
+          <li>Use the theme button to cycle System / Light / Dark.</li>
+          <li>Conversations save to <code>localStorage</code> and reload on refresh.</li>
+          <li>Use “Reset API key” to wipe the saved Gemini key.</li>
+        </ul>
+      </section>
+    </aside>
+  );
+}
+
 export default function App() {
   const [theme, setTheme] = useState<ThemeChoice>('system');
   const panelTheme = theme === 'system' ? undefined : theme;
+
+  const [apiKey, setApiKey] = useState<string | null>(() => loadApiKey());
 
   const [conversations, setConversations] = useState<ConversationMap>(() => loadConversations());
   const [activeId, setActiveId] = useState<string>(() => {
@@ -340,6 +519,19 @@ export default function App() {
   });
 
   const active: StoredConversation | undefined = conversations[activeId];
+
+  const runner = useMemo(() => (apiKey ? createRunner(apiKey) : null), [apiKey]);
+
+  const handleApiKey = useCallback((key: string) => {
+    saveApiKey(key);
+    setApiKey(key);
+  }, []);
+
+  const handleResetApiKey = useCallback(() => {
+    if (!window.confirm('Forget the saved API key? You will need to re-enter it.')) return;
+    clearApiKey();
+    setApiKey(null);
+  }, []);
 
   const handleConversationChange = useCallback(
     (history: Message[], entries: ConversationEntry[]) => {
@@ -389,6 +581,10 @@ export default function App() {
 
   const isUnsavedNew = !active;
 
+  if (!apiKey || !runner) {
+    return <ApiKeySetup onSubmit={handleApiKey} />;
+  }
+
   return (
     <div className="demo-shell">
       <header className="demo-header">
@@ -408,6 +604,9 @@ export default function App() {
             onClick={() => setTheme((current) => NEXT_THEME[current])}
           >
             {THEME_LABEL[theme]}
+          </button>
+          <button type="button" className="demo-header-button" onClick={handleResetApiKey}>
+            Reset API key
           </button>
         </div>
       </header>
@@ -445,6 +644,7 @@ export default function App() {
             />
           </AgentProvider>
         </main>
+        <InstructionsPanel />
       </div>
     </div>
   );
