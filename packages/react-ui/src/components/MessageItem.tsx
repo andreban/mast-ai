@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 
 import type { PendingApproval } from '../approval.js';
 import type { ConversationEntry, ToolEventEntry } from '../types.js';
-import { AssistantMessage } from './AssistantMessage.js';
+import { AssistantMessage, type RenderApproval } from './AssistantMessage.js';
 import { UserMessage } from './UserMessage.js';
 
 /**
@@ -25,6 +25,11 @@ export interface MessageItemProps {
    * Forwarded to {@link AssistantMessage}. Has no effect when `entry.role` is
    * `'user'`.
    */
+  renderApproval?: RenderApproval;
+  /**
+   * Forwarded to {@link AssistantMessage}. Has no effect when `entry.role` is
+   * `'user'`.
+   */
   renderMessage?: (text: string) => ReactNode;
 }
 
@@ -34,7 +39,13 @@ export interface MessageItemProps {
  *
  * Used by {@link MessageList} to render each virtualised row.
  */
-export function MessageItem({ entry, className, renderToolCall, renderMessage }: MessageItemProps) {
+export function MessageItem({
+  entry,
+  className,
+  renderToolCall,
+  renderApproval,
+  renderMessage,
+}: MessageItemProps) {
   if (entry.role === 'user') {
     return <UserMessage entry={entry} className={className} />;
   }
@@ -43,6 +54,7 @@ export function MessageItem({ entry, className, renderToolCall, renderMessage }:
       entry={entry}
       className={className}
       renderToolCall={renderToolCall}
+      renderApproval={renderApproval}
       renderMessage={renderMessage}
     />
   );

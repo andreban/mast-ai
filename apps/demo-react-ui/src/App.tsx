@@ -10,13 +10,13 @@ import {
   ConversationPanel,
   INLINE_APPROVAL,
   InlineApproval,
-  ToolCallBlock,
   useAgent,
   type ConversationEntry,
   type IconMap,
   type MentionsConfig,
   type OnApprovalRequired,
   type PendingApproval,
+  type RenderApproval,
   type ToolEventEntry,
 } from '@mast-ai/react-ui';
 import {
@@ -286,8 +286,10 @@ const onApprovalRequired: OnApprovalRequired = async (toolCall) => {
 
 /**
  * Custom Apply/Discard card for `set_page_title` that previews the proposed
- * title. Demonstrates option (a): full layout control via `renderToolCall`,
- * with `approve()` / `reject()` plumbed through the second arg.
+ * title instead of dumping the raw arg JSON. Wired through the
+ * `renderApproval` slot, which only fires for tool events with a pending
+ * approval handle and leaves the rest of the tool-call rendering to the
+ * default `<ToolCallBlock>`.
  */
 function SetPageTitleApproval({
   entry,
@@ -325,29 +327,23 @@ function SetPageTitleApproval({
 }
 
 /**
- * Single render function dispatches across all states:
- *
- * - `set_page_title` awaiting approval → custom card (option a).
- * - any other tool awaiting approval → bundled `<InlineApproval>` (option b).
- * - everything else → `<ToolCallBlock>` (collapses on completion via its
- *   built-in `defaultOpen='streaming'` behaviour, so the conversation stays
- *   scannable).
+ * Dispatches the inline approval card by tool name. `set_page_title` gets a
+ * bespoke preview; every other approval-required tool falls back to the
+ * bundled `<InlineApproval>`. Non-approval tool events are not handled here
+ * at all — they fall through to the default `<ToolCallBlock>` rendering.
  */
-const renderToolCall = (entry: ToolEventEntry, approval?: PendingApproval) => {
-  if (approval) {
-    if (entry.name === 'set_page_title') {
-      return <SetPageTitleApproval entry={entry} approval={approval} />;
-    }
-    return (
-      <InlineApproval
-        entry={entry}
-        approve={approval.approve}
-        reject={approval.reject}
-        respondWith={approval.respondWith}
-      />
-    );
+const renderApproval: RenderApproval = (entry, approval) => {
+  if (entry.name === 'set_page_title') {
+    return <SetPageTitleApproval entry={entry} approval={approval} />;
   }
-  return <ToolCallBlock entry={entry} />;
+  return (
+    <InlineApproval
+      entry={entry}
+      approve={approval.approve}
+      reject={approval.reject}
+      respondWith={approval.respondWith}
+    />
+  );
 };
 
 /** Header indicator that demonstrates reading `pendingApprovals` via `useAgent`. */
@@ -616,7 +612,7 @@ export default function App() {
             </div>
             <ConversationPanel
               theme={panelTheme}
-              renderToolCall={renderToolCall}
+              renderApproval={renderApproval}
               mentions={mentionsConfig as MentionsConfig}
               inputPlaceholder="Type @ to reference a doc, then press Enter."
             />

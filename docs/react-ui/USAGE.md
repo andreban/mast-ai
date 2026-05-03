@@ -612,6 +612,89 @@ The library handles all promise-resolver plumbing; consumers never call
 `useAgent().pendingApprovals` so app chrome (e.g. a header badge) can show how
 many tools are paused.
 
+#### Customising only the approval card with `renderApproval`
+
+The default `<InlineApproval>` shows the tool name and the raw args JSON. For a
+tool whose args are opaque internal fields (ids, flags), that is a poor prompt:
+`rename_document({ id: '44c2…', title: 'New' })` reads as a UUID and a string
+when what the user wants to see is `Rename "Old" to "New"?`.
+
+The `renderToolCall` callback can intercept this case, but doing so means
+rebuilding the layout, buttons, and styling of every other tool call too. The
+narrower `renderApproval` slot replaces only the approval card and lets the
+default `<ToolCallBlock>` keep rendering everything else:
+
+```tsx
+import { ConversationPanel, InlineApproval, type RenderApproval } from '@mast-ai/react-ui';
+
+const renderApproval: RenderApproval = (entry, approval) => {
+  switch (entry.name) {
+    case 'rename_document': {
+      const args = entry.args as { id: string; title: string };
+      return (
+        <ApprovalCard
+          summary={`Rename document to "${args.title}"?`}
+          onApprove={approval.approve}
+          onReject={approval.reject}
+        />
+      );
+    }
+    case 'delete_document': {
+      const args = entry.args as { id: string; title: string };
+      return (
+        <ApprovalCard
+          summary={`Delete "${args.title}"?`}
+          danger
+          onApprove={approval.approve}
+          onReject={approval.reject}
+        />
+      );
+    }
+    default:
+      // Fall back to the bundled card for tools without bespoke copy.
+      return (
+        <InlineApproval
+          entry={entry}
+          approve={approval.approve}
+          reject={approval.reject}
+          respondWith={approval.respondWith}
+        />
+      );
+  }
+};
+
+function ApprovalCard({
+  summary,
+  danger,
+  onApprove,
+  onReject,
+}: {
+  summary: string;
+  danger?: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className={danger ? 'my-approval danger' : 'my-approval'}>
+      <p>{summary}</p>
+      <button type="button" onClick={onApprove}>
+        Approve
+      </button>
+      <button type="button" onClick={onReject}>
+        Reject
+      </button>
+    </div>
+  );
+}
+
+<ConversationPanel renderApproval={renderApproval} />;
+```
+
+When both `renderApproval` and `renderToolCall` are provided, `renderApproval`
+wins for entries with a pending approval handle and `renderToolCall` continues
+to handle every other tool event. Compose `<InlineApproval>` (or `<ToolCallBlock>`)
+inside either slot as the fallback for tools you have not customised.
+
 ### 10.4 Runtime overrides
 
 `approvalOverride` adjusts the policy without touching tool definitions:

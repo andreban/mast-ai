@@ -1,13 +1,27 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import type { AgentConfig, AgentEvent, AgentRunner, Conversation } from '@mast-ai/core';
+import {
+  AgentRunner,
+  ToolRegistry,
+  type AdapterRequest,
+  type AdapterStreamChunk,
+  type AgentConfig,
+  type AgentEvent,
+  type Conversation,
+  type LlmAdapter,
+  type Tool,
+  type ToolContext,
+  type ToolDefinition,
+} from '@mast-ai/core';
 
 import { AgentProvider, useAgent } from '../context.js';
+import { INLINE_APPROVAL, type PendingApproval } from '../approval.js';
+import type { ToolEventEntry } from '../types.js';
 import { MessageList } from './MessageList.js';
 
 // ---------------------------------------------------------------------------
@@ -204,5 +218,157 @@ describe('<MessageList>', () => {
     await user.click(screen.getByRole('button', { name: 'send run tool' }));
 
     expect(await screen.findByText('tool:demo_tool')).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // renderApproval slot
+  //
+  // Exercises the full forwarding chain (MessageList → MessageItem →
+  // AssistantMessage) plus the approval proxy. The approval flow only fires
+  // through the real `AgentRunner`, so these tests build one with a scripted
+  // `LlmAdapter` rather than the bare-Conversation mock used above.
+  // ---------------------------------------------------------------------------
+
+  function scriptedAdapter(scripts: AdapterStreamChunk[][]): LlmAdapter {
+    let i = 0;
+    return {
+      generate: vi.fn(),
+      generateStream: (_request: AdapterRequest) => {
+        const script = scripts[i++] ?? [];
+        return (async function* () {
+          for (const chunk of script) yield chunk;
+        })();
+      },
+    };
+  }
+
+  const SENSITIVE_DEF: ToolDefinition = {
+    name: 'sensitive',
+    description: 'A sensitive tool that requires approval.',
+    parameters: { type: 'object', properties: {}, required: [] },
+    scope: 'write',
+    requiresApproval: true,
+  };
+
+  class StubTool implements Tool {
+    constructor(
+      private readonly _definition: ToolDefinition,
+      private readonly _result: unknown = 'stub-result',
+    ) {}
+    definition(): ToolDefinition {
+      return this._definition;
+    }
+    async call(_args: unknown, _ctx: ToolContext): Promise<unknown> {
+      return this._result;
+    }
+  }
+
+  function makeApprovalRunner(): AgentRunner {
+    const registry = new ToolRegistry().register(new StubTool(SENSITIVE_DEF));
+    const adapter = scriptedAdapter([
+      [{ type: 'tool_call', toolCall: { id: '1', name: 'sensitive', args: { foo: 'bar' } } }],
+      [{ type: 'text_delta', delta: 'done' }],
+    ]);
+    return new AgentRunner(adapter, registry);
+  }
+
+  it('renders renderApproval for entries with a pending approval handle', async () => {
+    const user = userEvent.setup();
+    const runner = makeApprovalRunner();
+    const renderApproval = vi.fn(
+      (entry: ToolEventEntry, approval: PendingApproval): ReactNode => (
+        <div data-testid="custom-approval">
+          Approve {entry.name} args={JSON.stringify(entry.args)}
+          <button type="button" onClick={approval.approve}>
+            Yes
+          </button>
+        </div>
+      ),
+    );
+
+    render(
+      <AgentProvider
+        runner={runner}
+        agent={agentConfig}
+        onApprovalRequired={async () => INLINE_APPROVAL}
+      >
+        <SendButton text="go" />
+        <MessageList renderApproval={renderApproval} />
+      </AgentProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'send go' }));
+
+    const card = await screen.findByTestId('custom-approval');
+    expect(card.textContent).toContain('Approve sensitive');
+    expect(card.textContent).toContain('{"foo":"bar"}');
+
+    // The bundled InlineApproval must not render alongside the custom slot.
+    expect(document.querySelector('[data-mast-inline-approval]')).toBeNull();
+
+    // The slot received the live PendingApproval handle.
+    const lastCall = renderApproval.mock.calls.at(-1)!;
+    expect(lastCall[0]).toMatchObject({ name: 'sensitive', args: { foo: 'bar' } });
+    expect(lastCall[1]).toMatchObject({
+      toolName: 'sensitive',
+      args: { foo: 'bar' },
+      approve: expect.any(Function),
+      reject: expect.any(Function),
+      respondWith: expect.any(Function),
+    });
+  });
+
+  it('falls back to <InlineApproval> when renderApproval is omitted', async () => {
+    const user = userEvent.setup();
+    const runner = makeApprovalRunner();
+
+    render(
+      <AgentProvider
+        runner={runner}
+        agent={agentConfig}
+        onApprovalRequired={async () => INLINE_APPROVAL}
+      >
+        <SendButton text="go" />
+        <MessageList />
+      </AgentProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'send go' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-mast-inline-approval]')).not.toBeNull();
+    });
+  });
+
+  it('renderApproval takes precedence over renderToolCall for awaiting entries', async () => {
+    const user = userEvent.setup();
+    const runner = makeApprovalRunner();
+    const renderApproval = vi.fn(
+      (_entry: ToolEventEntry, _approval: PendingApproval): ReactNode => (
+        <div data-testid="approval-slot">approval slot</div>
+      ),
+    );
+    const renderToolCall = vi.fn(
+      (entry: ToolEventEntry, _approval?: PendingApproval): ReactNode => (
+        <div data-testid="tool-slot">tool slot {entry.name}</div>
+      ),
+    );
+
+    render(
+      <AgentProvider
+        runner={runner}
+        agent={agentConfig}
+        onApprovalRequired={async () => INLINE_APPROVAL}
+      >
+        <SendButton text="go" />
+        <MessageList renderApproval={renderApproval} renderToolCall={renderToolCall} />
+      </AgentProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'send go' }));
+
+    expect(await screen.findByTestId('approval-slot')).toBeDefined();
+    expect(screen.queryByTestId('tool-slot')).toBeNull();
+    expect(renderApproval).toHaveBeenCalled();
   });
 });

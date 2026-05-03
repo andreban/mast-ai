@@ -17,7 +17,7 @@ export type { ToolCallBlockProps } from './components/ToolCallBlock.js';
 export { UserMessage } from './components/UserMessage.js';
 export type { UserMessageProps } from './components/UserMessage.js';
 export { AssistantMessage } from './components/AssistantMessage.js';
-export type { AssistantMessageProps } from './components/AssistantMessage.js';
+export type { AssistantMessageProps, RenderApproval } from './components/AssistantMessage.js';
 export { ChatInput } from './components/ChatInput.js';
 export type { ChatInputProps } from './components/ChatInput.js';
 export { MessageItem } from './components/MessageItem.js';

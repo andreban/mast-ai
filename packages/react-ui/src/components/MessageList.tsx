@@ -8,6 +8,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAgent } from '../context.js';
 import type { PendingApproval } from '../approval.js';
 import type { ToolEventEntry } from '../types.js';
+import type { RenderApproval } from './AssistantMessage.js';
 import { MessageItem } from './MessageItem.js';
 
 /**
@@ -23,6 +24,13 @@ export interface MessageListProps {
    * decision.
    */
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
+  /**
+   * Forwarded to each {@link MessageItem} so consumers can replace only the
+   * inline approval card without overriding the rest of the tool-call
+   * rendering. Takes precedence over `renderToolCall` for entries with a
+   * pending approval handle when both are provided.
+   */
+  renderApproval?: RenderApproval;
   /**
    * Forwarded to each {@link MessageItem} so consumers can replace the default
    * assistant text renderer for the entire list.
@@ -53,7 +61,12 @@ const DEFAULT_ESTIMATED_ITEM_HEIGHT = 80;
  * Reads `messages` from `useAgent()`, so this component must be rendered
  * inside an `<AgentProvider>`.
  */
-export function MessageList({ className, renderToolCall, renderMessage }: MessageListProps) {
+export function MessageList({
+  className,
+  renderToolCall,
+  renderApproval,
+  renderMessage,
+}: MessageListProps) {
   const { messages } = useAgent();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -101,6 +114,7 @@ export function MessageList({ className, renderToolCall, renderMessage }: Messag
               <MessageItem
                 entry={entry}
                 renderToolCall={renderToolCall}
+                renderApproval={renderApproval}
                 renderMessage={renderMessage}
               />
             </div>
