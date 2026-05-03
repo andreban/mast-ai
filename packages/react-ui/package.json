@@ -12,16 +12,29 @@
     },
     "./styles.css": "./dist/styles.css"
   },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andreban/mast-ai.git",
+    "directory": "packages/react-ui"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
   "scripts": {
-    "build": "vite build && tsc",
-    "prepare": "vite build && tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && vite build && tsc",
+    "prepublishOnly": "npm run build",
     "dev": "vite build --watch",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
     "format": "prettier --write src"
   },
   "peerDependencies": {
-    "@mast-ai/core": "*",
+    "@mast-ai/core": "^0.1.0",
     "@tanstack/react-virtual": ">=3.0.0",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
