@@ -129,6 +129,51 @@ function MyAgentPanel() {
 </AgentProvider>
 ```
 
+### 4.7 Reference workspace items with @ mentions
+
+> As a developer building an editor, file browser, or knowledge tool, I want users to
+> reference workspace items inline by typing `@`. The library handles the picker and
+> the chip rendering; my code supplies the items and decides what context the LLM sees.
+
+```tsx
+<ConversationPanel
+  mentions={{
+    items: workspace.documents.map((d) => ({ id: d.id, label: d.title, data: d })),
+    buildPrompt: (segments, trailing) => {
+      const inline = segments.map((s) => `${s.text}@${s.item.label}`).join('') + trailing;
+      const list = segments.map((s) => `"${s.item.label}" (id: ${s.item.id})`).join(', ');
+      return segments.length === 0
+        ? inline
+        : `The user has referenced the following documents: ${list}.\n\n${inline}`;
+    },
+  }}
+/>
+```
+
+The user bubble shows the inline `@title` form; the LLM receives the augmented prompt.
+The mention pipeline is opt-in: applications that do not pass `mentions` get the
+plain `<ChatInput>` they have today.
+
+### 4.8 Display vs LLM prompt split
+
+> As a developer post-processing user input (e.g. expanding slash commands, redacting
+> PII, translating), I want the user bubble to show what the user typed while the LLM
+> sees the transformed text.
+
+```tsx
+function CommandInput() {
+  const { sendMessage, isRunning } = useAgent();
+  return (
+    <button
+      disabled={isRunning}
+      onClick={() => sendMessage('Summarize the active document.', '/summarize')}
+    >
+      Summarize
+    </button>
+  );
+}
+```
+
 ## 5. Success Criteria
 
 1. A developer can render a working agent chat UI with three lines of JSX and no style
@@ -142,6 +187,8 @@ function MyAgentPanel() {
    overridable CSS custom properties, so consuming apps can restyle without `!important`.
 5. The full component surface (`MessageList`, `MessageItem`, `ThinkingBlock`,
    `ToolCallBlock`, `ChatInput`) is importable individually for compositional use.
+   The mention machinery is reusable as a `useMentions` hook for consumers that
+   prefer to render their own input.
 6. All interactive elements (send button, collapsible blocks) meet WCAG 2.1 AA
    keyboard-navigation and ARIA requirements.
 7. The streaming state machine (`useAgentStream`), approval flow, conversation

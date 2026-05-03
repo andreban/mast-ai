@@ -411,12 +411,24 @@ interface ChatInputProps {
   sendLabel?: React.ReactNode;
   /** Overrides default cancel button content (shown while isRunning) */
   cancelLabel?: React.ReactNode;
+  /**
+   * Opt-in mention picker (see §13). When provided, the textarea is wrapped in
+   * a compound input that renders inline chips for selected items and shows a
+   * keyboard-navigable picker while the user types `@<query>`. On send, the
+   * library calls `sendMessage(prompt, displayText)` so the user bubble shows
+   * the chip form while the LLM receives the augmented prompt.
+   *
+   * Omit to keep the plain textarea behaviour unchanged.
+   */
+  mentions?: MentionsConfig;
 }
 ```
 
 - Pressing Enter (without Shift) submits.
 - While `isRunning`, the send button becomes a cancel button that calls `cancel()`.
 - Auto-grows vertically (using `rows` attribute, not fixed height).
+- When `mentions` is provided the picker handles ArrowUp / ArrowDown / Enter /
+  Escape; Enter only submits the message when the picker is closed.
 
 ---
 
@@ -430,7 +442,12 @@ Access agent state from any component inside `<AgentProvider>`.
 interface UseAgentReturn {
   messages: ConversationEntry[];
   history: Message[]; // raw core Message[] — read this to imperatively save state
-  sendMessage: (text: string) => void;
+  /**
+   * Send a user message and start a new turn. The first argument is the prompt
+   * delivered to the LLM. The optional second argument overrides what is
+   * rendered in the user bubble; when omitted, the prompt is shown.
+   */
+  sendMessage: (text: string, displayText?: string) => void;
   cancel: () => void;
   isRunning: boolean;
   reset: () => void; // clears entries and history; starts a new Conversation
@@ -471,16 +488,16 @@ pass replacements via the `icons` prop on `<AgentProvider>`.
 The following icons ship inside the package as hand-authored SVGs (~50–80 bytes each,
 ~500 bytes total gzipped):
 
-| Key         | Used in                                       | Default appearance       |
-| ----------- | --------------------------------------------- | ------------------------ |
-| `brain`     | `<ThinkingBlock>` header                      | Simple brain outline     |
-| `wrench`    | `<ToolCallBlock>` header (pending)            | Simple wrench outline    |
-| `check`     | `<ToolCallBlock>` header (status: success)    | Checkmark circle         |
-| `error`     | `<ToolCallBlock>` header (status: error)      | Crossed-out circle       |
-| `cancelled` | `<ToolCallBlock>` header (status: cancelled)  | Slashed circle           |
-| `loader`    | Streaming / pending spinner                   | Animated spinning circle |
-| `send`      | `<ChatInput>` send button                     | Filled arrow             |
-| `stop`      | `<ChatInput>` cancel button                   | Filled square            |
+| Key         | Used in                                      | Default appearance       |
+| ----------- | -------------------------------------------- | ------------------------ |
+| `brain`     | `<ThinkingBlock>` header                     | Simple brain outline     |
+| `wrench`    | `<ToolCallBlock>` header (pending)           | Simple wrench outline    |
+| `check`     | `<ToolCallBlock>` header (status: success)   | Checkmark circle         |
+| `error`     | `<ToolCallBlock>` header (status: error)     | Crossed-out circle       |
+| `cancelled` | `<ToolCallBlock>` header (status: cancelled) | Slashed circle           |
+| `loader`    | Streaming / pending spinner                  | Animated spinning circle |
+| `send`      | `<ChatInput>` send button                    | Filled arrow             |
+| `stop`      | `<ChatInput>` cancel button                  | Filled square            |
 
 ### 6.3 `IconMap` type
 
@@ -603,20 +620,20 @@ output, not imported from `index.ts`.
 `useAgentStream` subscribes to the `AgentEvent` stream from `AgentRunner` and
 maintains `ConversationEntry[]` as follows:
 
-| Event                        | Action                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| User sends message           | Append `{ role: 'user', text, isStreaming: false }`                                                    |
-| Run starts                   | Append `{ role: 'assistant', text: '', isStreaming: true }`                                            |
-| `text_delta`                 | Mutate last entry: append `delta` to `text`                                                            |
-| `thinking`                   | Mutate last entry: append `delta` to `thinking`                                                        |
-| `tool_call_started`          | Mutate last entry: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents` |
-| `onToolEvent` → `thinking`   | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                      |
-| `onToolEvent` → `text_delta` | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                          |
-| Approval proxy notifies      | Mutate matching `ToolEventEntry`: set `awaitingApproval` to `true`/`false`                             |
-| Approval proxy cancels       | Mutate matching `ToolEventEntry`: set `status: 'cancelled'` (sticky across `tool_call_completed`)      |
+| Event                        | Action                                                                                                                                   |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| User sends message           | Append `{ role: 'user', text: displayText ?? prompt, isStreaming: false }`; pass `prompt` to `runStream`                                 |
+| Run starts                   | Append `{ role: 'assistant', text: '', isStreaming: true }`                                                                              |
+| `text_delta`                 | Mutate last entry: append `delta` to `text`                                                                                              |
+| `thinking`                   | Mutate last entry: append `delta` to `thinking`                                                                                          |
+| `tool_call_started`          | Mutate last entry: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents`                               |
+| `onToolEvent` → `thinking`   | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                                                        |
+| `onToolEvent` → `text_delta` | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                                                            |
+| Approval proxy notifies      | Mutate matching `ToolEventEntry`: set `awaitingApproval` to `true`/`false`                                                               |
+| Approval proxy cancels       | Mutate matching `ToolEventEntry`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                        |
 | `tool_call_completed`        | Mutate matching `ToolEventEntry`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`) |
-| `done`                       | Mutate last entry: set `text = output`, `isStreaming = false`                                          |
-| Error / cancel               | Mutate last entry: set `isStreaming = false`; optionally append error text                             |
+| `done`                       | Mutate last entry: set `text = output`, `isStreaming = false`                                                                            |
+| Error / cancel               | Mutate last entry: set `isStreaming = false`; optionally append error text                                                               |
 
 `onToolEvent` events are wired by passing an `onToolEvent` handler to `RunBuilder` inside `useAgentStream`. Events are matched to the correct `ToolEventEntry` by `toolName`. The `done` event from a sub-agent is ignored — the parent's `tool_call_completed` is the authoritative signal that a tool finished.
 
@@ -784,19 +801,19 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 
 **Approval flow**
 
-| Scenario                                  | What is verified                                                          |
-| ----------------------------------------- | ------------------------------------------------------------------------- |
-| Tool with `requiresApproval: true`        | `onApprovalRequired` is called before tool executes                       |
-| Callback returns `false`                  | Tool call is cancelled; runner receives synthetic "user cancelled" result |
-| Callback returns a string                 | Injected as the tool result; tool does not execute                        |
-| `approvalOverride` adds a name            | Unlisted tool triggers approval                                           |
-| `approvalOverride` suppresses with `!`    | Tool with `requiresApproval: true` executes without prompting             |
-| No `onApprovalRequired` provided          | Tools with `requiresApproval: true` execute silently                      |
-| `awaitingApproval` flag                   | Set while the callback is pending; cleared on resolve, reject, or throw   |
-| `INLINE_APPROVAL` exposes `PendingApproval` | Handle appears on `useAgent().pendingApprovals` while waiting           |
-| `approve()` / `reject()` / `respondWith()` | Resolve the proxy and remove the handle from the queue                   |
-| `reset()` while pending                   | Rejects in-flight approvals so the run terminates                         |
-| Tool call status                          | `'success'` on normal return; `'error'` when `tool_call_completed.error` is true; `'cancelled'` when the user rejects |
+| Scenario                                    | What is verified                                                                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Tool with `requiresApproval: true`          | `onApprovalRequired` is called before tool executes                                                                   |
+| Callback returns `false`                    | Tool call is cancelled; runner receives synthetic "user cancelled" result                                             |
+| Callback returns a string                   | Injected as the tool result; tool does not execute                                                                    |
+| `approvalOverride` adds a name              | Unlisted tool triggers approval                                                                                       |
+| `approvalOverride` suppresses with `!`      | Tool with `requiresApproval: true` executes without prompting                                                         |
+| No `onApprovalRequired` provided            | Tools with `requiresApproval: true` execute silently                                                                  |
+| `awaitingApproval` flag                     | Set while the callback is pending; cleared on resolve, reject, or throw                                               |
+| `INLINE_APPROVAL` exposes `PendingApproval` | Handle appears on `useAgent().pendingApprovals` while waiting                                                         |
+| `approve()` / `reject()` / `respondWith()`  | Resolve the proxy and remove the handle from the queue                                                                |
+| `reset()` while pending                     | Rejects in-flight approvals so the run terminates                                                                     |
+| Tool call status                            | `'success'` on normal return; `'error'` when `tool_call_completed.error` is true; `'cancelled'` when the user rejects |
 
 **Conversation persistence**
 
@@ -891,12 +908,218 @@ apps/demo-react-ui/
 
 ---
 
-## 13. Post-Implementation Deliverables
+## 13. Mention Pipeline (Optional)
+
+### 13.1 Goal
+
+Let consumers expose a `@`-triggered picker in `<ChatInput>` for referencing
+arbitrary workspace items (documents, files, skills, users, …) without baking
+any of those concepts into the library. Generic over a `MentionItem` shape.
+
+### 13.2 Data types
+
+```typescript
+export interface MentionItem<T = unknown> {
+  /** Stable key. */
+  id: string;
+  /** Shown in the picker row and used as the chip text after `@`. */
+  label: string;
+  /** Optional secondary text rendered alongside `label` in the picker. */
+  description?: string;
+  /** Arbitrary payload accessible to `buildPrompt` and `renderItem`. */
+  data?: T;
+}
+
+export interface MentionSegment<T = unknown> {
+  /** Plain text preceding the chip. */
+  text: string;
+  /** The mentioned item that terminates this segment. */
+  item: MentionItem<T>;
+}
+```
+
+The compound input is modelled as `MentionSegment<T>[]` followed by a
+`trailingInput` string. Selecting an item from the picker converts the
+in-progress `@<query>` into a chip and starts a new trailing-text region.
+
+### 13.3 Configuration
+
+```typescript
+export interface MentionsConfig<T = unknown> {
+  /** Trigger character. Default: '@'. */
+  trigger?: string;
+  /**
+   * Static item list. The picker filters by case-insensitive substring on
+   * `label`. Mutually exclusive with `onSearch`.
+   */
+  items?: MentionItem<T>[];
+  /**
+   * Async/sync search function. Called with the current query string each
+   * time it changes. The latest result wins (stale resolutions are ignored).
+   */
+  onSearch?: (query: string) => MentionItem<T>[] | Promise<MentionItem<T>[]>;
+  /** Render a custom row in the picker. Default: `<div>{item.label}</div>`. */
+  renderItem?: (item: MentionItem<T>, isActive: boolean) => React.ReactNode;
+  /**
+   * Render the chip that replaces the `@<query>` once selected. Default: the
+   * library renders `@<label>` with a remove button.
+   */
+  renderChip?: (item: MentionItem<T>, onRemove: () => void) => React.ReactNode;
+  /**
+   * Build the prompt sent to the LLM from the segment list and trailing text.
+   * Default: returns the inline display form (segments joined as
+   * `<text>@<label>...<trailing>`).
+   *
+   * Apps that want to inject context (document IDs, file paths, …) override
+   * this to prepend or wrap the inline text.
+   */
+  buildPrompt?: (segments: MentionSegment<T>[], trailing: string) => string;
+}
+```
+
+`<ChatInput mentions={...}>` and `<ConversationPanel mentions={...}>` accept
+the config; `<ConversationPanel>` forwards it to its internal `<ChatInput>`.
+
+### 13.4 `useMentions` hook
+
+For consumers building bespoke inputs.
+
+```typescript
+export interface UseMentionsReturn<T = unknown> {
+  /** Committed segments preceding the trailing text. */
+  segments: MentionSegment<T>[];
+  /** Text after the last chip (or the entire field when no chips). */
+  trailingInput: string;
+  /** Current `@<query>` if the cursor is inside an in-progress mention. */
+  mentionQuery: string | null;
+  /** Filtered item list to render in the picker. */
+  filteredItems: MentionItem<T>[];
+  /** Index of the highlighted picker row. */
+  pickerIndex: number;
+
+  /** Wire to the textarea's `value`/`onChange`. */
+  setTrailingInput: (text: string) => void;
+  /** Wire to the textarea's `onKeyDown`. Returns `true` if the event was consumed. */
+  handleKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => boolean;
+  /** Append a chip and reset the in-progress mention. */
+  selectItem: (item: MentionItem<T>) => void;
+  /** Remove a chip by id, re-merging its preceding text into the next region. */
+  removeChip: (id: string) => void;
+  /** Build `{ prompt, displayText }` for `sendMessage`. */
+  buildSubmission: () => { prompt: string; displayText: string };
+  /** Clear all segments and trailing text. */
+  clear: () => void;
+}
+
+export function useMentions<T = unknown>(config: MentionsConfig<T>): UseMentionsReturn<T>;
+```
+
+`handleKeyDown` consumes Up / Down / Enter / Escape only when
+`mentionQuery !== null && filteredItems.length > 0`. Other keys (including
+Enter when the picker is closed) fall through unchanged so the host textarea
+can perform its own submit handling.
+
+### 13.5 Pure utilities
+
+Exported alongside the hook for advanced consumers.
+
+```typescript
+/** Returns the `@<query>` suffix at the end of `input`, or `null`. */
+export function extractMentionQuery(input: string, trigger?: string): string | null;
+/** Strips a trailing `@<query>` from `input`. */
+export function removeMentionTrigger(input: string, trigger?: string): string;
+/** Default prompt builder: `<text>@<label>...<trailing>`. */
+export function buildInlineMentionPrompt<T>(
+  segments: MentionSegment<T>[],
+  trailing: string,
+): string;
+```
+
+### 13.6 Send-time behaviour
+
+`<ChatInput>` with a `mentions` prop calls
+`sendMessage(prompt, displayText)` from `useAgent()`, where:
+
+- `displayText` is `segments.map(s => `${s.text}@${s.item.label}`).join('') + trailing` (always inline; not configurable beyond `renderChip` for the in-input rendering).
+- `prompt` is `mentions.buildPrompt?.(segments, trailing) ?? displayText`.
+
+The user `ConversationEntry.text` is set to `displayText`; the LLM-bound
+input passed to `Conversation.runStream` is `prompt`. When `mentions` is
+omitted, the existing single-argument call is preserved.
+
+### 13.7 Styling
+
+New CSS classes and tokens scoped under `[data-mast-root]`:
+
+| Class                        | Purpose                                            |
+| ---------------------------- | -------------------------------------------------- |
+| `mast-mention-input`         | Compound wrapper containing chips + textarea       |
+| `mast-mention-chip`          | Single chip rendering `@<label>` and remove button |
+| `mast-mention-chip-remove`   | Remove (`x`) button inside a chip                  |
+| `mast-mention-picker`        | Floating picker popover                            |
+| `mast-mention-picker-item`   | A single picker row                                |
+| `mast-mention-picker-active` | Modifier for the keyboard-highlighted row          |
+
+| Token                             | Default (light)               | Default (dark)               |
+| --------------------------------- | ----------------------------- | ---------------------------- |
+| `--mast-mention-chip-bg`          | `#dbeafe`                     | `#1e3a8a`                    |
+| `--mast-mention-chip-fg`          | `#1e3a8a`                     | `#bfdbfe`                    |
+| `--mast-mention-picker-bg`        | `--mast-bg`                   | `--mast-bg`                  |
+| `--mast-mention-picker-active-bg` | `--mast-bg-subtle`            | `--mast-bg-subtle`           |
+| `--mast-mention-picker-shadow`    | `0 4px 12px rgba(0,0,0,0.08)` | `0 4px 12px rgba(0,0,0,0.4)` |
+
+### 13.8 Accessibility
+
+- Picker uses `role="listbox"` with `role="option"` rows; the active row
+  carries `aria-selected="true"`.
+- The textarea owns the `aria-activedescendant` attribute pointing at the
+  active row's id when the picker is open, so screen readers track keyboard
+  navigation.
+- Each chip's remove button has `aria-label` of the form `Remove reference to
+${item.label}`.
+
+### 13.9 Module additions
+
+```
+packages/react-ui/src/
+└── mentions/
+    ├── index.ts            — re-exports
+    ├── types.ts            — MentionItem, MentionSegment, MentionsConfig
+    ├── utils.ts            — extractMentionQuery, removeMentionTrigger, buildInlineMentionPrompt
+    ├── useMentions.ts      — hook
+    └── MentionPicker.tsx   — internal picker popover (used by ChatInput)
+```
+
+Public exports added to `src/index.ts`:
+
+```typescript
+export { useMentions } from './mentions/useMentions';
+export {
+  extractMentionQuery,
+  removeMentionTrigger,
+  buildInlineMentionPrompt,
+} from './mentions/utils';
+export type { MentionItem, MentionSegment, MentionsConfig, UseMentionsReturn } from './mentions';
+```
+
+### 13.10 Testing additions
+
+| Scenario                                    | What is verified                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `extractMentionQuery`                       | Returns query when input ends with `@<chars>`; `null` after a space; respects custom `trigger`   |
+| `useMentions` segment management            | Selecting an item appends a segment with the preceding text; removing a chip re-merges text      |
+| Picker keyboard navigation                  | ArrowDown/ArrowUp wrap; Enter selects the active item; Escape closes the picker                  |
+| Async `onSearch`                            | Stale resolutions are discarded; latest query wins                                               |
+| `<ChatInput mentions>` send                 | Calls `sendMessage(prompt, displayText)` with prompt from `buildPrompt` and inline `displayText` |
+| `useAgent().sendMessage(text, displayText)` | User entry's `text` is `displayText`; `Conversation.runStream` receives the `text` argument      |
+| `mentions` omitted                          | `<ChatInput>` renders unchanged and calls `sendMessage(text)` (single argument)                  |
+
+## 14. Post-Implementation Deliverables
 
 The following are required before the feature is considered complete. They are deferred
 until the package and demo are implemented and manually verified.
 
-### 12.1 Developer documentation (`docs/react-ui/USAGE.md`)
+### 14.1 Developer documentation (`docs/react-ui/USAGE.md`)
 
 A usage guide covering:
 
@@ -910,8 +1133,9 @@ A usage guide covering:
 - Composing a custom layout with primitives (`MessageList` + `ChatInput`)
 - Fully headless usage via `useAgent()`
 - Approval flow (`requiresApproval` on `ToolDefinition` + `onApprovalRequired` callback)
+- Mention pipeline (`mentions` prop on `<ChatInput>` / `<ConversationPanel>`, `useMentions` for bespoke inputs, `sendMessage(text, displayText)` for prompt/display split)
 
-### 12.2 Skill update (`skills/mast-ai/`)
+### 14.2 Skill update (`skills/mast-ai/`)
 
 - Add `@mast-ai/react-ui` to the Core Concepts list in `SKILL.md`
 - Add a reference link to `references/react-ui.md` in `SKILL.md`
