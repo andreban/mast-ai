@@ -18,6 +18,10 @@
   --mast-tool-bg: #f0fdf4;
   --mast-tool-fg: #166534;
   --mast-tool-pending: #f59e0b;
+  --mast-tool-error-bg: #fef2f2;
+  --mast-tool-error-fg: #991b1b;
+  --mast-tool-cancelled-bg: #f3f4f6;
+  --mast-tool-cancelled-fg: #4b5563;
   --mast-user-bubble: #dbeafe;
   --mast-user-fg: #1e3a8a;
 
@@ -46,6 +50,10 @@
     --mast-tool-bg: #052e16;
     --mast-tool-fg: #86efac;
     --mast-tool-pending: #fbbf24;
+    --mast-tool-error-bg: #450a0a;
+    --mast-tool-error-fg: #fecaca;
+    --mast-tool-cancelled-bg: #1f2937;
+    --mast-tool-cancelled-fg: #d1d5db;
     --mast-user-bubble: #1e3a8a;
     --mast-user-fg: #bfdbfe;
   }
@@ -64,6 +72,10 @@
   --mast-tool-bg: #052e16;
   --mast-tool-fg: #86efac;
   --mast-tool-pending: #fbbf24;
+  --mast-tool-error-bg: #450a0a;
+  --mast-tool-error-fg: #fecaca;
+  --mast-tool-cancelled-bg: #1f2937;
+  --mast-tool-cancelled-fg: #d1d5db;
   --mast-user-bubble: #1e3a8a;
   --mast-user-fg: #bfdbfe;
 }
@@ -286,6 +298,24 @@
   color: var(--mast-tool-pending);
 }
 
+.mast-tool-call-block[data-status='error'] {
+  background: var(--mast-tool-error-bg, #fef2f2);
+  color: var(--mast-tool-error-fg, #991b1b);
+}
+
+.mast-tool-call-block[data-status='error'] .mast-tool-call-block-status {
+  color: var(--mast-tool-error-fg, #991b1b);
+}
+
+.mast-tool-call-block[data-status='cancelled'] {
+  background: var(--mast-tool-cancelled-bg, #f3f4f6);
+  color: var(--mast-tool-cancelled-fg, #4b5563);
+}
+
+.mast-tool-call-block[data-status='cancelled'] .mast-tool-call-block-status {
+  color: var(--mast-tool-cancelled-fg, #4b5563);
+}
+
 .mast-tool-call-block-header {
   display: flex;
   align-items: center;
@@ -402,4 +432,75 @@
 
 .mast-chat-input-cancel {
   background: var(--mast-tool-pending);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Inline approval                                                            */
+/* -------------------------------------------------------------------------- */
+
+.mast-inline-approval {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--mast-tool-pending);
+  border-radius: var(--mast-radius);
+  background: var(--mast-thinking-bg);
+  color: var(--mast-thinking-fg);
+}
+
+.mast-inline-approval-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--mast-text-sm);
+}
+
+.mast-inline-approval-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mast-inline-approval-name {
+  font-family: var(--mast-font-mono);
+  font-weight: 600;
+}
+
+.mast-inline-approval-label {
+  color: var(--mast-fg-muted);
+}
+
+.mast-inline-approval-args {
+  margin: 0;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--mast-bg);
+  color: var(--mast-fg);
+  font-family: var(--mast-font-mono);
+  font-size: 0.8125rem;
+  overflow-x: auto;
+}
+
+.mast-inline-approval-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mast-inline-approval-button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.375rem;
+  border: 1px solid transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mast-inline-approval-approve {
+  background: var(--mast-accent);
+  color: var(--mast-accent-fg);
+}
+
+.mast-inline-approval-reject {
+  background: transparent;
+  border-color: currentColor;
+  color: inherit;
 }

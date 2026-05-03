@@ -10,7 +10,23 @@ import type { ReactNode } from 'react';
  * executes. For tools that run sub-agents, `subThinking` and `subText` accumulate
  * live output streamed via {@link AgentRunner}'s `onToolEvent` callback.
  */
+/**
+ * Outcome of a completed tool call.
+ *
+ * - `success`: tool returned normally
+ * - `error`: tool threw an exception (or the tool was not found)
+ * - `cancelled`: the user rejected the call via the approval flow
+ */
+export type ToolCallStatus = 'success' | 'error' | 'cancelled';
+
 export interface ToolEventEntry {
+  /**
+   * Stable identifier for this tool invocation. Generated when the
+   * `tool_call_started` event is received and used as the React `key` in
+   * lists and to correlate `PendingApproval` handles back to the entry.
+   */
+  id: string;
+
   /** Discriminates between a pending and a completed tool call. */
   type: 'tool_call_started' | 'tool_call_completed';
 
@@ -45,6 +61,29 @@ export interface ToolEventEntry {
    * Drives the spinner → check-mark transition in `<ToolCallBlock>`.
    */
   isStreaming: boolean;
+
+  /**
+   * `true` while the approval proxy is awaiting the user's decision via the
+   * `onApprovalRequired` callback or the inline approval queue. Set to `true`
+   * immediately before the callback is invoked and cleared once a decision
+   * is reached (approved, rejected, or replaced with a synthetic result).
+   * Always `false` for tools that do not require approval.
+   *
+   * Only meaningful while `isStreaming` is also `true`.
+   */
+  awaitingApproval?: boolean;
+
+  /**
+   * Final outcome of the tool call.
+   *
+   * Populated when `isStreaming` transitions to `false`:
+   * - `success`: tool returned normally
+   * - `error`: tool threw an exception (or was not registered)
+   * - `cancelled`: the user rejected the call via the approval flow
+   *
+   * `undefined` while the tool is still streaming.
+   */
+  status?: ToolCallStatus;
 }
 
 /**
@@ -117,8 +156,12 @@ export interface IconMap {
   brain?: ReactNode;
   /** Shown in the `<ToolCallBlock>` header while the tool is pending. */
   wrench?: ReactNode;
-  /** Shown in the `<ToolCallBlock>` header once the tool has completed. */
+  /** Shown in the `<ToolCallBlock>` header when the tool succeeded. */
   check?: ReactNode;
+  /** Shown in the `<ToolCallBlock>` header when the tool threw an error. */
+  error?: ReactNode;
+  /** Shown in the `<ToolCallBlock>` header when the user cancelled the tool call. */
+  cancelled?: ReactNode;
   /** Animated spinner shown during streaming and pending tool calls. */
   loader?: ReactNode;
   /** Shown on the send button in `<ChatInput>`. */

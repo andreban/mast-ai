@@ -207,24 +207,28 @@ export class AgentRunner {
           toolCalls.map(async (call) => {
             const tool = this.registry.getTool(call.name);
             if (!tool) {
-              return { call, result: `Error: Tool '${call.name}' not found.` };
+              return {
+                call,
+                result: `Error: Tool '${call.name}' not found.`,
+                error: true as const,
+              };
             }
             try {
               const result = await tool.call(call.args, {
                 signal,
                 onEvent: onToolEvent ? (event) => onToolEvent(call.name, event) : undefined,
               });
-              return { call, result };
+              return { call, result, error: false as const };
             } catch (err) {
               const message = err instanceof Error ? err.message : String(err);
-              return { call, result: `Error executing tool: ${message}` };
+              return { call, result: `Error executing tool: ${message}`, error: true as const };
             }
           }),
         );
 
         const resultMessages: Message[] = [];
-        for (const { call, result } of toolResults) {
-          yield { type: 'tool_call_completed', name: call.name, result };
+        for (const { call, result, error } of toolResults) {
+          yield { type: 'tool_call_completed', name: call.name, result, error };
           resultMessages.push({
             role: 'user',
             content: { type: 'tool_result', id: call.id, name: call.name, result },
