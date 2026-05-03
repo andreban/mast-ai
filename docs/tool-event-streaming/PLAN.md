@@ -64,22 +64,32 @@ const result = await tool.call(call.args, {
 
 ### In the sub-agent tool (`delegate_to_skill`)
 
-Switch from `run()` to `runStream()` and forward non-`done` events:
+Chain `forwardTo(context)` on the sub-agent's `RunBuilder` to forward
+non-`done` events automatically:
 
 ```typescript
 async call(args: DelegateToSkillArgs, context: ToolContext): Promise<string> {
-  for await (const event of childRunner.runBuilder(skill).runStream(args.input)) {
-    if (event.type !== 'done') {
-      context.onEvent?.(event); // forward thinking / text_delta / tool_call_* only
-    } else {
-      return event.output;      // only the result goes back to the parent agent
+  const builder = childRunner.runBuilder(skill).forwardTo(context);
+  for await (const event of builder.runStream(args.input)) {
+    if (event.type === 'done') {
+      return event.output; // only the result goes back to the parent agent
     }
   }
   throw new Error('Child runner ended without a done event');
 }
 ```
 
-`done` must be filtered out. It carries `history: Message[]` — the child's full conversation history — which must not reach the parent's consumers. The parent agent's own context is unaffected (it only sees the tool result string), but UI consumers registered via `onToolEvent` would receive the history payload if `done` is forwarded.
+`forwardTo(context)` filters out `done` automatically. `done` must not be
+forwarded because it carries `history: Message[]` — the child's full
+conversation history — which must not reach the parent's consumers. The
+parent agent's own context is unaffected (it only sees the tool result
+string), but UI consumers registered via `onToolEvent` would receive the
+history payload if `done` is forwarded.
+
+Tools that wrap a sub-agent without custom logic should use
+`createAgentTool`, which encodes this contract once. `forwardTo(context)`
+exists for tools that need custom orchestration around the sub-agent run
+(multi-step delegation, conditional invocation, post-processing).
 
 ### At the parent run call site
 

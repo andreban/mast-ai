@@ -46,14 +46,13 @@ export function createAgentTool(
     definition: () => definition,
     async call(args: unknown, context: ToolContext): Promise<string> {
       const input = options.buildInput(args);
-      const builder = runner.runBuilder(agent);
+      const builder = runner.runBuilder(agent).forwardTo(context);
       if (context.signal) builder.signal(context.signal);
 
       for await (const event of builder.runStream(input)) {
         if (event.type === 'done') {
           return event.output;
         }
-        context.onEvent?.(event);
       }
 
       throw new AgentError(`Sub-agent '${agent.name}' stream ended without a 'done' event.`);

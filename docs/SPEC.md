@@ -242,6 +242,15 @@ export class RunBuilder {
    */
   onToolEvent(handler: (toolName: string, event: AgentEvent) => void): this;
 
+  /**
+   * Forwards every non-`done` event from this run to `parentContext.onEvent`.
+   * Intended for tools that internally run a sub-agent: chain this on the
+   * sub-agent's RunBuilder so the parent runner's UI receives child events
+   * without manual forwarding boilerplate. No-op if `parentContext.onEvent`
+   * is undefined.
+   */
+  forwardTo(parentContext: ToolContext): this;
+
   runStream(input: string): AsyncIterable<AgentEvent>;
   run(input: string): Promise<AgentResult>;
   runTyped<T>(input: string): Promise<T>;
@@ -342,8 +351,8 @@ export function createAgentTool(
 The returned tool's `call(args, context)`:
 
 1. Builds the child input via `options.buildInput(args)`.
-2. Calls `runner.runBuilder(agent).signal(context.signal).runStream(input)`.
-3. For every event whose type is not `done`, calls `context.onEvent?.(event)`.
+2. Calls `runner.runBuilder(agent).forwardTo(context).signal(context.signal).runStream(input)`.
+3. `forwardTo(context)` automatically forwards every non-`done` child event to `context.onEvent`.
 4. Returns the `done.output` string as the tool result.
 5. Throws `AgentError` if the stream ends without a `done` event.
 

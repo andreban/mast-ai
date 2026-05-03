@@ -172,6 +172,8 @@ Three rendering entry points:
 
 Tools built with `createAgentTool` from `@mast-ai/core` automatically forward their child tool events. `useAgentStream` routes child `tool_call_started` / `tool_call_completed` into `ToolEventEntry.nestedToolEvents`, and `<ToolCallBlock>` renders them recursively. No extra wiring is needed in the consumer.
 
+For custom tools that wrap a sub-agent (where `createAgentTool` is too prescriptive), chain `RunBuilder.forwardTo(context)` on the sub-agent run so the parent's `subThinking` / `subText` / `nestedToolEvents` populate without manual forwarding boilerplate. Forgetting to forward is a silent UX failure.
+
 Currently scoped to a single level: grandchild events route back to the outermost matching parent.
 
 ## Collapsible `<ToolCallBlock>`
