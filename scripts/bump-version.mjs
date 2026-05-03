@@ -43,9 +43,9 @@ for (const { pkg, previous, next } of updated) {
 
 console.log(`
 Next steps:
-  npm install                         # refresh package-lock
+  npm install                         # refresh node_modules
   npm run format                      # normalise package.json formatting
-  git add packages/*/package.json package-lock.json
+  git add packages/*/package.json
   git commit -m "chore: release v${newVersion}"
   git tag v${newVersion}
   git push origin <branch> --tags
