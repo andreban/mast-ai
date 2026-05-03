@@ -4,6 +4,7 @@
 import type { ReactNode } from 'react';
 
 import type { PendingApproval } from '../approval';
+import type { MentionsConfig } from '../mentions/types';
 import type { ToolEventEntry } from '../types';
 import { ChatInput } from './ChatInput';
 import { MessageList } from './MessageList';
@@ -30,6 +31,11 @@ export interface ConversationPanelProps {
   renderMessage?: (text: string) => ReactNode;
   /** Placeholder text for the {@link ChatInput} field. */
   inputPlaceholder?: string;
+  /**
+   * Forwarded to the internal {@link ChatInput} when the optional `@`-mention
+   * picker should be enabled. Omit to keep the plain textarea behaviour.
+   */
+  mentions?: MentionsConfig;
 }
 
 /**
@@ -48,13 +54,14 @@ export function ConversationPanel({
   renderToolCall,
   renderMessage,
   inputPlaceholder,
+  mentions,
 }: ConversationPanelProps) {
   const rootClass = ['mast-conversation-panel', className].filter(Boolean).join(' ');
 
   return (
     <div data-mast-root data-mast-theme={theme} className={rootClass}>
       <MessageList renderToolCall={renderToolCall} renderMessage={renderMessage} />
-      <ChatInput placeholder={inputPlaceholder} />
+      <ChatInput placeholder={inputPlaceholder} mentions={mentions} />
     </div>
   );
 }

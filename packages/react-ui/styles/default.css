@@ -24,6 +24,11 @@
   --mast-tool-cancelled-fg: #4b5563;
   --mast-user-bubble: #dbeafe;
   --mast-user-fg: #1e3a8a;
+  --mast-mention-chip-bg: #dbeafe;
+  --mast-mention-chip-fg: #1e3a8a;
+  --mast-mention-picker-bg: var(--mast-bg);
+  --mast-mention-picker-active-bg: var(--mast-bg-subtle);
+  --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
   /* Typography */
   --mast-font: system-ui, sans-serif;
@@ -56,6 +61,9 @@
     --mast-tool-cancelled-fg: #d1d5db;
     --mast-user-bubble: #1e3a8a;
     --mast-user-fg: #bfdbfe;
+    --mast-mention-chip-bg: #1e3a8a;
+    --mast-mention-chip-fg: #bfdbfe;
+    --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -78,6 +86,9 @@
   --mast-tool-cancelled-fg: #d1d5db;
   --mast-user-bubble: #1e3a8a;
   --mast-user-fg: #bfdbfe;
+  --mast-mention-chip-bg: #1e3a8a;
+  --mast-mention-chip-fg: #bfdbfe;
+  --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -503,4 +514,109 @@
   background: transparent;
   border-color: currentColor;
   color: inherit;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mention picker                                                             */
+/* -------------------------------------------------------------------------- */
+
+.mast-mention-input .mast-mention-input-field {
+  flex: 1 1 auto;
+  position: relative;
+  min-width: 0;
+}
+
+.mast-mention-input-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.mast-mention-input .mast-mention-input-textarea {
+  flex: 1 1 8rem;
+  min-width: 8rem;
+}
+
+.mast-mention-segment-text {
+  white-space: pre-wrap;
+  align-self: center;
+  font-size: var(--mast-text-base);
+}
+
+.mast-mention-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--mast-mention-chip-bg);
+  color: var(--mast-mention-chip-fg);
+  border-radius: 9999px;
+  font-size: var(--mast-text-sm);
+  font-weight: 500;
+}
+
+.mast-mention-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  line-height: 1;
+}
+
+.mast-mention-chip-remove:hover,
+.mast-mention-chip-remove:focus-visible {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.mast-mention-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin: 0 0 0.25rem 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--mast-mention-picker-bg);
+  border: 1px solid var(--mast-border);
+  border-radius: var(--mast-radius);
+  box-shadow: var(--mast-mention-picker-shadow);
+  max-height: 14rem;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.mast-mention-picker-item {
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: var(--mast-text-sm);
+  color: var(--mast-fg);
+}
+
+.mast-mention-picker-item:hover {
+  background: var(--mast-mention-picker-active-bg);
+}
+
+.mast-mention-picker-active {
+  background: var(--mast-mention-picker-active-bg);
+}
+
+.mast-mention-picker-item-label {
+  font-weight: 500;
+}
+
+.mast-mention-picker-item-description {
+  font-size: var(--mast-text-sm);
+  color: var(--mast-fg-muted);
 }
