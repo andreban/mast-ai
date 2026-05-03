@@ -16,6 +16,7 @@ This skill provides expert guidance for implementing AI agents using the MAST li
   - `GoogleGenAIAdapter` (`@mast-ai/google-genai`) calls the Gemini API directly with tool calling, streaming, and thinking mode.
   - `BuiltInAIAdapter` (`@mast-ai/built-in-ai`) runs inference fully on-device via the browser Prompt API (no tool calling).
   - **Custom**: Implement `LlmAdapter` for other providers (Transformers.js, MediaPipe, etc.).
+- **React UI** (`@mast-ai/react-ui`): Drop-in React 19 components (`AgentProvider`, `ConversationPanel`, `useAgent`) for streaming chat UIs, with built-in support for approvals, nested sub-agent tool calls, and `@`-mention pickers.
 
 ## Component References
 
@@ -24,6 +25,7 @@ When implementing MAST features, consult these references for API details and pa
 - **Core API & Agent Configuration**: See [references/core-api.md](references/core-api.md) for `AgentConfig`, `AgentRunner`, `ToolRegistry`, and `Conversation`.
 - **Adapters**: See [references/adapters.md](references/adapters.md) for `UrpAdapter` (HTTP transport), `GoogleGenAIAdapter`, and `BuiltInAIAdapter` with its built-in browser tools.
 - **Custom Adapters**: See [references/custom-adapters.md](references/custom-adapters.md) for implementing your own `LlmAdapter` using Transformers.js, MediaPipe, etc.
+- **React UI**: See [references/react-ui.md](references/react-ui.md) for `@mast-ai/react-ui`: `AgentProvider`, `ConversationPanel`, primitives, the approval flow, nested sub-agent tool events, and the `@`-mention pipeline.
 - **Protocols (URP & ACP)**: See [references/protocols.md](references/protocols.md) if implementing a backend reasoning engine in Rust, Go, or Python.
 
 ## Installation
@@ -57,4 +59,4 @@ _(Note: You may need to specify the workspace subdirectory depending on your pac
 3. **Setup Adapter**: Use `UrpAdapter` for remote inference or implement a custom `LlmAdapter`.
 4. **Run**: Instantiate an `AgentRunner` and use `runner.conversation(agent)` for stateful multi-turn interactions.
 
-For a basic implementation example, see [assets/basic-agent.ts](assets/basic-agent.ts).
+For a basic implementation example, see [assets/basic-agent.ts](assets/basic-agent.ts). For a React UI example wiring `AgentProvider` + `ConversationPanel` to `GoogleGenAIAdapter`, see [assets/react-ui-basic.tsx](assets/react-ui-basic.tsx).
