@@ -16,3 +16,7 @@ export { AssistantMessage } from './components/AssistantMessage';
 export type { AssistantMessageProps } from './components/AssistantMessage';
 export { ChatInput } from './components/ChatInput';
 export type { ChatInputProps } from './components/ChatInput';
+export { MessageItem } from './components/MessageItem';
+export type { MessageItemProps } from './components/MessageItem';
+export { MessageList } from './components/MessageList';
+export type { MessageListProps } from './components/MessageList';
