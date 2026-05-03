@@ -1,8 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, useCallback, useRef } from 'react';
-import type { Conversation } from '@mast-ai/core';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import type { Conversation, Message } from '@mast-ai/core';
 import type { AgentEvent } from '@mast-ai/core';
 import type { ConversationEntry, ToolCallStatus, ToolEventEntry } from '../types';
 
@@ -59,6 +59,25 @@ function updateToolEvent(
 // ---------------------------------------------------------------------------
 
 /**
+ * Options accepted by {@link useAgentStream}.
+ */
+export interface UseAgentStreamOptions {
+  /**
+   * Initial UI entry list. Used to restore a previously-saved conversation
+   * so existing turns render immediately on mount. Read once when the hook
+   * first initialises; changes to this prop after mount are ignored.
+   */
+  initialEntries?: ConversationEntry[];
+
+  /**
+   * Called after a turn ends with the `done` event, with the freshly
+   * committed `entries` and `history`. Not called when a run is cancelled
+   * or errors before `done` is received.
+   */
+  onTurnComplete?: (entries: ConversationEntry[], history: Message[]) => void;
+}
+
+/**
  * The value returned by {@link useAgentStream}.
  */
 export interface UseAgentStreamReturn {
@@ -69,6 +88,13 @@ export interface UseAgentStreamReturn {
    * stable across renders.
    */
   entries: ConversationEntry[];
+
+  /**
+   * Live mirror of the underlying `Conversation.history`. Initialised from
+   * `conversation.history` and updated to `event.history` whenever a `done`
+   * event is observed. Use this to imperatively persist conversation state.
+   */
+  history: Message[];
 
   /**
    * `true` while the agent is generating a response; `false` otherwise.
@@ -163,10 +189,28 @@ export interface UseAgentStreamReturn {
  * const { entries, sendMessage, cancel, isRunning } = useAgentStream(conversation);
  * ```
  */
-export function useAgentStream(conversation: Conversation): UseAgentStreamReturn {
-  const [entries, setEntries] = useState<ConversationEntry[]>([]);
+export function useAgentStream(
+  conversation: Conversation,
+  options?: UseAgentStreamOptions,
+): UseAgentStreamReturn {
+  const [entries, setEntries] = useState<ConversationEntry[]>(() => options?.initialEntries ?? []);
+  const [history, setHistory] = useState<Message[]>(() => [...conversation.history]);
   const [isRunning, setIsRunning] = useState(false);
+  // Bumped after every `done` event to trigger the onTurnComplete effect once
+  // the new entries and history have been committed by React.
+  const [completedTurnId, setCompletedTurnId] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  const onTurnCompleteRef = useRef(options?.onTurnComplete);
+  onTurnCompleteRef.current = options?.onTurnComplete;
+
+  // Effect intentionally depends only on completedTurnId — it ticks atomically
+  // with the state updates from the `done` event, and we do not want it to
+  // fire on intermediate streaming updates to entries/history.
+  useEffect(() => {
+    if (completedTurnId === 0) return;
+    onTurnCompleteRef.current?.(entries, history);
+  }, [completedTurnId]);
 
   const findStreamingAssistantId = (entries: ConversationEntry[]): string | undefined => {
     for (let i = entries.length - 1; i >= 0; i--) {
@@ -277,6 +321,7 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
                 })),
               );
             } else if (event.type === 'done') {
+              const finalHistory = event.history;
               setEntries((prev) =>
                 updateEntry(prev, assistantId, (e) => ({
                   ...e,
@@ -284,6 +329,8 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
                   isStreaming: false,
                 })),
               );
+              setHistory(finalHistory);
+              setCompletedTurnId((n) => n + 1);
             }
           }
         } catch {
@@ -308,11 +355,13 @@ export function useAgentStream(conversation: Conversation): UseAgentStreamReturn
     abortRef.current?.abort();
     abortRef.current = null;
     setEntries([]);
+    setHistory([]);
     setIsRunning(false);
   }, []);
 
   return {
     entries,
+    history,
     isRunning,
     sendMessage,
     cancel,

@@ -4,7 +4,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AgentRunner } from '@mast-ai/core';
-import type { AgentConfig, Conversation } from '@mast-ai/core';
+import type { AgentConfig, Conversation, Message } from '@mast-ai/core';
 
 import { useAgentStream } from './hooks/useAgentStream';
 import { IconProvider } from './icons';
@@ -53,6 +53,24 @@ export interface AgentProviderProps {
    * @example ['third_party_tool', '!safe_tool']
    */
   approvalOverride?: string[];
+  /**
+   * Seed `Conversation.history` with previously-saved messages so the LLM
+   * continues from where it left off. Read once when the provider mounts;
+   * later changes have no effect until `reset()` is called.
+   */
+  initialHistory?: Message[];
+  /**
+   * Seed the rendered entry list with previously-saved entries so existing
+   * turns render immediately on mount. Read once when the provider mounts.
+   */
+  initialEntries?: ConversationEntry[];
+  /**
+   * Called after each completed turn (i.e. after a `done` event) with the
+   * latest core message history and UI entry list. Use this to persist the
+   * conversation to localStorage, IndexedDB, a server, etc. Not invoked when
+   * a run is cancelled or errors before completion.
+   */
+  onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
 }
 
 /**
@@ -61,6 +79,12 @@ export interface AgentProviderProps {
 export interface UseAgentReturn {
   /** Ordered conversation entries, suitable for rendering. */
   messages: ConversationEntry[];
+  /**
+   * Live mirror of the underlying `Conversation.history` — the raw core
+   * `Message[]` sent to the LLM. Updated after every completed turn. Read
+   * this to imperatively persist conversation state.
+   */
+  history: Message[];
   /** Sends a user message and starts a new agent run. */
   sendMessage: (text: string) => void;
   /** Aborts the current run, if any. */
@@ -99,7 +123,17 @@ export function AgentProvider({
   icons,
   onApprovalRequired,
   approvalOverride,
+  initialHistory,
+  initialEntries,
+  onConversationChange,
 }: AgentProviderProps) {
+  const onConversationChangeRef = useRef(onConversationChange);
+  onConversationChangeRef.current = onConversationChange;
+  // Captured once; later changes to initialHistory/initialEntries don't reseed
+  // an in-progress conversation. Callers who need to swap conversations should
+  // call `reset()` and remount the provider with new initial values.
+  const initialHistoryRef = useRef(initialHistory);
+  const initialEntriesRef = useRef(initialEntries);
   // Refs let the approval proxy read the latest callback and override on each
   // tool invocation without rebuilding the wrapped runner on every render.
   const onApprovalRef = useRef(onApprovalRequired);
@@ -135,19 +169,34 @@ export function AgentProvider({
     return new AgentRunner(runner.adapter, provider);
   }, [runner, onApprovalRequired, approvalOverride]);
 
-  const [conversation, setConversation] = useState<Conversation>(() =>
-    wrappedRunner.conversation(agent),
+  const [conversation, setConversation] = useState<Conversation>(() => {
+    const conv = wrappedRunner.conversation(agent);
+    if (initialHistoryRef.current && initialHistoryRef.current.length > 0) {
+      conv.history = [...initialHistoryRef.current];
+    }
+    return conv;
+  });
+
+  const onTurnComplete = useCallback(
+    (committedEntries: ConversationEntry[], committedHistory: Message[]) => {
+      onConversationChangeRef.current?.(committedHistory, committedEntries);
+    },
+    [],
   );
 
   const {
     entries,
+    history,
     sendMessage,
     cancel,
     isRunning,
     reset: resetStream,
     setToolAwaitingApproval,
     setToolStatus,
-  } = useAgentStream(conversation);
+  } = useAgentStream(conversation, {
+    initialEntries: initialEntriesRef.current,
+    onTurnComplete,
+  });
   notifyAwaitingRef.current = setToolAwaitingApproval;
   setStatusRef.current = setToolStatus;
 
@@ -183,8 +232,16 @@ export function AgentProvider({
   }, [resetStream, wrappedRunner, agent]);
 
   const value = useMemo<UseAgentReturn>(
-    () => ({ messages: entries, sendMessage, cancel, isRunning, reset, pendingApprovals }),
-    [entries, sendMessage, cancel, isRunning, reset, pendingApprovals],
+    () => ({
+      messages: entries,
+      history,
+      sendMessage,
+      cancel,
+      isRunning,
+      reset,
+      pendingApprovals,
+    }),
+    [entries, history, sendMessage, cancel, isRunning, reset, pendingApprovals],
   );
 
   return (

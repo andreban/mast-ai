@@ -890,6 +890,11 @@ surface and a reference implementation.
 5. **Approval flow** — single `onApprovalRequired` callback dispatches by tool name:
    inline tools return `INLINE_APPROVAL`, the others fall through to `window.confirm`.
 6. **Pending approvals queue** — header badge driven by `useAgent().pendingApprovals`.
+7. **Multi-conversation persistence** — sidebar lists every saved conversation, the
+   most recent is auto-loaded on page load, and each entry has a delete button.
+   Save and restore are wired through `onConversationChange` plus `initialHistory` /
+   `initialEntries`; switching conversations remounts the provider via a `key`
+   keyed on the active conversation id. Storage backend is `localStorage`.
 
 ### File structure
 
@@ -897,7 +902,7 @@ surface and a reference implementation.
 apps/demo-react-ui/
 ├── src/
 │   ├── main.tsx        — mounts App
-│   ├── App.tsx         — AgentProvider setup, tool registration, theme toggle, renderToolCall
+│   ├── App.tsx         — AgentProvider setup, tool registration, theme toggle, renderToolCall, conversation list + localStorage persistence
 │   └── tools.ts        — five tool definitions covering every approval/status path
 ├── index.html
 ├── vite.config.ts

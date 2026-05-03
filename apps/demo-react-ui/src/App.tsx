@@ -1,8 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
+import type { Message } from '@mast-ai/core';
 import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
 import {
   AgentProvider,
@@ -11,12 +12,22 @@ import {
   InlineApproval,
   ToolCallBlock,
   useAgent,
+  type ConversationEntry,
   type IconMap,
   type OnApprovalRequired,
   type PendingApproval,
   type ToolEventEntry,
 } from '@mast-ai/react-ui';
-import { Brain, CircleCheck, CircleX, LoaderCircle, Send, Square, Wrench } from 'lucide-react';
+import {
+  Brain,
+  CircleCheck,
+  CircleX,
+  LoaderCircle,
+  Send,
+  Square,
+  Trash2,
+  Wrench,
+} from 'lucide-react';
 
 import {
   CopyToClipboardTool,
@@ -81,6 +92,55 @@ const THEME_LABEL: Record<ThemeChoice, string> = {
   light: 'Theme: Light',
   dark: 'Theme: Dark',
 };
+
+// ---------------------------------------------------------------------------
+// Conversation persistence
+// ---------------------------------------------------------------------------
+
+interface StoredConversation {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  history: Message[];
+  entries: ConversationEntry[];
+}
+
+type ConversationMap = Record<string, StoredConversation>;
+
+const STORAGE_KEY = 'demo-react-ui:conversations';
+
+function loadConversations(): ConversationMap {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as ConversationMap;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistConversations(map: ConversationMap) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+  } catch (err) {
+    console.warn('Failed to persist conversations to localStorage', err);
+  }
+}
+
+function deriveTitle(entries: ConversationEntry[]): string {
+  const firstUser = entries.find((e) => e.role === 'user');
+  const text = firstUser?.text.trim() ?? '';
+  if (!text) return 'Untitled conversation';
+  return text.length > 40 ? `${text.slice(0, 40)}…` : text;
+}
+
+function pickMostRecent(map: ConversationMap): string | null {
+  const ids = Object.keys(map);
+  if (ids.length === 0) return null;
+  return ids.sort((a, b) => map[b].updatedAt - map[a].updatedAt)[0];
+}
 
 /**
  * Single approval callback that dispatches by tool name across two flows:
@@ -169,18 +229,66 @@ function PendingApprovalsBadge() {
   return <span className="demo-pending-badge">{pendingApprovals.length} pending</span>;
 }
 
-/**
- * Header button that calls `useAgent().reset()` to abort any in-flight run,
- * clear the rendered conversation, and replace the underlying Conversation
- * instance so the next message starts with empty core history.
- */
-function NewConversationButton() {
-  const { reset, messages, isRunning } = useAgent();
-  const disabled = messages.length === 0 && !isRunning;
+interface ConversationListProps {
+  conversations: ConversationMap;
+  activeId: string;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function ConversationList({ conversations, activeId, onSelect, onDelete }: ConversationListProps) {
+  const sorted = Object.values(conversations).sort((a, b) => b.updatedAt - a.updatedAt);
+
   return (
-    <button type="button" className="demo-header-button" onClick={reset} disabled={disabled}>
-      New conversation
-    </button>
+    <aside className="demo-sidebar">
+      <h2 className="demo-sidebar-title">Conversations</h2>
+      {sorted.length === 0 ? (
+        <p className="demo-sidebar-empty">
+          No saved conversations yet. Send a message to start one.
+        </p>
+      ) : (
+        <ul className="demo-conversation-list">
+          {sorted.map((conv) => {
+            const isActive = conv.id === activeId;
+            return (
+              <li
+                key={conv.id}
+                className={
+                  isActive
+                    ? 'demo-conversation-item demo-conversation-item-active'
+                    : 'demo-conversation-item'
+                }
+              >
+                <button
+                  type="button"
+                  className="demo-conversation-select"
+                  onClick={() => onSelect(conv.id)}
+                  aria-current={isActive ? 'true' : undefined}
+                >
+                  <span className="demo-conversation-title">{conv.title}</span>
+                  <span className="demo-conversation-date">
+                    {new Date(conv.updatedAt).toLocaleString(undefined, {
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    })}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="demo-conversation-delete"
+                  aria-label={`Delete conversation "${conv.title}"`}
+                  onClick={() => {
+                    if (window.confirm(`Delete "${conv.title}"?`)) onDelete(conv.id);
+                  }}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </aside>
   );
 }
 
@@ -188,30 +296,114 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeChoice>('system');
   const panelTheme = theme === 'system' ? undefined : theme;
 
+  const [conversations, setConversations] = useState<ConversationMap>(() => loadConversations());
+  const [activeId, setActiveId] = useState<string>(() => {
+    const stored = loadConversations();
+    return pickMostRecent(stored) ?? crypto.randomUUID();
+  });
+
+  const active: StoredConversation | undefined = conversations[activeId];
+
+  const handleConversationChange = useCallback(
+    (history: Message[], entries: ConversationEntry[]) => {
+      setConversations((prev) => {
+        const existing = prev[activeId];
+        const now = Date.now();
+        const updated: StoredConversation = {
+          id: activeId,
+          title: deriveTitle(entries),
+          createdAt: existing?.createdAt ?? now,
+          updatedAt: now,
+          history,
+          entries,
+        };
+        const next = { ...prev, [activeId]: updated };
+        persistConversations(next);
+        return next;
+      });
+    },
+    [activeId],
+  );
+
+  const handleNew = useCallback(() => {
+    setActiveId(crypto.randomUUID());
+  }, []);
+
+  const handleSelect = useCallback((id: string) => {
+    setActiveId(id);
+  }, []);
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      setConversations((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        persistConversations(next);
+        if (id === activeId) {
+          const fallback = pickMostRecent(next);
+          setActiveId(fallback ?? crypto.randomUUID());
+        }
+        return next;
+      });
+    },
+    [activeId],
+  );
+
+  const isUnsavedNew = !active;
+
   return (
-    <AgentProvider
-      runner={runner}
-      agent={agentConfig}
-      icons={icons}
-      onApprovalRequired={onApprovalRequired}
-    >
-      <div className="demo-shell">
-        <header className="demo-header">
-          <h1>MAST React UI Demo</h1>
-          <div className="demo-header-controls">
-            <PendingApprovalsBadge />
-            <NewConversationButton />
-            <button
-              type="button"
-              className="demo-header-button"
-              onClick={() => setTheme((current) => NEXT_THEME[current])}
-            >
-              {THEME_LABEL[theme]}
-            </button>
-          </div>
-        </header>
-        <ConversationPanel theme={panelTheme} renderToolCall={renderToolCall} />
+    <div className="demo-shell">
+      <header className="demo-header">
+        <h1>MAST React UI Demo</h1>
+        <div className="demo-header-controls">
+          <button
+            type="button"
+            className="demo-header-button"
+            onClick={handleNew}
+            disabled={isUnsavedNew}
+          >
+            New conversation
+          </button>
+          <button
+            type="button"
+            className="demo-header-button"
+            onClick={() => setTheme((current) => NEXT_THEME[current])}
+          >
+            {THEME_LABEL[theme]}
+          </button>
+        </div>
+      </header>
+      <div className="demo-body">
+        <ConversationList
+          conversations={conversations}
+          activeId={activeId}
+          onSelect={handleSelect}
+          onDelete={handleDelete}
+        />
+        <main className="demo-main">
+          {/*
+            Re-key the provider on activeId so switching conversations remounts
+            it with the freshly seeded initialHistory and initialEntries — the
+            simplest way to swap the underlying Conversation instance.
+          */}
+          <AgentProvider
+            key={activeId}
+            runner={runner}
+            agent={agentConfig}
+            icons={icons}
+            onApprovalRequired={onApprovalRequired}
+            initialHistory={active?.history}
+            initialEntries={active?.entries}
+            onConversationChange={handleConversationChange}
+          >
+            <div className="demo-main-header">
+              <PendingApprovalsBadge />
+            </div>
+            <ConversationPanel theme={panelTheme} renderToolCall={renderToolCall} />
+          </AgentProvider>
+        </main>
       </div>
-    </AgentProvider>
+    </div>
   );
 }

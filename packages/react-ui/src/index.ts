@@ -3,7 +3,7 @@
 
 export type { ConversationEntry, ToolEventEntry, ToolCallStatus, IconMap } from './types';
 export { useAgentStream } from './hooks/useAgentStream';
-export type { UseAgentStreamReturn } from './hooks/useAgentStream';
+export type { UseAgentStreamOptions, UseAgentStreamReturn } from './hooks/useAgentStream';
 export { AgentProvider, useAgent } from './context';
 export type { AgentProviderProps, UseAgentReturn } from './context';
 export { INLINE_APPROVAL } from './approval';
