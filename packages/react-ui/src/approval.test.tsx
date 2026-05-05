@@ -232,14 +232,40 @@ describe('AgentProvider — approval flow', () => {
     expect(tool.call).toHaveBeenCalledTimes(1);
   });
 
-  it('executes requiresApproval: true tools silently when no onApprovalRequired is provided', async () => {
-    const { runner, tool } = makeRunnerWithTool(SENSITIVE_DEF);
+  it('defaults to the inline approval queue when no onApprovalRequired is provided', async () => {
+    const { runner, tool } = makeRunnerWithTool(SENSITIVE_DEF, 'real-result');
 
     const { result } = renderHook(() => useAgent(), { wrapper: wrapper({ runner }) });
 
-    await sendAndWait(result, 'go');
+    act(() => {
+      result.current.sendMessage('go');
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Tool is paused awaiting inline approval rather than executing silently.
+    expect(tool.call).not.toHaveBeenCalled();
+    expect(result.current.pendingApprovals).toHaveLength(1);
+    expect(result.current.pendingApprovals[0]).toMatchObject({
+      toolName: 'sensitive',
+      args: {},
+    });
+
+    await act(async () => {
+      result.current.pendingApprovals[0].approve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     expect(tool.call).toHaveBeenCalledTimes(1);
+    expect(result.current.pendingApprovals).toHaveLength(0);
+    const completed = result.current.messages
+      .at(-1)
+      ?.toolEvents.find((t) => t.name === 'sensitive');
+    expect(completed?.result).toBe('real-result');
+    expect(completed?.status).toBe('success');
   });
 
   it('does not affect tools whose effective needsApproval is false', async () => {

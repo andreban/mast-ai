@@ -134,7 +134,7 @@ interface ToolEventEntry {
 Three pieces:
 
 1. Tool author sets `requiresApproval: true` on the tool definition.
-2. App supplies `onApprovalRequired` on `<AgentProvider>`.
+2. By default, the library routes such calls through the inline approval queue (`useAgent().pendingApprovals`) rendered by `<InlineApproval>`. Apps may supply `onApprovalRequired` on `<AgentProvider>` to plug in a different confirmation UI, auto-approve specific tools, inject canned results, or short-circuit cancellations.
 3. Optional: `approvalOverride={['!safe_tool', 'third_party_tool']}` adjusts policy at runtime.
 
 ```typescript

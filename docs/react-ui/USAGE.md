@@ -692,7 +692,11 @@ Tools that read from sensitive sources or write to shared state should
 typically pause for human confirmation. The flow has three pieces:
 
 1. The tool author marks the definition with `requiresApproval: true`.
-2. The app supplies an `onApprovalRequired` callback on `<AgentProvider>`.
+2. By default, the library routes such calls through the inline approval queue
+   (`useAgent().pendingApprovals`) rendered by the bundled `<InlineApproval>`
+   slot. Apps can supply an `onApprovalRequired` callback on `<AgentProvider>`
+   to plug in a different confirmation UI, auto-approve specific tools, inject
+   canned results, or short-circuit cancellations.
 3. Optional: `approvalOverride` adjusts the policy at runtime.
 
 ### 10.1 Declaring approval intent on the tool
