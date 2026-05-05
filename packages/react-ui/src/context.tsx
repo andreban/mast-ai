@@ -87,18 +87,28 @@ export interface AgentProviderProps {
    */
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
   /**
-   * Forces a theme on the auto-rendered `[data-mast-root]` wrapper. When
-   * omitted, the panel follows the OS preference via the default stylesheet's
-   * `prefers-color-scheme` media query. Ignored when `disableRoot` is `true`.
+   * Forces a theme on the auto-rendered `[data-mast-root]` wrapper. Only
+   * meaningful when `disableRoot` is explicitly `false` (so the provider
+   * actually renders the wrapper); when omitted or `true`, this prop has no
+   * effect and consumers should set `data-mast-theme` themselves on whatever
+   * element carries `data-mast-root`. When the wrapper is rendered without a
+   * theme set, the panel follows OS preference via the default stylesheet's
+   * `prefers-color-scheme` media query.
    */
   theme?: 'light' | 'dark';
   /**
-   * Disable the auto-rendered `<div data-mast-root>` wrapper around `children`.
-   * Use this when you want to place `data-mast-root` somewhere else in the
-   * tree yourself, e.g. on a chat sidebar's outer container so additional
-   * non-library UI inside also picks up the library's CSS variables.
+   * Controls whether the provider renders an auto wrapper `<div data-mast-root>`
+   * around `children`.
    *
-   * Default: `false` (the wrapper is rendered).
+   * Default: `true` — the provider is transparent in the DOM and consumers
+   * are responsible for placing `data-mast-root` themselves (typically on the
+   * outermost container, or implicitly via `<ConversationPanel>` which carries
+   * its own `data-mast-root`). This avoids the auto wrapper's panel chrome
+   * (border, padding, `height: 100%`) leaking onto whatever subtree the
+   * provider wraps, including app-root mounts.
+   *
+   * Set to `false` to opt back into the auto wrapper for zero-config setups
+   * that compose primitives directly without their own root container.
    */
   disableRoot?: boolean;
 }
@@ -309,13 +319,14 @@ export function AgentProvider({
     [entries, history, sendMessage, cancel, isRunning, reset, pendingApprovals, isReady],
   );
 
-  const wrappedChildren = disableRoot ? (
-    children
-  ) : (
-    <div data-mast-root data-mast-theme={theme}>
-      {children}
-    </div>
-  );
+  const wrappedChildren =
+    disableRoot === false ? (
+      <div data-mast-root data-mast-theme={theme}>
+        {children}
+      </div>
+    ) : (
+      children
+    );
 
   return (
     <AgentContext.Provider value={value}>

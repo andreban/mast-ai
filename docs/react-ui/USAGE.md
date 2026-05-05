@@ -107,11 +107,16 @@ with the agent runner, and exposes the streaming state to descendants through
 `useAgent()`. `<ConversationPanel>` renders a complete chat UI and must be
 nested inside the provider.
 
-By default `<AgentProvider>` also renders a `<div data-mast-root>` wrapper
-around its children so the library's CSS variables are in scope without any
-extra setup. Pass `theme="light" | "dark"` to force a value (the default
-follows OS preference), or `disableRoot` to opt out — see §8 for the
-opt-out pattern.
+`<AgentProvider>` is transparent in the DOM by default: it does not render
+its own wrapper around `children`. `<ConversationPanel>` carries its own
+`data-mast-root` so the snippet above works with no extra setup. When
+composing primitives directly, place `data-mast-root` on whichever element
+should anchor the library's CSS variables (typically the outermost
+container) — see §8.
+
+Pass `disableRoot={false}` to opt back into a zero-config wrapper when you
+have nowhere else to put `data-mast-root`; in that mode the provider also
+forwards `theme="light" | "dark"` onto the wrapper as `data-mast-theme`.
 
 > Do not bake the API key into a public bundle. The reference demo
 > (`apps/demo-react-ui`) prompts for the key at runtime and stores it in
@@ -227,25 +232,25 @@ whole palette, or remap every token onto an existing design system without
 
 The default stylesheet ships a light theme and an automatic dark theme that
 follows `prefers-color-scheme`. Apps that manage their own theme switching can
-force a value via the `theme` prop on either `<AgentProvider>` (which sets it
-on the auto-rendered `data-mast-root` wrapper) or `<ConversationPanel>` (which
-sets it on the panel root):
+force a value via the `theme` prop on `<ConversationPanel>` (which sets it on
+the panel root). When opted into the auto wrapper via `disableRoot={false}`,
+the same prop on `<AgentProvider>` forwards it onto the wrapper.
 
 ```tsx
-<AgentProvider runner={runner} agent={agent} theme="dark">
-  <ConversationPanel />
-</AgentProvider>
-
 <ConversationPanel theme="dark" />   // force dark
 <ConversationPanel theme="light" />  // force light
 <ConversationPanel />                // follow OS (default)
+
+<AgentProvider runner={runner} agent={agent} disableRoot={false} theme="dark">
+  <ConversationPanel />
+</AgentProvider>
 ```
 
 The prop sets `data-mast-theme` on the matching root. The default stylesheet
 selects on that attribute so OS preferences are overridden without
-`!important`. When composing primitives directly with `disableRoot` (see §8),
-set `data-mast-theme={theme}` yourself on the element that carries
-`data-mast-root`.
+`!important`. When composing primitives directly (see §8) the provider is
+already transparent in the DOM by default, so set `data-mast-theme={theme}`
+yourself on the element that carries `data-mast-root`.
 
 ### 5.2 Token reference
 
@@ -517,11 +522,11 @@ highlighter, or escape every character because your domain is plain text.
 
 `<ConversationPanel>` is a thin wrapper around `<MessageList>` and
 `<ChatInput>`. For a sidebar, a docked panel, or any non-default layout, drop
-those primitives directly into your own JSX. Pass `disableRoot` on
-`<AgentProvider>` so it does not emit its own `data-mast-root` wrapper, and
-place the attribute on whichever element should anchor the CSS custom
-properties — typically the outermost container so non-library UI inside (a
-header, badges, surrounding chrome) also picks up the variables:
+those primitives directly into your own JSX. `<AgentProvider>` is transparent
+in the DOM by default, so place `data-mast-root` on whichever element should
+anchor the CSS custom properties (typically the outermost container, so
+non-library UI inside such as a header, badges, or surrounding chrome also
+picks up the variables):
 
 ```tsx
 import { AgentProvider, MessageList, ChatInput } from '@mast-ai/react-ui';
@@ -539,21 +544,26 @@ function AgentSidebar() {
   );
 }
 
-<AgentProvider runner={runner} agent={agent} disableRoot>
+<AgentProvider runner={runner} agent={agent}>
   <AgentSidebar />
 </AgentProvider>;
 ```
 
-If you skip `disableRoot`, the provider still renders its default
-`<div data-mast-root>` around your subtree — the inner `data-mast-root` on the
-sidebar wins for CSS scoping, but the wrapper is wasted. Set `disableRoot`
-whenever you place `data-mast-root` somewhere else yourself.
+For zero-config setups that have no natural outer container, set
+`disableRoot={false}` to opt back into the provider's auto wrapper:
 
-Also use `disableRoot` when you want the library's CSS variables to extend
-to non-library UI rendered alongside the chat (e.g. a settings dialog
-button or a status badge in the chat sidebar's header). The auto-rendered
-wrapper sits inside the provider and only covers `children`; placing
-`data-mast-root` on your own outer container keeps everything in scope.
+```tsx
+<AgentProvider runner={runner} agent={agent} disableRoot={false}>
+  <MessageList />
+  <ChatInput />
+</AgentProvider>
+```
+
+The auto wrapper carries panel chrome (border, padding, `height: 100%`),
+which is appropriate when it actually wraps a chat panel but surprises apps
+that mount `<AgentProvider>` near the React tree root. The default
+(`disableRoot` omitted or `true`) keeps the provider transparent so the
+chrome only appears where you ask for it.
 
 Other primitives exported for compositional use: `<MessageItem>`,
 `<UserMessage>`, `<AssistantMessage>`, `<ThinkingBlock>`, `<ToolCallBlock>`,

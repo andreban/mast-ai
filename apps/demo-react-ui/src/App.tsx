@@ -606,7 +606,6 @@ export default function App() {
             initialHistory={active?.history}
             initialEntries={active?.entries}
             onConversationChange={handleConversationChange}
-            theme={panelTheme}
           >
             <div className="demo-main-header">
               <PendingApprovalsBadge />

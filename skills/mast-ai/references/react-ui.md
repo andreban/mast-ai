@@ -35,8 +35,8 @@ interface AgentProviderProps {
   initialHistory?: Message[]; // read once on mount
   initialEntries?: ConversationEntry[]; // read once on mount
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
-  theme?: 'light' | 'dark'; // forwarded to the auto-rendered [data-mast-root] wrapper
-  disableRoot?: boolean; // omit the auto-rendered <div data-mast-root> wrapper
+  theme?: 'light' | 'dark'; // forwarded to the auto wrapper when disableRoot={false}
+  disableRoot?: boolean; // default true; pass false to opt into the auto <div data-mast-root> wrapper
 }
 ```
 
@@ -44,7 +44,7 @@ Internally creates a `Conversation` via `runner.conversation(agent)`. To switch 
 
 `runner={null}` is the "agent not yet configured" state for chat UIs that mount before the user has supplied an API key, signed in, etc. `useAgent()` returns disabled-state defaults (`isReady: false`, empty messages/history, no-op `sendMessage` with a console warning), and `<ChatInput>` greys out automatically. Switching `null` → real runner does not require remounting; the conversation starts fresh on the next `sendMessage` (and picks up `initialHistory` if provided). Prefer this over constructing a stub runner whose adapter throws.
 
-By default, renders a `<div data-mast-root data-mast-theme={theme}>` around `children` so the library's CSS variables are scoped without extra setup. Pass `disableRoot` when placing `data-mast-root` somewhere else yourself (e.g. on a chat sidebar's outer container so non-library UI inside also picks up the variables).
+By default, the provider is transparent in the DOM. Place `data-mast-root` on whichever element should anchor the library's CSS variables (typically the outermost container, or implicitly via `<ConversationPanel>` which carries its own). Pass `disableRoot={false}` to opt into a zero-config `<div data-mast-root data-mast-theme={theme}>` wrapper for layouts that have no natural outer container.
 
 ## useAgent
 
@@ -87,7 +87,7 @@ interface ConversationPanelProps {
 
 ## Primitives
 
-For non-default layouts (sidebar, docked panel, etc.), drop the primitives into your own JSX. Pass `disableRoot` on `<AgentProvider>` so it does not emit its own wrapper, and add `data-mast-root` to whatever element should anchor the CSS custom properties.
+For non-default layouts (sidebar, docked panel, etc.), drop the primitives into your own JSX. `<AgentProvider>` is already transparent by default, so just add `data-mast-root` to whatever element should anchor the CSS custom properties. (Use `disableRoot={false}` when you want the provider to render its own zero-config wrapper instead.)
 
 ```typescript
 import {
@@ -275,7 +275,7 @@ const {
 
 ## Theming
 
-The default stylesheet ships a light theme and an automatic dark theme that follows `prefers-color-scheme`. Apps that manage their own theme can force a value with `theme="light" | "dark"` on either `<AgentProvider>` (forwarded to the auto-rendered wrapper) or `<ConversationPanel>` — both set `data-mast-theme`.
+The default stylesheet ships a light theme and an automatic dark theme that follows `prefers-color-scheme`. Apps that manage their own theme can force a value with `theme="light" | "dark"` on `<ConversationPanel>` (or, when opted in via `disableRoot={false}`, on `<AgentProvider>` so it's forwarded onto the auto wrapper). Both set `data-mast-theme`.
 
 Override individual tokens by setting CSS custom properties under `[data-mast-root]`:
 
