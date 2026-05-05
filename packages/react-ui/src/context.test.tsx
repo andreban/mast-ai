@@ -389,10 +389,22 @@ describe('useAgent', () => {
   // Auto-rendered [data-mast-root] wrapper
   // -------------------------------------------------------------------------
 
-  it('renders a [data-mast-root] wrapper around children by default', () => {
+  it('does not render a [data-mast-root] wrapper around children by default', () => {
     const { runner } = makeMockRunner();
     const { container } = render(
       <AgentProvider runner={runner} agent={agentConfig}>
+        <span data-testid="child">child</span>
+      </AgentProvider>,
+    );
+
+    expect(container.querySelector('[data-mast-root]')).toBeNull();
+    expect(container.querySelector('[data-testid="child"]')).not.toBeNull();
+  });
+
+  it('renders the [data-mast-root] wrapper when disableRoot={false} opts in', () => {
+    const { runner } = makeMockRunner();
+    const { container } = render(
+      <AgentProvider runner={runner} agent={agentConfig} disableRoot={false}>
         <span data-testid="child">child</span>
       </AgentProvider>,
     );
@@ -406,10 +418,10 @@ describe('useAgent', () => {
     expect(root!.hasAttribute('data-mast-theme')).toBe(false);
   });
 
-  it('forwards the `theme` prop onto the auto-rendered wrapper as data-mast-theme', () => {
+  it('forwards the `theme` prop onto the opted-in wrapper as data-mast-theme', () => {
     const { runner } = makeMockRunner();
     const { container } = render(
-      <AgentProvider runner={runner} agent={agentConfig} theme="dark">
+      <AgentProvider runner={runner} agent={agentConfig} disableRoot={false} theme="dark">
         <span>child</span>
       </AgentProvider>,
     );
@@ -419,7 +431,7 @@ describe('useAgent', () => {
     expect(root!.getAttribute('data-mast-theme')).toBe('dark');
   });
 
-  it('omits the wrapper entirely when disableRoot is true', () => {
+  it('omits the wrapper when disableRoot is true', () => {
     const { runner } = makeMockRunner();
     const { container } = render(
       <AgentProvider runner={runner} agent={agentConfig} disableRoot>
@@ -543,16 +555,15 @@ describe('useAgent', () => {
       expect(result.current.isReady).toBe(false);
     });
 
-    it('renders the [data-mast-root] wrapper even with a null runner', () => {
+    it('does not render the [data-mast-root] wrapper with a null runner by default', () => {
       const { container } = render(
         <AgentProvider runner={null} agent={agentConfig}>
           <span data-testid="child">child</span>
         </AgentProvider>,
       );
 
-      const root = container.querySelector('[data-mast-root]');
-      expect(root).not.toBeNull();
-      expect(root!.querySelector('[data-testid="child"]')).not.toBeNull();
+      expect(container.querySelector('[data-mast-root]')).toBeNull();
+      expect(container.querySelector('[data-testid="child"]')).not.toBeNull();
     });
 
     it('switches to a real runner without remounting and starts a fresh conversation', async () => {

@@ -280,33 +280,53 @@ interface AgentProviderProps {
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
 
   /**
-   * Forces a theme on the auto-rendered [data-mast-root] wrapper. When
-   * omitted, the panel follows the OS preference via the default stylesheet's
-   * prefers-color-scheme media query. Ignored when disableRoot is true.
+   * Forces a theme on the auto-rendered [data-mast-root] wrapper. Only
+   * meaningful when disableRoot is explicitly false (so the provider actually
+   * renders the wrapper). When omitted or true, the prop has no effect and
+   * consumers should set data-mast-theme themselves on whatever element
+   * carries data-mast-root.
    */
   theme?: 'light' | 'dark';
 
   /**
-   * Disable the auto-rendered <div data-mast-root> wrapper around children.
-   * Use this when placing data-mast-root somewhere else in the tree yourself
-   * (e.g. on a chat sidebar's outer container so additional non-library UI
-   * inside also picks up the library's CSS variables). Default: false.
+   * Controls whether the provider renders an auto wrapper <div data-mast-root>
+   * around children.
+   *
+   * Default: true — the provider is transparent in the DOM and consumers are
+   * responsible for placing data-mast-root themselves (typically on the
+   * outermost container, or implicitly via <ConversationPanel> which carries
+   * its own data-mast-root). This avoids the auto wrapper's panel chrome
+   * (border, padding, height: 100%) leaking onto whatever subtree the provider
+   * wraps, including app-root mounts.
+   *
+   * Set to false to opt back into the auto wrapper for zero-config setups
+   * that compose primitives directly without their own root container.
    */
   disableRoot?: boolean;
 }
 ```
 
-Renders (default — `disableRoot` omitted or `false`):
+Renders (default — `disableRoot` omitted or `true`):
+
+```html
+{children}
+```
+
+Consumers place `data-mast-root` on whatever element should anchor the
+library's CSS custom properties. `<ConversationPanel>` does this on its
+panel root, so the default + `<ConversationPanel>` combination needs no
+extra setup. When composing primitives directly, place `data-mast-root` on
+the outermost container so non-library UI in the same subtree also inherits
+the variables.
+
+When `disableRoot` is `false`, the provider renders an auto wrapper:
 
 ```html
 <div data-mast-root data-mast-theme="{theme}">{children}</div>
 ```
 
-When `disableRoot` is `true`, `children` are rendered directly without a
-wrapper element — the consumer is responsible for placing `data-mast-root`
-on the appropriate element themselves. `<ConversationPanel>` already places
-its own `data-mast-root` on the panel root, so the default and `disableRoot`
-modes both work with it; the default leaves a redundant outer wrapper.
+This is the opt-in zero-config mode for layouts that do not have their own
+container element.
 
 **Internal state managed by `AgentProvider`:**
 
