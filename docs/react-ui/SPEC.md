@@ -242,9 +242,13 @@ interface AgentProviderProps {
    * defer to the inline approval queue surfaced via useAgent().pendingApprovals.
    *
    * Also called for any tool whose name appears in approvalOverride, regardless
-   * of the tool's own requiresApproval flag — allowing context-specific policy
+   * of the tool's own requiresApproval flag, allowing context-specific policy
    * (e.g. a sandbox environment that auto-approves everything, or a production
    * deployment that adds approval to a third-party tool it did not define).
+   *
+   * Defaults to a callback that returns INLINE_APPROVAL for every call when
+   * omitted, so tools marked requiresApproval: true always pause for user
+   * confirmation by default.
    */
   onApprovalRequired?: (
     toolCall: ToolEventEntry,
@@ -946,9 +950,14 @@ suppressSet = new Set(approvalOverride.filter(s => s.startsWith('!')).map(s => s
 needsApproval = (toolDef.requiresApproval || overrideSet.has(name)) && !suppressSet.has(name)
 ```
 
-`onApprovalRequired` is not called when `needsApproval` is false, or when
-`onApprovalRequired` is not provided (in which case tools with `requiresApproval: true`
-execute without pausing — the callback is the opt-in).
+`onApprovalRequired` is not called when `needsApproval` is false. When the prop
+is omitted entirely, the library substitutes a default callback that returns
+`INLINE_APPROVAL` for every call, so tools with `requiresApproval: true` always
+pause for user confirmation by default. Apps that already render `<InlineApproval>`
+(or read `useAgent().pendingApprovals`) get a working approval flow with no
+additional wiring; provide a custom callback to plug in a different confirmation
+UI, auto-approve specific tools, inject canned results, or short-circuit
+cancellations.
 
 ---
 
@@ -1007,7 +1016,7 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 | Callback returns a string                   | Injected as the tool result; tool does not execute                                                                    |
 | `approvalOverride` adds a name              | Unlisted tool triggers approval                                                                                       |
 | `approvalOverride` suppresses with `!`      | Tool with `requiresApproval: true` executes without prompting                                                         |
-| No `onApprovalRequired` provided            | Tools with `requiresApproval: true` execute silently                                                                  |
+| No `onApprovalRequired` provided            | Tools with `requiresApproval: true` enqueue an inline approval handle on `useAgent().pendingApprovals` (default behaviour) |
 | `awaitingApproval` flag                     | Set while the callback is pending; cleared on resolve, reject, or throw                                               |
 | `INLINE_APPROVAL` exposes `PendingApproval` | Handle appears on `useAgent().pendingApprovals` while waiting                                                         |
 | `approve()` / `reject()` / `respondWith()`  | Resolve the proxy and remove the handle from the queue                                                                |

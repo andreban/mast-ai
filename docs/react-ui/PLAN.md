@@ -260,9 +260,9 @@ needsApproval = (def.requiresApproval || overrideSet.has(name)) && !suppressSet.
 
 **`src/approval.test.tsx`**
 
-- All six scenarios from SPEC §11.2: `requiresApproval: true` triggers callback;
+- All scenarios from SPEC §11.2: `requiresApproval: true` triggers callback;
   callback returns `false` / `string` / `true`; `approvalOverride` adds and suppresses;
-  no callback → silent execution.
+  no callback → defaults to the inline approval queue.
 
 **`apps/demo-react-ui`**
 

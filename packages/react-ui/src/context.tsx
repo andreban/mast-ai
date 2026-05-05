@@ -17,6 +17,7 @@ import type { AgentConfig, Conversation, Message } from '@mast-ai/core';
 import { useAgentStream } from './hooks/useAgentStream.js';
 import { IconProvider } from './icons.js';
 import {
+  INLINE_APPROVAL,
   withApprovalProxy,
   type ApprovalProxyHooks,
   type OnApprovalRequired,
@@ -56,8 +57,13 @@ export interface AgentProviderProps {
    * {@link import('./approval.js').INLINE_APPROVAL} to defer to the inline
    * approval queue exposed via `useAgent().pendingApprovals`.
    *
-   * Not called when no tool requires approval, and not called when the prop
-   * is omitted — in which case `requiresApproval: true` tools execute silently.
+   * Defaults to a callback that returns `INLINE_APPROVAL` for every call when
+   * omitted, so tools marked `requiresApproval: true` always pause for user
+   * confirmation by default. Apps that already render `<InlineApproval>` (or
+   * read `useAgent().pendingApprovals`) get a working approval flow with no
+   * additional wiring. Provide a custom callback to plug in a different
+   * confirmation UI, auto-approve specific tools, inject canned results, or
+   * short-circuit cancellations.
    */
   onApprovalRequired?: OnApprovalRequired;
   /**
@@ -163,6 +169,14 @@ export interface UseAgentReturn {
 const AgentContext = createContext<UseAgentReturn | null>(null);
 
 /**
+ * Default `onApprovalRequired` used when the host app omits the prop. Returning
+ * `INLINE_APPROVAL` for every call honours `requiresApproval: true` by default:
+ * the call is enqueued on `useAgent().pendingApprovals` (and rendered inline by
+ * the bundled `<InlineApproval>` slot) instead of executing silently.
+ */
+const DEFAULT_ON_APPROVAL_REQUIRED: OnApprovalRequired = async () => INLINE_APPROVAL;
+
+/**
  * Wraps a subtree with agent context.
  *
  * Internally creates a {@link Conversation} via `runner.conversation(agent)`
@@ -209,7 +223,13 @@ export function AgentProvider({
     if (runner === null) return null;
     const hasApproval = onApprovalRequired !== undefined;
     const hasOverride = approvalOverride !== undefined && approvalOverride.length > 0;
-    if (!hasApproval && !hasOverride) return runner;
+    // Without an explicit callback or override we still need to wrap when at
+    // least one registered tool declares `requiresApproval: true`, so the
+    // default INLINE_APPROVAL callback can intercept it. When no tool needs
+    // approval the proxy would be a no-op, so skip the wrap entirely.
+    const tools = runner.registry?.getTools?.() ?? [];
+    const hasApprovalTool = tools.some((def) => def.requiresApproval === true);
+    if (!hasApproval && !hasOverride && !hasApprovalTool) return runner;
     const hooks: ApprovalProxyHooks = {
       notifyAwaiting: (name, awaiting) => notifyAwaitingRef.current?.(name, awaiting),
       setStatus: (name, status) => setStatusRef.current?.(name, status),
@@ -218,7 +238,7 @@ export function AgentProvider({
     };
     const provider = withApprovalProxy(
       runner.registry,
-      () => onApprovalRef.current,
+      () => onApprovalRef.current ?? DEFAULT_ON_APPROVAL_REQUIRED,
       () => approvalOverrideRef.current,
       hooks,
     );
