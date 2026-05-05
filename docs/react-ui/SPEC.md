@@ -1009,19 +1009,19 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 
 **Approval flow**
 
-| Scenario                                    | What is verified                                                                                                      |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Tool with `requiresApproval: true`          | `onApprovalRequired` is called before tool executes                                                                   |
-| Callback returns `false`                    | Tool call is cancelled; runner receives synthetic "user cancelled" result                                             |
-| Callback returns a string                   | Injected as the tool result; tool does not execute                                                                    |
-| `approvalOverride` adds a name              | Unlisted tool triggers approval                                                                                       |
-| `approvalOverride` suppresses with `!`      | Tool with `requiresApproval: true` executes without prompting                                                         |
+| Scenario                                    | What is verified                                                                                                           |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Tool with `requiresApproval: true`          | `onApprovalRequired` is called before tool executes                                                                        |
+| Callback returns `false`                    | Tool call is cancelled; runner receives synthetic "user cancelled" result                                                  |
+| Callback returns a string                   | Injected as the tool result; tool does not execute                                                                         |
+| `approvalOverride` adds a name              | Unlisted tool triggers approval                                                                                            |
+| `approvalOverride` suppresses with `!`      | Tool with `requiresApproval: true` executes without prompting                                                              |
 | No `onApprovalRequired` provided            | Tools with `requiresApproval: true` enqueue an inline approval handle on `useAgent().pendingApprovals` (default behaviour) |
-| `awaitingApproval` flag                     | Set while the callback is pending; cleared on resolve, reject, or throw                                               |
-| `INLINE_APPROVAL` exposes `PendingApproval` | Handle appears on `useAgent().pendingApprovals` while waiting                                                         |
-| `approve()` / `reject()` / `respondWith()`  | Resolve the proxy and remove the handle from the queue                                                                |
-| `reset()` while pending                     | Rejects in-flight approvals so the run terminates                                                                     |
-| Tool call status                            | `'success'` on normal return; `'error'` when `tool_call_completed.error` is true; `'cancelled'` when the user rejects |
+| `awaitingApproval` flag                     | Set while the callback is pending; cleared on resolve, reject, or throw                                                    |
+| `INLINE_APPROVAL` exposes `PendingApproval` | Handle appears on `useAgent().pendingApprovals` while waiting                                                              |
+| `approve()` / `reject()` / `respondWith()`  | Resolve the proxy and remove the handle from the queue                                                                     |
+| `reset()` while pending                     | Rejects in-flight approvals so the run terminates                                                                          |
+| Tool call status                            | `'success'` on normal return; `'error'` when `tool_call_completed.error` is true; `'cancelled'` when the user rejects      |
 
 **Conversation persistence**
 
