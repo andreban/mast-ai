@@ -59,6 +59,22 @@ export interface MessageListProps {
 const DEFAULT_ESTIMATED_ITEM_HEIGHT = 80;
 
 /**
+ * Pixel slack for re-engaging stickiness when the user manually scrolls back
+ * to the bottom. Kept tight so a programmatic snap-to-bottom does not
+ * accidentally re-capture a user who just scrolled away.
+ */
+const STICKY_REENGAGE_THRESHOLD_PX = 4;
+
+/**
+ * Minimum scrollTop decrease (between two consecutive scroll events) treated
+ * as a user-initiated upward scroll. Programmatic scroll-to-bottom only ever
+ * increases scrollTop within a stable measurement, so any non-trivial decrease
+ * is the user (scrollbar drag, keyboard, etc.). The threshold absorbs
+ * sub-pixel measurement noise.
+ */
+const STICKY_DIRECTION_THRESHOLD_PX = 4;
+
+/**
  * Scrollable list of {@link ConversationEntry} items rendered with
  * `@tanstack/react-virtual`.
  *
@@ -67,8 +83,10 @@ const DEFAULT_ESTIMATED_ITEM_HEIGHT = 80;
  * `virtualizer.measureElement`, so messages with long tool call results or
  * large markdown blocks expand the viewport correctly.
  *
- * Auto-scrolls to the bottom whenever a new entry is appended or the last
- * entry's `text` grows during streaming.
+ * Auto-scrolls to the bottom whenever the content grows (new entry, streaming
+ * text deltas, thinking/tool blocks expanding) **only if** the user is already
+ * at the bottom of the list. If the user has scrolled up to read an earlier
+ * message, their scroll position is preserved until they scroll back down.
  *
  * Reads `messages` from `useAgent()`, so this component must be rendered
  * inside an `<AgentProvider>`.
@@ -82,6 +100,20 @@ export function MessageList({
 }: MessageListProps) {
   const { messages } = useAgent();
   const scrollRef = useRef<HTMLDivElement>(null);
+  // True while the auto-scroll-to-bottom behaviour is active. Released by
+  // user input that scrolls up (wheel, touch, scrollbar drag); re-engaged
+  // when the user manually scrolls back to the bottom. Initialized to `true`
+  // so the first render still pins to the latest entry.
+  const isPinnedRef = useRef(true);
+  // Last observed scrollTop, used by the scroll listener to detect
+  // user-driven upward scrolls that produce a `scroll` event but no `wheel`
+  // or `touchmove` (e.g. scrollbar drag).
+  const lastScrollTopRef = useRef(0);
+  // ScrollTop value left by the most recent auto-pin scrollToIndex. The next
+  // auto-pin compares against this to detect any user-driven scroll-up since
+  // the last pin, even if every event listener missed it. `null` until the
+  // first auto-pin runs.
+  const lastPinnedScrollTopRef = useRef<number | null>(null);
 
   const virtualizer = useVirtualizer({
     count: messages.length,
@@ -90,19 +122,111 @@ export function MessageList({
     overscan: 4,
   });
 
+  // Track scroll position and user input to drive the pin state machine.
+  //
+  // Release rules (true → false):
+  //   - `wheel` with deltaY < 0           — synchronous user intent to scroll up
+  //   - `touchmove` with finger down      — synchronous user intent to scroll up
+  //   - `scroll` with scrollTop decrease  — user dragged the scrollbar / keyboard
+  //
+  // Re-engage rule (false → true):
+  //   - `scroll` while NOT pinned with distance ≤ STICKY_REENGAGE_THRESHOLD_PX
+  //
+  // When already pinned, the `scroll` listener does NOT touch the flag. That
+  // is the key fix for the rapid-streaming race: without it, every
+  // programmatic `scrollToIndex` would fire a scroll event that re-set the
+  // flag back to `true`, immediately overriding any wheel-up the user just
+  // performed.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    lastScrollTopRef.current = el.scrollTop;
+
+    const onScroll = () => {
+      const current = el.scrollTop;
+      const previous = lastScrollTopRef.current;
+      lastScrollTopRef.current = current;
+      const distance = el.scrollHeight - current - el.clientHeight;
+
+      if (current < previous - STICKY_DIRECTION_THRESHOLD_PX) {
+        isPinnedRef.current = false;
+      } else if (!isPinnedRef.current && distance <= STICKY_REENGAGE_THRESHOLD_PX) {
+        isPinnedRef.current = true;
+      }
+    };
+
+    // Wheel and touchmove fire synchronously with user input, before the
+    // browser commits the scroll. Releasing the pin here wins the race
+    // against rapid streaming `scrollToIndex` calls that would otherwise
+    // reset scrollTop before our `scroll` listener could observe the
+    // user's upward movement.
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0 && el.scrollHeight > el.clientHeight) {
+        isPinnedRef.current = false;
+      }
+    };
+
+    let touchStartY: number | null = null;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchStartY === null) return;
+      const dy = (e.touches[0]?.clientY ?? touchStartY) - touchStartY;
+      // Finger moving down the screen reveals content above = user is
+      // scrolling up.
+      if (dy > 0 && el.scrollHeight > el.clientHeight) {
+        isPinnedRef.current = false;
+      }
+    };
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('wheel', onWheel, { passive: true });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
+
   const lastEntry = messages.length > 0 ? messages[messages.length - 1] : undefined;
   const lastTextLength = lastEntry?.text.length ?? 0;
+  const totalSize = virtualizer.getTotalSize();
 
-  // Scroll to the end whenever a new entry is added or the last (currently
-  // streaming) entry's text grows. We always pin the scroll to the latest
-  // message; consumers that need scroll-position preservation should compose
-  // their own list using `useAgent()` directly.
+  // Pin the scroll to the latest message whenever the content grows, but only
+  // when the user is already at the bottom. `totalSize` is included as a
+  // dependency so dynamic height changes (thinking/tool blocks expanding,
+  // sub-agent text streaming, item remeasurement) also re-pin without
+  // requiring a change in the message list itself.
+  //
+  // Before scrolling, this effect cross-checks `el.scrollTop` against the
+  // value left by the previous auto-pin. If it has decreased, the user has
+  // scrolled up since the last pin (programmatic scrollToIndex never lowers
+  // scrollTop within a stable measurement). Release the pin and bail. This
+  // is the authoritative safety net: even if a `wheel` handler missed an
+  // event or a `scroll` event got coalesced with a programmatic scroll, the
+  // user's actual scrollTop tells the truth.
   useEffect(() => {
     if (messages.length === 0) return;
-    virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
-  }, [messages.length, lastTextLength, virtualizer]);
+    if (!isPinnedRef.current) return;
 
-  const totalSize = virtualizer.getTotalSize();
+    const el = scrollRef.current;
+    if (
+      el &&
+      lastPinnedScrollTopRef.current !== null &&
+      el.scrollTop < lastPinnedScrollTopRef.current - STICKY_DIRECTION_THRESHOLD_PX
+    ) {
+      isPinnedRef.current = false;
+      return;
+    }
+
+    virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
+    if (el) lastPinnedScrollTopRef.current = el.scrollTop;
+  }, [messages.length, lastTextLength, totalSize, virtualizer]);
+
   const virtualItems = virtualizer.getVirtualItems();
   const rootClass = ['mast-message-list', className].filter(Boolean).join(' ');
 

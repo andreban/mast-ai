@@ -402,8 +402,11 @@ Renders:
 
 Scrollable list of `ConversationEntry` items. Reads `entries` from context.
 Uses `@tanstack/react-virtual` (`useVirtualizer`) to render only the visible window of
-messages. Automatically scrolls to the bottom when a new entry is appended or the last
-entry (currently streaming) changes size.
+messages. Automatically scrolls to the bottom when content grows (new entry, streaming
+text deltas, thinking/tool blocks expanding) **only if** the user is already at the
+bottom of the list. If the user has scrolled up to read an earlier message, their
+scroll position is preserved until they scroll back down. A small pixel threshold is
+applied to the "at bottom" check so minor rounding does not break stickiness.
 
 ```tsx
 interface MessageListProps {
@@ -422,8 +425,46 @@ interface MessageListProps {
 
 The virtualizer uses dynamic item measurement (`measureElement`) so variable-height
 messages (those with long tool call results or large markdown blocks) are handled
-correctly. A `useEffect` that watches `entries.length` and the last entry's `text`
-length drives the auto-scroll-to-bottom behaviour.
+correctly. A `useEffect` that watches `entries.length`, the last entry's `text` length,
+and the virtualizer's total size drives the auto-scroll-to-bottom behaviour, which is
+gated on an internal `isPinned` ref.
+
+`isPinned` starts `true` so the first render pins to the latest entry, and is
+maintained by four independent release paths plus one re-engage path. Each path
+covers a different input modality and timing pattern; together they survive the
+race between rapid streaming `scrollToIndex` calls and asynchronous browser
+scroll events:
+
+1. **Wheel handler** (`wheel` listener on the scroll root): `deltaY < 0`
+   releases. Wheel events fire synchronously with input, before the browser
+   commits the scroll, so this wins the race against streaming text deltas
+   that would otherwise reset `scrollTop` before any `scroll` event could
+   observe the upward movement.
+2. **Touch handler** (`touchstart` + `touchmove`): finger moving down the
+   screen (which reveals content above) releases. Same timing rationale as
+   wheel.
+3. **Scroll listener direction check**: when a `scroll` event reports a
+   `scrollTop` decrease larger than a small noise threshold, releases. This
+   catches scrollbar drags and keyboard scrolls that produce no `wheel` or
+   `touchmove`. Programmatic `scrollToIndex(end)` never decreases
+   `scrollTop` within a stable measurement, so a decrease is necessarily
+   user-driven.
+4. **Effect-time safety net**: before each auto-pin, the effect compares
+   `el.scrollTop` against the value left by the previous auto-pin
+   (`lastPinnedScrollTopRef`). If it has decreased meaningfully, the user
+   has demonstrably scrolled up since we last pinned them; the effect
+   releases and bails. This is the authoritative backstop: even if every
+   event listener missed the input (StrictMode quirks, coalesced events,
+   browser timing), the user's actual `scrollTop` tells the truth.
+
+The single re-engage path is the **scroll listener distance check**: while
+NOT pinned, if a `scroll` event reports `distance ≤ STICKY_REENGAGE_THRESHOLD_PX`
+(tight, on the order of a handful of pixels), the user has manually scrolled
+back to the bottom and stickiness is restored. The threshold is tight on
+purpose so a programmatic snap-to-bottom can never accidentally re-pin a user
+who just scrolled away. While _already_ pinned, the scroll listener never
+re-asserts the flag, and that asymmetry is what prevents the listener from
+overwriting a release issued by the wheel/touch handler microseconds earlier.
 
 Renders:
 
