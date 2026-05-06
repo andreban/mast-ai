@@ -1,5 +1,5 @@
 {
-  "name": "demo-agent-tool",
+  "name": "basic-chat",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mast-ai/core": "*",
-    "@mast-ai/google-genai": "*"
+    "@mast-ai/core": "*"
   },
   "devDependencies": {
     "typescript": "~6.0.2",

@@ -23,7 +23,7 @@ packages present but empty.
 - `src/index.ts`: empty
 - `styles/default.css`: empty
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Vite + React + TypeScript app, `package.json` with workspace deps
   (`@mast-ai/react-ui`, `@mast-ai/google-genai`, `lucide-react`,
@@ -79,7 +79,7 @@ No demo wiring — the hook is internal and cannot be used without `AgentProvide
 
 Exported from `src/index.ts`.
 
-**`apps/demo-react-ui`** — first functional wiring:
+**`demos/react-ui/chat`** — first functional wiring:
 
 - `src/tools.ts`: `get_current_time` tool (returns `new Date().toISOString()`)
 - `App.tsx`: wrap with `AgentProvider` (using `GoogleGenAIAdapter` + `VITE_GEMINI_API_KEY`),
@@ -104,7 +104,7 @@ Exported from `src/index.ts`.
 
 - Custom icon node from `icons` prop is rendered in place of bundled default
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Pass all six `lucide-react` icon slots via the `icons` prop on `AgentProvider`
 
@@ -126,7 +126,7 @@ Sub-issues:
   all three states rendered correctly; `subThinking` and `subText` absent for plain
   tools.
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Replace raw tool-call rendering in `App.tsx` with `ThinkingBlock` and `ToolCallBlock`
 
@@ -146,7 +146,7 @@ Sub-issues:
 No dedicated tests beyond what Issue 5 already covers; component correctness is
 verified through `MessageList` tests in Issue 8.
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Replace per-entry rendering in `App.tsx` with `UserMessage` and `AssistantMessage`
 
@@ -169,7 +169,7 @@ verified through `MessageList` tests in Issue 8.
 - All scenarios from SPEC §11.2: Enter submits, Shift+Enter does not, cancel button
   appears while running
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Replace the raw `<textarea>` + `<button>`s in `App.tsx` with `ChatInput`
 
@@ -192,7 +192,7 @@ verified through `MessageList` tests in Issue 8.
 
 - Renders user and assistant entries; scrolls to bottom on new entry
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Replace the raw `<ul>` in `App.tsx` with `MessageList`
 
@@ -215,7 +215,7 @@ verified through `MessageList` tests in Issue 8.
 - `[data-mast-theme="dark"]` explicit override block
 - All `mast-*` class rules for every component
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Replace `MessageList` + `ChatInput` in `App.tsx` with `ConversationPanel`
 - Import `@mast-ai/react-ui/styles.css`
@@ -264,7 +264,7 @@ needsApproval = (def.requiresApproval || overrideSet.has(name)) && !suppressSet.
   callback returns `false` / `string` / `true`; `approvalOverride` adds and suppresses;
   no callback → defaults to the inline approval queue.
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Add `get_page_title` tool to `src/tools.ts` (returns `document.title`, marked
   `requiresApproval: true`)
@@ -296,7 +296,7 @@ Extends `AgentProvider` with save/load hooks.
 - `reset()` clears both `messages` and `history`
 - `useAgent().history` reflects current core state
 
-**`apps/demo-react-ui`**
+**`demos/react-ui/chat`**
 
 - Wire `onConversationChange` to persist `history` and `entries` to `localStorage`
 - Pass `initialHistory` and `initialEntries` loaded from `localStorage` on startup
@@ -399,7 +399,7 @@ following the layout in SPEC §13.9.
 ### 14d — Demo wiring
 
 - Add a small in-memory list of "documents" (e.g. fake markdown files) to
-  `apps/demo-react-ui/src/App.tsx`
+  `demos/react-ui/chat/src/App.tsx`
 - Pass `mentions={{ items, buildPrompt }}` to `<ConversationPanel>`
 - Demonstrate `buildPrompt` injecting a "The user has referenced..." preamble
   while the user bubble shows the inline `@title` form

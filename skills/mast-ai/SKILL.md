@@ -33,7 +33,7 @@ When implementing MAST features, consult these references for API details and pa
 Because MAST is currently hosted on GitHub and not published to NPM, installation depends on your project context:
 
 **Option A: Inside the MAST Monorepo (Recommended for Demos)**
-If you are creating an app within the `apps/` directory of the MAST monorepo, use the workspace protocol in your `package.json`:
+If you are creating a demo within the `demos/` directory of the MAST monorepo, use the workspace protocol in your `package.json`:
 
 ```json
 "dependencies": {

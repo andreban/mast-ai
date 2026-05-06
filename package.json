@@ -4,7 +4,7 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "demos/*/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

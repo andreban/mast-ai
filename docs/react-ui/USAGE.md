@@ -119,7 +119,7 @@ have nowhere else to put `data-mast-root`; in that mode the provider also
 forwards `theme="light" | "dark"` onto the wrapper as `data-mast-theme`.
 
 > Do not bake the API key into a public bundle. The reference demo
-> (`apps/demo-react-ui`) prompts for the key at runtime and stores it in
+> (`demos/react-ui/chat`) prompts for the key at runtime and stores it in
 > `localStorage`; production apps should fetch a short-lived token from a
 > backend instead.
 
@@ -1330,5 +1330,5 @@ makes the disabled state explicit and uniformly handled by the library.
 - [`PRD.md`](./PRD.md) — problem statement, user stories, success criteria.
 - [`SPEC.md`](./SPEC.md) — full type signatures, prop reference, streaming
   state machine, accessibility notes, and testing strategy.
-- `apps/demo-react-ui` — runnable reference app exercising every feature in
+- `demos/react-ui/chat` — runnable reference app exercising every feature in
   this guide.

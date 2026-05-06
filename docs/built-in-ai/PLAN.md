@@ -191,4 +191,4 @@ export type { BuiltInAIAdapterOptions } from './BuiltInAIAdapter.js';
 ## Open Questions
 
 1. **Testing environment:** Built-in AI APIs only exist in supporting browsers. Unit tests will mock the `LanguageModel` global. Integration/e2e testing requires a browser with the APIs enabled (possibly via Playwright with experimental flags).
-2. **Demo app:** A new `apps/demo-built-in-ai` or a toggle in `apps/demo-basic-chat` to switch to the `BuiltInAIAdapter` when running in a supporting browser would demonstrate the local-only mode effectively.
+2. **Demo app:** A new `demos/built-in-ai/` demo or a toggle in `demos/core/basic-chat` to switch to the `BuiltInAIAdapter` when running in a supporting browser would demonstrate the local-only mode effectively.

@@ -193,7 +193,7 @@ function CommandInput() {
    keyboard-navigation and ARIA requirements.
 7. The streaming state machine (`useAgentStream`), approval flow, conversation
    persistence, and all interactive components have unit tests that pass in CI.
-8. A working demo app (`apps/demo-react-ui`) ships alongside the library demonstrating
+8. A working demo app (`demos/react-ui/chat`) ships alongside the library demonstrating
    the default setup with `@mast-ai/google-genai`, custom icons via `lucide-react`, and
    at least two registered tools.
 9. Developer documentation (`docs/react-ui/USAGE.md`) and the `skills/mast-ai` skill
