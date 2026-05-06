@@ -71,27 +71,27 @@ type ToolRegistryListener<K extends keyof ToolRegistryEventMap> = (
 ) => void;
 
 class ToolRegistryEventEmitter {
-  private listeners: {
-    [K in keyof ToolRegistryEventMap]?: Set<ToolRegistryListener<K>>;
-  } = {};
+  private readonly registered = new Set<ToolRegistryListener<'tool-registered'>>();
+  private readonly unregistered = new Set<ToolRegistryListener<'tool-unregistered'>>();
 
   on<K extends keyof ToolRegistryEventMap>(type: K, listener: ToolRegistryListener<K>): void {
-    let set = this.listeners[type];
-    if (!set) {
-      set = new Set();
-      this.listeners[type] = set;
-    }
-    set.add(listener);
+    this.bucket(type).add(listener);
   }
 
   off<K extends keyof ToolRegistryEventMap>(type: K, listener: ToolRegistryListener<K>): void {
-    this.listeners[type]?.delete(listener);
+    this.bucket(type).delete(listener);
   }
 
   emit<K extends keyof ToolRegistryEventMap>(type: K, event: ToolRegistryEventMap[K]): void {
-    const set = this.listeners[type];
-    if (!set) return;
-    for (const listener of [...set]) listener(event);
+    for (const listener of [...this.bucket(type)]) listener(event);
+  }
+
+  // The cast is contained here: each generic call resolves `K` to one of the
+  // literal keys, and the matching bucket has a compatible listener type.
+  private bucket<K extends keyof ToolRegistryEventMap>(type: K): Set<ToolRegistryListener<K>> {
+    return (type === 'tool-registered' ? this.registered : this.unregistered) as Set<
+      ToolRegistryListener<K>
+    >;
   }
 }
 
