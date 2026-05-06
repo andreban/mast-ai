@@ -165,9 +165,10 @@ function clearApiKey() {
 
 interface ApiKeySetupProps {
   onSubmit: (key: string) => void;
+  theme: 'light' | 'dark' | undefined;
 }
 
-function ApiKeySetup({ onSubmit }: ApiKeySetupProps) {
+function ApiKeySetup({ onSubmit, theme }: ApiKeySetupProps) {
   const [value, setValue] = useState('');
   const trimmed = value.trim();
 
@@ -177,7 +178,7 @@ function ApiKeySetup({ onSubmit }: ApiKeySetupProps) {
   };
 
   return (
-    <div className="demo-shell">
+    <div className="demo-shell" data-mast-root data-mast-theme={theme}>
       <header className="demo-header">
         <h1>MAST React UI Demo</h1>
       </header>
@@ -556,11 +557,11 @@ export default function App() {
   const isUnsavedNew = !active;
 
   if (!apiKey || !runner) {
-    return <ApiKeySetup onSubmit={handleApiKey} />;
+    return <ApiKeySetup onSubmit={handleApiKey} theme={panelTheme} />;
   }
 
   return (
-    <div className="demo-shell">
+    <div className="demo-shell" data-mast-root data-mast-theme={panelTheme}>
       <header className="demo-header">
         <h1>MAST React UI Demo</h1>
         <div className="demo-header-controls">
