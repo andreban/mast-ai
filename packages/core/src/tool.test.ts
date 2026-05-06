@@ -146,3 +146,122 @@ describe('ToolRegistryView', () => {
     expect(view.getTools()).toHaveLength(0);
   });
 });
+
+describe('ToolRegistry events', () => {
+  it('fires tool-registered after a tool is added', () => {
+    const registry = new ToolRegistry();
+    const tool = makeTool('alpha', 'read');
+    const listener = vi.fn();
+
+    registry.addEventListener('tool-registered', listener);
+    registry.register(tool);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ tool });
+  });
+
+  it('fires tool-unregistered after a tool is removed', () => {
+    const registry = new ToolRegistry();
+    registry.register(makeTool('beta', 'write'));
+    const listener = vi.fn();
+
+    registry.addEventListener('tool-unregistered', listener);
+    registry.unregister('beta');
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ name: 'beta' });
+  });
+
+  it('does not fire tool-unregistered for no-op unregister calls', () => {
+    const registry = new ToolRegistry();
+    const listener = vi.fn();
+
+    registry.addEventListener('tool-unregistered', listener);
+    registry.unregister('missing');
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('does not fire tool-registered when register throws on duplicate', () => {
+    const registry = new ToolRegistry();
+    registry.register(makeTool('dup', 'read'));
+    const listener = vi.fn();
+
+    registry.addEventListener('tool-registered', listener);
+    expect(() => registry.register(makeTool('dup', 'write'))).toThrow();
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('removeEventListener stops further notifications', () => {
+    const registry = new ToolRegistry();
+    const listener = vi.fn();
+
+    registry.addEventListener('tool-registered', listener);
+    registry.register(makeTool('one', 'read'));
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    registry.removeEventListener('tool-registered', listener);
+    registry.register(makeTool('two', 'read'));
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports multiple listeners for the same event', () => {
+    const registry = new ToolRegistry();
+    const a = vi.fn();
+    const b = vi.fn();
+
+    registry.addEventListener('tool-registered', a);
+    registry.addEventListener('tool-registered', b);
+    registry.register(makeTool('shared', 'read'));
+
+    expect(a).toHaveBeenCalledTimes(1);
+    expect(b).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ToolRegistryView events', () => {
+  it('forwards tool-registered only for tools matching the view scope', () => {
+    const registry = new ToolRegistry();
+    const view = registry.readOnly();
+    const listener = vi.fn();
+
+    view.addEventListener('tool-registered', listener);
+    const reader = makeTool('reader', 'read');
+    const writer = makeTool('writer', 'write');
+    registry.register(reader);
+    registry.register(writer);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ tool: reader });
+  });
+
+  it('forwards tool-unregistered only for tools that previously matched the view scope', () => {
+    const registry = new ToolRegistry();
+    registry.register(makeTool('reader', 'read'));
+    registry.register(makeTool('writer', 'write'));
+    const view = registry.readOnly();
+    const listener = vi.fn();
+
+    view.addEventListener('tool-unregistered', listener);
+    registry.unregister('writer');
+    registry.unregister('reader');
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ name: 'reader' });
+  });
+
+  it('removeEventListener stops further notifications on the view', () => {
+    const registry = new ToolRegistry();
+    const view = registry.readOnly();
+    const listener = vi.fn();
+
+    view.addEventListener('tool-registered', listener);
+    registry.register(makeTool('first', 'read'));
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    view.removeEventListener('tool-registered', listener);
+    registry.register(makeTool('second', 'read'));
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+});

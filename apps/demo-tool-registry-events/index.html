@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MAST — ToolRegistry Events Demo</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <aside class="sidebar">
+        <h2>ToolRegistry Events <small id="version"></small></h2>
+
+        <div class="info-panel">
+          Toggle each tool to fire <code>tool-registered</code> and
+          <code>tool-unregistered</code> events. The panels on the right are populated entirely by
+          listeners on a <code>ToolRegistry</code> and a scope-filtered
+          <code>ToolRegistryView</code>.
+        </div>
+
+        <div class="controls-panel">
+          <h3>Tools</h3>
+          <ul class="tool-controls" id="tool-controls"></ul>
+        </div>
+
+        <div class="bulk-panel">
+          <button id="register-all" class="secondary-button">Register all</button>
+          <button id="unregister-all" class="secondary-button">Unregister all</button>
+        </div>
+      </aside>
+
+      <main class="main-container">
+        <section class="pane">
+          <header class="pane-header">
+            <span class="pane-label">Full registry</span>
+            <span class="pane-sub">live from <code>registry.addEventListener(...)</code></span>
+          </header>
+          <ul class="tool-list" id="full-list">
+            <li class="placeholder">No tools registered.</li>
+          </ul>
+        </section>
+
+        <section class="pane">
+          <header class="pane-header">
+            <span class="pane-label">Read-only view</span>
+            <span class="pane-sub"
+              >scope filtered via <code>registry.readOnly().addEventListener(...)</code></span
+            >
+          </header>
+          <ul class="tool-list" id="readonly-list">
+            <li class="placeholder">No read-scope tools registered.</li>
+          </ul>
+        </section>
+
+        <section class="pane log-pane">
+          <header class="pane-header">
+            <span class="pane-label">Event log</span>
+            <button id="clear-log" class="link-button">Clear</button>
+          </header>
+          <ol class="event-log" id="event-log">
+            <li class="placeholder">Events will appear here.</li>
+          </ol>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
