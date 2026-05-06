@@ -47,7 +47,7 @@ npm run lint             # Lint
 npm run format           # Format
 ```
 
-### Frontend Demo (`apps/demo-basic-chat`)
+### Frontend Demo (`demos/core/basic-chat`)
 
 ```bash
 npm run dev              # Start Vite dev server (http://localhost:5173)
@@ -55,19 +55,19 @@ npm run build            # Production build
 npm run preview          # Preview production build
 ```
 
-### Rust Backend (`apps/demo-rust-server`)
+### Rust Backend (`demos/core/rust-server`)
 
 ```bash
 cargo run                # Start URP server (http://127.0.0.1:3000)
 cargo build --release    # Release build
 ```
 
-Requires a `.env` file in `apps/demo-rust-server/` with `GEMINI_API_KEY=...`.
+Requires a `.env` file in `demos/core/rust-server/` with `GEMINI_API_KEY=...`.
 
 ### Running the Full Stack Demo
 
-1. Start the Rust backend: `cd apps/demo-rust-server && cargo run`
-2. Start the frontend: `cd apps/demo-basic-chat && npm run dev`
+1. Start the Rust backend: `cd demos/core/rust-server && cargo run`
+2. Start the frontend: `cd demos/core/basic-chat && npm run dev`
 
 ## Architecture
 
@@ -92,10 +92,10 @@ packages/built-in-ai/src/
 ├── BuiltInAIAdapter.ts    → LlmAdapter wrapping Chrome Prompt API
 └── tools/                 → summarize, translate, detectLanguage, proofread
 
-apps/demo-basic-chat/src/
+demos/core/basic-chat/src/
 └── main.ts          → Chat UI wiring ToolRegistry + AgentRunner
 
-apps/demo-rust-server/src/
+demos/core/rust-server/src/
 ├── main.rs          → Axum server, CORS, routes
 ├── provider.rs      → URP request handler, streaming, agent-rig integration
 └── types.rs         → URP request/response types
@@ -237,7 +237,7 @@ If a new `@mast-ai/<name>` package is added to the repo, its first publish must 
 - Do not add `Co-Authored-By` trailers to commit messages.
 - Always run `npm run lint`, `npm run format`, `npm run build`, and `npm test` before committing and fix any failures.
 - Always use `Edit` to modify existing files — never rewrite them wholesale with `Write`. Small diffs make reviews easier.
-- Before committing and opening a PR, check whether the demos under `apps/` and the skills under `skills/` need updates to reflect the change (new APIs, renamed exports, behaviour changes, new capabilities worth showcasing). Update them as part of the same PR when they do.
+- Before committing and opening a PR, check whether the demos under `demos/` and the skills under `skills/` need updates to reflect the change (new APIs, renamed exports, behaviour changes, new capabilities worth showcasing). Update them as part of the same PR when they do.
 - Always ask the user to manually test before committing. Never commit or open a pull request until the user has confirmed the test passed.
 - **Branch strategy:**
   1. Before starting work on an issue, check out `main` and pull the latest (`git checkout main && git pull`).

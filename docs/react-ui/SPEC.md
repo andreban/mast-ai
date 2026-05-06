@@ -1106,7 +1106,7 @@ packages/react-ui/src/
 
 ---
 
-## 12. Demo App (`apps/demo-react-ui`)
+## 12. Demo App (`demos/react-ui/chat`)
 
 A Vite + React + TypeScript app in the monorepo that serves as both a manual test
 surface and a reference implementation.
@@ -1158,7 +1158,7 @@ header to clear it.
 ### File structure
 
 ```
-apps/demo-react-ui/
+demos/react-ui/chat/
 ├── src/
 │   ├── main.tsx        — mounts App
 │   ├── App.tsx         — API key gate + AgentProvider setup, tool registration, theme toggle, renderToolCall, conversation list + localStorage persistence, instructions panel

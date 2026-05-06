@@ -1,5 +1,5 @@
 {
-  "name": "demo-agent-tool",
+  "name": "agent-tool",
   "private": true,
   "version": "0.0.0",
   "type": "module",
