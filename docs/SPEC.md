@@ -137,9 +137,20 @@ export class ToolRegistry {
   get(name: string): Tool | undefined;
   definitions(): ToolDefinition[];
 }
+
+export type ToolRegistryEventMap = {
+  'tool-registered': { tool: Tool };
+  'tool-unregistered': { name: string };
+};
+
+// `ToolRegistry` and `ToolRegistryView` both expose:
+//   addEventListener<K>(type: K, listener: (event: ToolRegistryEventMap[K]) => void): void;
+//   removeEventListener<K>(type: K, listener: (event: ToolRegistryEventMap[K]) => void): void;
 ```
 
 `ToolDefinition` is the runtime metadata forwarded to the remote backend in a URP request. It is never stored inside `AgentConfig`.
+
+Mutation events fire synchronously from `register()` and `unregister()` after the internal map is updated. `register()` throwing on a duplicate name does not fire `tool-registered`; `unregister()` for an unknown name is a silent no-op. `ToolRegistryView` forwards events from its parent registry but delivers only those for tools whose `scope` matches the view's scope.
 
 ### `LlmAdapter` (`src/adapter/index.ts`)
 

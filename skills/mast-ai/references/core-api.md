@@ -41,6 +41,12 @@ const registry = new ToolRegistry().register({
   definition: () => ({ name: 'myTool', description: '...', parameters: { ... } }),
   call: async (args, context) => { ... }
 });
+
+// Subscribe to runtime mutations.
+registry.addEventListener('tool-registered', ({ tool }) => { /* ... */ });
+registry.addEventListener('tool-unregistered', ({ name }) => { /* ... */ });
+// `ToolRegistryView` (returned by `registry.readOnly()`) exposes the same
+// addEventListener / removeEventListener API, scoped to the view's filter.
 ```
 
 ## AgentRunner
