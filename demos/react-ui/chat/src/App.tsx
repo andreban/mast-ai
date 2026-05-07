@@ -119,18 +119,18 @@ const mentionsConfig: MentionsConfig<DemoDoc> = {
   },
 };
 
-type ThemeChoice = 'system' | 'light' | 'dark';
+type ThemeChoice = 'light' | 'dark' | 'auto';
 
 const NEXT_THEME: Record<ThemeChoice, ThemeChoice> = {
-  system: 'light',
   light: 'dark',
-  dark: 'system',
+  dark: 'auto',
+  auto: 'light',
 };
 
 const THEME_LABEL: Record<ThemeChoice, string> = {
-  system: 'Theme: System',
   light: 'Theme: Light',
   dark: 'Theme: Dark',
+  auto: 'Theme: Auto (OS)',
 };
 
 // ---------------------------------------------------------------------------
@@ -165,7 +165,7 @@ function clearApiKey() {
 
 interface ApiKeySetupProps {
   onSubmit: (key: string) => void;
-  theme: 'light' | 'dark' | undefined;
+  theme: ThemeChoice;
 }
 
 function ApiKeySetup({ onSubmit, theme }: ApiKeySetupProps) {
@@ -470,7 +470,7 @@ function InstructionsPanel() {
         <h3>UI tips</h3>
         <ul>
           <li>Click any tool bubble to expand its arguments and result.</li>
-          <li>Use the theme button to cycle System / Light / Dark.</li>
+          <li>Use the theme button to cycle Light / Dark / Auto (OS).</li>
           <li>
             Conversations save to <code>localStorage</code> and reload on refresh.
           </li>
@@ -482,8 +482,7 @@ function InstructionsPanel() {
 }
 
 export default function App() {
-  const [theme, setTheme] = useState<ThemeChoice>('system');
-  const panelTheme = theme === 'system' ? undefined : theme;
+  const [theme, setTheme] = useState<ThemeChoice>('light');
 
   const [apiKey, setApiKey] = useState<string | null>(() => loadApiKey());
 
@@ -557,11 +556,11 @@ export default function App() {
   const isUnsavedNew = !active;
 
   if (!apiKey || !runner) {
-    return <ApiKeySetup onSubmit={handleApiKey} theme={panelTheme} />;
+    return <ApiKeySetup onSubmit={handleApiKey} theme={theme} />;
   }
 
   return (
-    <div className="demo-shell" data-mast-root data-mast-theme={panelTheme}>
+    <div className="demo-shell" data-mast-root data-mast-theme={theme}>
       <header className="demo-header">
         <h1>MAST React UI Demo</h1>
         <div className="demo-header-controls">
@@ -612,7 +611,7 @@ export default function App() {
               <PendingApprovalsBadge />
             </div>
             <ConversationPanel
-              theme={panelTheme}
+              theme={theme}
               renderApproval={renderApproval}
               mentions={mentionsConfig as MentionsConfig}
               inputPlaceholder="Type @ to reference a doc, then press Enter."

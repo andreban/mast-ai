@@ -158,14 +158,15 @@ nested inside the provider.
 
 `<AgentProvider>` is transparent in the DOM by default: it does not render
 its own wrapper around `children`. `<ConversationPanel>` carries its own
-`data-mast-root` so the snippet above works with no extra setup. When
-composing primitives directly, place `data-mast-root` on whichever element
-should anchor the library's CSS variables (typically the outermost
-container) — see §8.
+`data-mast-root` and `mast-panel` class so the snippet above works with no
+extra setup. When composing primitives directly, place `data-mast-root` on
+whichever element should anchor the library's CSS variables (typically the
+outermost container) — see §8.
 
 Pass `disableRoot={false}` to opt back into a zero-config wrapper when you
 have nowhere else to put `data-mast-root`; in that mode the provider also
-forwards `theme="light" | "dark"` onto the wrapper as `data-mast-theme`.
+forwards `theme="light" | "dark" | "auto"` onto the wrapper as
+`data-mast-theme`.
 
 > Do not bake the API key into a public bundle. The reference demo
 > (`demos/react-ui/chat`) prompts for the key at runtime and stores it in
@@ -302,16 +303,19 @@ and any of the other tokens listed in §5.3.
 
 ### 5.2 Dark mode
 
-The default stylesheet ships a light theme and an automatic dark theme that
-follows `prefers-color-scheme`. Apps that manage their own theme switching can
-force a value via the `theme` prop on `<ConversationPanel>` (which sets it on
-the panel root). When opted into the auto wrapper via `disableRoot={false}`,
-the same prop on `<AgentProvider>` forwards it onto the wrapper.
+The default stylesheet ships a light theme and an opt-in dark theme. The
+default is light, including for users whose OS reports
+`prefers-color-scheme: dark` — apps without their own dark theme stay light
+end-to-end without surprises. Apps that want OS-following behaviour pass
+`theme="auto"`; apps that manage their own theme switching force a value
+via `theme="light"` / `theme="dark"`. The same prop is accepted by
+`<ConversationPanel>` (which sets it on the panel root) and by
+`<AgentProvider>` when opted into the auto wrapper via `disableRoot={false}`.
 
 ```tsx
 <ConversationPanel theme="dark" />   // force dark
-<ConversationPanel theme="light" />  // force light
-<ConversationPanel />                // follow OS (default)
+<ConversationPanel theme="light" />  // force light (default)
+<ConversationPanel theme="auto" />   // follow OS preference
 
 <AgentProvider runner={runner} agent={agent} disableRoot={false} theme="dark">
   <ConversationPanel />
@@ -525,9 +529,10 @@ library's dark detection stays in sync with the `.dark` class.
 ### 5.8 Plain CSS without a design system
 
 For apps that do not use Tailwind or shadcn, override the tokens directly in
-your global stylesheet. The library's automatic dark mode applies whenever
-`data-mast-theme` is unset, so you only need a second block for explicit
-themes:
+your global stylesheet. The library defaults to light, so the base block
+covers the normal case; add a second block for explicit `theme="dark"`,
+and optionally a third block for `theme="auto"` users whose OS reports
+dark:
 
 ```css
 [data-mast-root] {
@@ -543,6 +548,14 @@ themes:
   --mast-bg: #1c1917;
   --mast-fg: #fafafa;
   --mast-accent: #fb923c;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-mast-root][data-mast-theme='auto'] {
+    --mast-bg: #1c1917;
+    --mast-fg: #fafafa;
+    --mast-accent: #fb923c;
+  }
 }
 ```
 
@@ -634,7 +647,18 @@ those primitives directly into your own JSX. `<AgentProvider>` is transparent
 in the DOM by default, so place `data-mast-root` on whichever element should
 anchor the CSS custom properties (typically the outermost container, so
 non-library UI inside such as a header, badges, or surrounding chrome also
-picks up the variables):
+picks up the variables).
+
+`data-mast-root` is purely the theming scope: it defines the `--mast-*`
+tokens and resets `box-sizing` for descendants, but carries no visible
+chrome on its own. The bundled border, padding, flex column, and
+`height: 100%` live on a separate `mast-panel` class that `<ConversationPanel>`
+applies internally. Composing primitives manually means deciding what
+chrome the surrounding element should have:
+
+- Add `mast-panel` to get the same look as `<ConversationPanel>`.
+- Skip it to drop the bundled chrome and rely on your own card styling
+  (no doubled borders, no manual zero-out).
 
 ```tsx
 import { AgentProvider, MessageList, ChatInput } from '@mast-ai/react-ui';
@@ -667,11 +691,12 @@ For zero-config setups that have no natural outer container, set
 </AgentProvider>
 ```
 
-The auto wrapper carries panel chrome (border, padding, `height: 100%`),
-which is appropriate when it actually wraps a chat panel but surprises apps
-that mount `<AgentProvider>` near the React tree root. The default
-(`disableRoot` omitted or `true`) keeps the provider transparent so the
-chrome only appears where you ask for it.
+The auto wrapper anchors `data-mast-root` only — it does **not** add
+`mast-panel`, since `<AgentProvider>` is rarely the chat panel itself. If
+you also want the bundled chrome around `<MessageList>` + `<ChatInput>`,
+either render `<ConversationPanel>` instead or stack a `mast-panel`
+container inside the wrapper. The default (`disableRoot` omitted or `true`)
+keeps the provider transparent in the DOM.
 
 Other primitives exported for compositional use: `<MessageItem>`,
 `<UserMessage>`, `<AssistantMessage>`, `<ThinkingBlock>`, `<ToolCallBlock>`,

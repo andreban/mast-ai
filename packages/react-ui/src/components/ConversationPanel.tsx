@@ -16,11 +16,11 @@ import type { GetToolLabel } from './ToolLabelContext.js';
  */
 export interface ConversationPanelProps {
   /**
-   * Forces a theme regardless of the user's `prefers-color-scheme` setting.
-   * When omitted, the panel follows the OS preference via the default
-   * stylesheet's media query.
+   * Selects the panel's theme. Defaults to `'light'`. Pass `'dark'` to force
+   * the dark palette regardless of OS preference, or `'auto'` to follow the
+   * user's `prefers-color-scheme` setting.
    */
-  theme?: 'light' | 'dark';
+  theme?: 'light' | 'dark' | 'auto';
   /** Optional class added to the root `[data-mast-root]` element. */
   className?: string;
   /**
@@ -62,8 +62,12 @@ export interface ConversationPanelProps {
  *
  * Internally renders {@link MessageList} and {@link ChatInput} inside a
  * `[data-mast-root]` div so the default stylesheet's CSS custom properties
- * resolve. Sets `data-mast-theme` from the optional `theme` prop, which the
- * default stylesheet uses to override the OS-driven dark mode preference.
+ * resolve. The same div carries `mast-panel` so the bundled chrome (border,
+ * padding, flex column, `height: 100%`) is applied; consumers composing
+ * primitives manually opt into chrome by adding the class themselves (see
+ * USAGE.md §8). `data-mast-theme` is set from the optional `theme` prop;
+ * the default stylesheet uses it to select between light, dark, and an
+ * OS-following auto mode.
  *
  * Must be rendered inside an `<AgentProvider>`.
  */
@@ -77,7 +81,7 @@ export function ConversationPanel({
   inputPlaceholder,
   mentions,
 }: ConversationPanelProps) {
-  const rootClass = ['mast-conversation-panel', className].filter(Boolean).join(' ');
+  const rootClass = ['mast-panel', 'mast-conversation-panel', className].filter(Boolean).join(' ');
 
   return (
     <div data-mast-root data-mast-theme={theme} className={rootClass}>

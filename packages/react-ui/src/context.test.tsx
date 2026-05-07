@@ -414,7 +414,8 @@ describe('useAgent', () => {
     expect(root!.tagName).toBe('DIV');
     expect(root!.querySelector('[data-testid="child"]')).not.toBeNull();
     // No `data-mast-theme` is set when the prop is omitted, so the default
-    // stylesheet's `prefers-color-scheme` media query takes over.
+    // stylesheet's light tokens apply. Hosts opt into OS-following with
+    // theme="auto".
     expect(root!.hasAttribute('data-mast-theme')).toBe(false);
   });
 
