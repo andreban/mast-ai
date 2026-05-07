@@ -291,6 +291,8 @@ Override individual tokens by setting CSS custom properties under `[data-mast-ro
 
 Element-shape tokens (`--mast-button-border`, `--mast-button-padding`, `--mast-input-border`, `--mast-message-border-width`, `--mast-user-bubble-border`) cover the long tail of "my buttons / inputs / message bubbles look slightly different" without reaching into specific class names. Defaults preserve the current visuals.
 
+Typography inherits from the host by default: `--mast-font` is `inherit` and `--mast-text-base` is `1em`, so the panel adopts the surrounding app's font and base size. Hosts that want to pin a specific font set `--mast-font` (and optionally `--mast-text-base`) on `[data-mast-root]`.
+
 For Tailwind / shadcn apps, import the bundled preset to remap every `--mast-*` token onto the standard shadcn HSL variables in one line:
 
 ```ts

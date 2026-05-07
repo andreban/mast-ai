@@ -277,7 +277,30 @@ under `[data-mast-root]`, so consumers can override individual tokens, swap the
 whole palette, or remap every token onto an existing design system without
 `!important` and without forking the stylesheet.
 
-### 5.1 Dark mode
+### 5.1 Typography inherits from the host
+
+The library's typography tokens default to `inherit` so the panel adopts the
+host's font and base size automatically. With no `--mast-*` overrides, a host
+that sets `body { font: 18px Arial; }` (or anywhere else along the
+`[data-mast-root]` ancestor chain) sees the panel render in Arial at 18px;
+secondary text scales relatively (`--mast-text-sm: 0.875em`).
+
+If no host typography is set, the browser's user-agent stylesheet provides a
+sensible fallback (typically `system-ui` at 16px). Hosts that want to pin the
+panel to a specific font regardless of their surrounding styles set the tokens
+explicitly on `[data-mast-root]`:
+
+```css
+[data-mast-root] {
+  --mast-font: 'Inter', system-ui, sans-serif;
+  --mast-text-base: 1rem;
+}
+```
+
+The same override mechanism works for `--mast-font-mono`, `--mast-text-sm`,
+and any of the other tokens listed in §5.3.
+
+### 5.2 Dark mode
 
 The default stylesheet ships a light theme and an automatic dark theme that
 follows `prefers-color-scheme`. Apps that manage their own theme switching can
@@ -301,7 +324,7 @@ selects on that attribute so OS preferences are overridden without
 already transparent in the DOM by default, so set `data-mast-theme={theme}`
 yourself on the element that carries `data-mast-root`.
 
-### 5.2 Token reference
+### 5.3 Token reference
 
 Every token below is defined on `[data-mast-root]` in the default stylesheet
 and is safe to override at any scope.
@@ -347,7 +370,7 @@ Tokens whose default is `var(--mast-bg)` or `var(--mast-bg-subtle)` inherit
 from the base color tokens automatically, so overriding `--mast-bg` once is
 usually enough.
 
-### 5.3 Cascade layer
+### 5.4 Cascade layer
 
 Every rule in `@mast-ai/react-ui/styles.css` (and the bundled theme presets)
 lives inside a CSS cascade layer named `mast-ai`. Layered rules always lose
@@ -378,7 +401,7 @@ This is the highest-leverage way to integrate the library into an existing
 design system: hosts no longer need descendant element selectors or
 `!important` to defeat the library's defaults.
 
-### 5.4 Overriding individual tokens
+### 5.5 Overriding individual tokens
 
 Set whichever tokens you want to change on any selector that contains a
 `[data-mast-root]` element. The default stylesheet uses single-attribute
@@ -400,7 +423,7 @@ after `@mast-ai/react-ui/styles.css`.
 }
 ```
 
-### 5.5 Mapping onto an existing design system (Tailwind / shadcn)
+### 5.6 Mapping onto an existing design system (Tailwind / shadcn)
 
 Apps with their own design tokens typically want library components to inherit
 the app theme rather than ship a parallel palette. The pattern is to remap
@@ -479,7 +502,7 @@ forward `data-mast-theme` onto the element that carries `data-mast-root`:
 </aside>
 ```
 
-### 5.6 Importing the bundled Tailwind / shadcn preset
+### 5.7 Importing the bundled Tailwind / shadcn preset
 
 The preset above also ships as an importable stylesheet. Add it after the
 default styles import to skip writing the mapping yourself:
@@ -494,12 +517,12 @@ The preset assumes the standard shadcn variables (`--background`,
 `--muted-foreground`, `--border`, `--destructive`) are defined as raw HSL
 triples on `:root` and `.dark`, which is the default shadcn layout. Tailwind
 v4 / shadcn v4 projects that store full color values should copy the snippet
-in §5.5 and drop the `hsl()` wrapper instead.
+in §5.6 and drop the `hsl()` wrapper instead.
 
-You still need to forward the app theme via `data-mast-theme` (§5.5) so the
+You still need to forward the app theme via `data-mast-theme` (§5.6) so the
 library's dark detection stays in sync with the `.dark` class.
 
-### 5.7 Plain CSS without a design system
+### 5.8 Plain CSS without a design system
 
 For apps that do not use Tailwind or shadcn, override the tokens directly in
 your global stylesheet. The library's automatic dark mode applies whenever
