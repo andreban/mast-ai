@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
-import type { Content, FunctionDeclaration, Part, FunctionCall, Schema } from '@google/genai';
+import type { Content, FunctionDeclaration, Part, FunctionCall, Schema, Tool } from '@google/genai';
 import type {
   LlmAdapter,
   AdapterRequest,
@@ -30,30 +30,42 @@ export class GoogleGenAIAdapter implements LlmAdapter {
   private client: GoogleGenAI;
   private modelName: string;
   private onUsageUpdate?: (usage: UsageMetadata) => void;
+  private nativeTools?: Tool[];
 
   /**
    * @param apiKey - Google AI API key.
    * @param modelName - Gemini model identifier (defaults to `"gemini-3.1-flash-lite-preview"`).
    * @param onUsageUpdate - Optional callback invoked with token-usage data after each response.
+   * @param nativeTools - Optional Gemini built-in tools (e.g. `{ googleSearch: {} }`,
+   *   `{ codeExecution: {} }`, `{ urlContext: {} }`) that are appended to the tools array on
+   *   every request alongside any function declarations from the registry.
    */
   constructor(
     apiKey: string,
     modelName: string = 'gemini-3.1-flash-lite-preview',
     onUsageUpdate?: (usage: UsageMetadata) => void,
+    nativeTools?: Tool[],
   ) {
     this.client = new GoogleGenAI({ apiKey });
     this.modelName = modelName;
     this.onUsageUpdate = onUsageUpdate;
+    this.nativeTools = nativeTools;
+  }
+
+  private buildTools(request: AdapterRequest): Tool[] | undefined {
+    const functionDeclarations = request.tools.map((t) => this.mapTool(t));
+    const allTools: Tool[] = [
+      ...(functionDeclarations.length > 0 ? [{ functionDeclarations }] : []),
+      ...(this.nativeTools ?? []),
+    ];
+    return allTools.length > 0 ? allTools : undefined;
   }
 
   /** {@inheritDoc LlmAdapter.generate} */
   async generate(request: AdapterRequest): Promise<AdapterResponse> {
     const contents = this.mapMessages(request.messages);
     const systemInstruction = this.mapSystemInstruction(request.system);
-    const tools =
-      request.tools.length > 0
-        ? [{ functionDeclarations: request.tools.map((t) => this.mapTool(t)) }]
-        : undefined;
+    const tools = this.buildTools(request);
 
     const outputSchema = request.outputSchema;
     const response = await this.client.models.generateContent({
@@ -120,10 +132,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
   async *generateStream(request: AdapterRequest): AsyncIterable<AdapterStreamChunk> {
     const contents = this.mapMessages(request.messages);
     const systemInstruction = this.mapSystemInstruction(request.system);
-    const tools =
-      request.tools.length > 0
-        ? [{ functionDeclarations: request.tools.map((t) => this.mapTool(t)) }]
-        : undefined;
+    const tools = this.buildTools(request);
 
     const responseStream = await this.client.models.generateContentStream({
       model: this.modelName,

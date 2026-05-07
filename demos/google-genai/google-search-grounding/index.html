@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MAST &mdash; Google Search Grounding Demo</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="sidebar">
+        <h2>Search Grounding <small id="version"></small></h2>
+
+        <div class="config-panel">
+          <label>Google AI API key</label>
+          <input type="password" id="api-key" placeholder="AIza&hellip;" autocomplete="off" />
+          <p class="config-hint">Stored in localStorage on this device only.</p>
+        </div>
+
+        <div class="info-panel">
+          <h3>What this shows</h3>
+          <p>
+            <code>GoogleGenAIAdapter</code> accepts an optional <code>nativeTools</code> array that
+            is forwarded directly to Gemini alongside any function declarations from the
+            <code>ToolRegistry</code>. This demo passes <code>[{ googleSearch: {} }]</code> so the
+            model can ground answers in live web results.
+          </p>
+          <p>
+            Native tools cover Gemini's built-in tools &mdash; <code>googleSearch</code>,
+            <code>codeExecution</code>, <code>urlContext</code> &mdash; without needing adapter
+            subclasses for each.
+          </p>
+        </div>
+
+        <div class="info-panel">
+          <h3>Try this</h3>
+          <ul>
+            <li>Who won the most recent F1 Grand Prix?</li>
+            <li>What is the current price of a barrel of Brent crude?</li>
+            <li>Summarise today's top tech headlines.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="chat-container">
+        <div class="message-list" id="message-list">
+          <div class="message assistant">
+            <div class="bubble">
+              Ask me about something current. I'll use Google Search to ground my answer.
+            </div>
+          </div>
+        </div>
+
+        <div class="input-area">
+          <div class="status-indicator" id="status-indicator">Idle</div>
+          <div class="input-group">
+            <textarea
+              id="prompt-input"
+              placeholder="e.g. What is the weather in Tokyo right now?"
+            ></textarea>
+            <button id="send-button">Send</button>
+            <button id="stop-button" class="stop-button" hidden>Stop</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
