@@ -153,6 +153,68 @@ describe('GoogleGenAIAdapter', () => {
     expect(response.text).toBe('Thinking... and also responding');
   });
 
+  it('should append nativeTools to the tools array alongside function declarations', async () => {
+    const { GoogleGenAI } = await import('@google/genai');
+    const mockClient = new (GoogleGenAI as unknown as new () => {
+      models: { generateContent: ReturnType<typeof vi.fn> };
+    })();
+
+    const adapterWithNative = new GoogleGenAIAdapter(
+      'fake-api-key',
+      'gemini-3.1-flash-lite-preview',
+      undefined,
+      [{ googleSearch: {} }],
+    );
+
+    await adapterWithNative.generate({
+      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      tools: [{ name: 'testTool', description: 'desc', parameters: {}, scope: 'read' as const }],
+    });
+
+    const call = mockClient.models.generateContent.mock.calls.at(-1)?.[0];
+    expect(call.config.tools).toEqual([
+      { functionDeclarations: [{ name: 'testTool', description: 'desc', parameters: {} }] },
+      { googleSearch: {} },
+    ]);
+  });
+
+  it('should send nativeTools alone when no function declarations are provided', async () => {
+    const { GoogleGenAI } = await import('@google/genai');
+    const mockClient = new (GoogleGenAI as unknown as new () => {
+      models: { generateContent: ReturnType<typeof vi.fn> };
+    })();
+
+    const adapterWithNative = new GoogleGenAIAdapter(
+      'fake-api-key',
+      'gemini-3.1-flash-lite-preview',
+      undefined,
+      [{ googleSearch: {} }, { urlContext: {} }],
+    );
+
+    await adapterWithNative.generate({
+      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      tools: [],
+    });
+
+    const call = mockClient.models.generateContent.mock.calls.at(-1)?.[0];
+    expect(call.config.tools).toEqual([{ googleSearch: {} }, { urlContext: {} }]);
+  });
+
+  it('should leave tools undefined when neither function declarations nor nativeTools are provided', async () => {
+    const { GoogleGenAI } = await import('@google/genai');
+    const mockClient = new (GoogleGenAI as unknown as new () => {
+      models: { generateContent: ReturnType<typeof vi.fn> };
+    })();
+
+    await adapter.generate({
+      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      tools: [],
+    });
+
+    const call = mockClient.models.generateContent.mock.calls.at(-1)?.[0];
+    expect(call.config.tools).toBeUndefined();
+  });
+
   it('should throw when no candidate is returned from generate', async () => {
     const { GoogleGenAI } = await import('@google/genai');
     const mockClient = new (GoogleGenAI as unknown as new () => {
@@ -284,6 +346,41 @@ describe('GoogleGenAIAdapter', () => {
         candidatesTokenCount: 2,
         totalTokenCount: 5,
       });
+    });
+
+    it('should forward nativeTools alongside function declarations in streaming requests', async () => {
+      const { GoogleGenAI } = await import('@google/genai');
+      const mockClient = new (GoogleGenAI as unknown as new () => {
+        models: { generateContentStream: ReturnType<typeof vi.fn> };
+      })();
+      mockClient.models.generateContentStream.mockResolvedValueOnce(
+        (async function* () {
+          yield {
+            candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+            usageMetadata: {},
+          };
+        })(),
+      );
+
+      const adapterWithNative = new GoogleGenAIAdapter(
+        'fake-api-key',
+        'gemini-3.1-flash-lite-preview',
+        undefined,
+        [{ googleSearch: {} }],
+      );
+
+      for await (const _chunk of adapterWithNative.generateStream({
+        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        tools: [{ name: 'read', description: 'reads', parameters: {}, scope: 'read' as const }],
+      })) {
+        void _chunk;
+      }
+
+      const call = mockClient.models.generateContentStream.mock.calls.at(-1)?.[0];
+      expect(call.config.tools).toEqual([
+        { functionDeclarations: [{ name: 'read', description: 'reads', parameters: {} }] },
+        { googleSearch: {} },
+      ]);
     });
 
     it('should skip chunks with no candidates', async () => {
