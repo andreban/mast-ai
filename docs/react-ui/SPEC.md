@@ -62,6 +62,17 @@ import '@mast-ai/react-ui/styles.css';
 This file is plain CSS with no build-tool dependencies. It uses CSS custom properties
 scoped under `[data-mast-root]` so it does not pollute the global namespace.
 
+`[data-mast-root]` is purely the theming scope: it defines the `--mast-*`
+tokens (and resets `box-sizing` for descendants) without applying any
+visible chrome on its own. The bundled panel chrome (border, padding, flex
+column, `height: 100%`, background, font, gap) lives on a separate
+`mast-panel` class. `<ConversationPanel>` renders both the data attribute
+and the class so the default user-facing component looks identical to the
+pre-split behaviour; consumers composing primitives manually (see
+[USAGE.md §8](./USAGE.md#8-composing-a-custom-layout-with-primitives))
+opt into chrome by adding `mast-panel`, or skip it to use their own card
+without doubled borders or manual zero-out.
+
 Every rule in `styles.css` (and the bundled theme presets in §2.4) is wrapped in
 a `@layer mast-ai { … }` block. Layered rules always lose to unlayered rules
 regardless of source order, so a host stylesheet authored against the
@@ -72,8 +83,10 @@ overrides still win.
 
 ### 2.2 CSS Custom Properties
 
-The default stylesheet defines a light theme and an automatic dark theme. Both are
-expressed as CSS custom property blocks so consuming apps can override individual tokens
+The default stylesheet defines a light theme and an opt-in dark theme. The light
+theme is the default for every panel; OS-following behaviour is opt-in via
+`data-mast-theme="auto"` (see "Manual theme control" below). Both are expressed
+as CSS custom property blocks so consuming apps can override individual tokens
 at any scope without `!important`.
 
 ```css
@@ -119,9 +132,9 @@ at any scope without `!important`.
   --mast-user-bubble-border: none;
 }
 
-/* Dark theme — activated by OS preference OR explicit attribute */
+/* Dark theme — opt-in via data-mast-theme="dark" or "auto" + OS dark */
 @media (prefers-color-scheme: dark) {
-  [data-mast-root]:not([data-mast-theme='light']) {
+  [data-mast-root][data-mast-theme='auto'] {
     --mast-bg: #111827;
     --mast-bg-subtle: #1f2937;
     --mast-fg: #f9fafb;
@@ -149,15 +162,20 @@ at any scope without `!important`.
 }
 ```
 
-**Manual theme control:** Apps that manage their own theme switching (e.g. via
-`next-themes`) pass `data-mast-theme="light"` or `data-mast-theme="dark"` to the
-root element. `ConversationPanel` accepts a `theme` prop that sets this attribute:
+**Manual theme control:** Apps choose their theme via `data-mast-theme` on the
+panel root. `ConversationPanel` (and `<AgentProvider>` when opted into the
+auto wrapper via `disableRoot={false}`) accepts a `theme` prop that sets the
+attribute:
 
 ```tsx
-<ConversationPanel theme="dark" />        // force dark
-<ConversationPanel theme="light" />       // force light
-<ConversationPanel />                     // follow OS (default)
+<ConversationPanel theme="dark" />   // force dark
+<ConversationPanel theme="light" />  // force light (default)
+<ConversationPanel theme="auto" />   // follow OS preference
 ```
+
+The library defaults to light when `data-mast-theme` is unset; OS-following
+behaviour is opt-in via `theme="auto"` so apps without their own dark theme
+do not get a surprise dark panel inside an otherwise-light surface.
 
 ### 2.3 CSS class naming
 
@@ -174,14 +192,15 @@ an existing design system in one import. Presets are plain CSS published under
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `@mast-ai/react-ui/themes/tailwind-shadcn.css` | shadcn HSL variables (`--background`, `--foreground`, `--primary`, `--muted`, `--destructive`) |
 
-Presets use a triple-selector rule (`[data-mast-root], [data-mast-root][data-mast-theme='dark'], [data-mast-root][data-mast-theme='light']`)
-to match the specificity of the library's own dark-theme block, so source order
-tie-breaks in favour of the preset when it is loaded after `styles.css`. The
-preset declares its rules inside the same `@layer mast-ai` block as the
-default stylesheet so the source-order tie-break is preserved when both files
-are loaded. See [`USAGE.md` §5](./USAGE.md#5-theming) for the full integration
-guide, including how to forward `data-mast-theme` for class-based dark-mode
-setups.
+Presets use a quadruple-selector rule
+(`[data-mast-root], [data-mast-root][data-mast-theme='dark'], [data-mast-root][data-mast-theme='light'], [data-mast-root][data-mast-theme='auto']`)
+to match the specificity of the library's own dark-theme blocks at every
+theme variant, so source order tie-breaks in favour of the preset when it is
+loaded after `styles.css`. The preset declares its rules inside the same
+`@layer mast-ai` block as the default stylesheet so the source-order
+tie-break is preserved when both files are loaded. See
+[`USAGE.md` §5](./USAGE.md#5-theming) for the full integration guide,
+including how to forward `data-mast-theme` for class-based dark-mode setups.
 
 ---
 
@@ -311,13 +330,15 @@ interface AgentProviderProps {
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
 
   /**
-   * Forces a theme on the auto-rendered [data-mast-root] wrapper. Only
-   * meaningful when disableRoot is explicitly false (so the provider actually
-   * renders the wrapper). When omitted or true, the prop has no effect and
-   * consumers should set data-mast-theme themselves on whatever element
-   * carries data-mast-root.
+   * Selects the theme on the auto-rendered [data-mast-root] wrapper.
+   * Defaults to 'light'. Pass 'dark' to force the dark palette or 'auto' to
+   * follow the OS prefers-color-scheme preference. Only meaningful when
+   * disableRoot is explicitly false (so the provider actually renders the
+   * wrapper). When omitted or true, the prop has no effect and consumers
+   * should set data-mast-theme themselves on whatever element carries
+   * data-mast-root.
    */
-  theme?: 'light' | 'dark';
+  theme?: 'light' | 'dark' | 'auto';
 
   /**
    * Controls whether the provider renders an auto wrapper <div data-mast-root>
@@ -357,7 +378,10 @@ When `disableRoot` is `false`, the provider renders an auto wrapper:
 ```
 
 This is the opt-in zero-config mode for layouts that do not have their own
-container element.
+container element. The wrapper anchors `data-mast-root` only — it does
+**not** add `mast-panel`, since `<AgentProvider>` is rarely the chat panel
+itself. Use `<ConversationPanel>` or stack a `mast-panel` container
+inside the wrapper to add the bundled chrome.
 
 **Internal state managed by `AgentProvider`:**
 
@@ -413,17 +437,34 @@ interface ConversationPanelProps {
 
   /** Placeholder text for the input field. */
   inputPlaceholder?: string;
+
+  /**
+   * Selects the panel's theme. Defaults to 'light'. Pass 'dark' to force
+   * the dark palette regardless of OS preference, or 'auto' to follow the
+   * user's prefers-color-scheme setting.
+   */
+  theme?: 'light' | 'dark' | 'auto';
 }
 ```
 
 Renders:
 
 ```html
-<div data-mast-root class="mast-conversation-panel {className}">
+<div
+  data-mast-root
+  data-mast-theme="{theme}"
+  class="mast-panel mast-conversation-panel {className}"
+>
   <MessageList renderToolCall="{...}" renderMessage="{...}" />
   <ChatInput placeholder="{...}" />
 </div>
 ```
+
+The bundled chrome (border, padding, flex column, `height: 100%`) lives on
+`mast-panel`, not `[data-mast-root]`, so consumers composing primitives
+directly (see §4.1 / [USAGE.md §8](./USAGE.md#8-composing-a-custom-layout-with-primitives))
+opt into the chrome by adding the class themselves or skip it to use their
+own card.
 
 ### 4.3 `<MessageList>`
 

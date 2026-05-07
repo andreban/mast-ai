@@ -35,7 +35,7 @@ interface AgentProviderProps {
   initialHistory?: Message[]; // read once on mount
   initialEntries?: ConversationEntry[]; // read once on mount
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
-  theme?: 'light' | 'dark'; // forwarded to the auto wrapper when disableRoot={false}
+  theme?: 'light' | 'dark' | 'auto'; // forwarded to the auto wrapper when disableRoot={false}; default 'light'
   disableRoot?: boolean; // default true; pass false to opt into the auto <div data-mast-root> wrapper
 }
 ```
@@ -69,13 +69,13 @@ interface UseAgentReturn {
 
 ## ConversationPanel
 
-Drop-in chat UI. Wraps `<MessageList>` and `<ChatInput>` inside a `[data-mast-root]` element.
+Drop-in chat UI. Wraps `<MessageList>` and `<ChatInput>` inside a `[data-mast-root]` element that also carries the `mast-panel` class for the bundled chrome.
 
 ```typescript
 import { ConversationPanel } from '@mast-ai/react-ui';
 
 interface ConversationPanelProps {
-  theme?: 'light' | 'dark'; // omit to follow prefers-color-scheme
+  theme?: 'light' | 'dark' | 'auto'; // default 'light'; pass 'auto' to follow prefers-color-scheme
   className?: string;
   renderToolCall?: (entry: ToolEventEntry, approval?: PendingApproval) => ReactNode;
   renderApproval?: (entry: ToolEventEntry, approval: PendingApproval) => ReactNode;
@@ -87,7 +87,7 @@ interface ConversationPanelProps {
 
 ## Primitives
 
-For non-default layouts (sidebar, docked panel, etc.), drop the primitives into your own JSX. `<AgentProvider>` is already transparent by default, so just add `data-mast-root` to whatever element should anchor the CSS custom properties. (Use `disableRoot={false}` when you want the provider to render its own zero-config wrapper instead.)
+For non-default layouts (sidebar, docked panel, etc.), drop the primitives into your own JSX. `<AgentProvider>` is already transparent by default, so just add `data-mast-root` to whatever element should anchor the CSS custom properties. (Use `disableRoot={false}` when you want the provider to render its own zero-config wrapper instead.) `[data-mast-root]` is purely the theming scope; add the `mast-panel` class to the same element if you want the bundled chrome (border, padding, flex column, `height: 100%`), or skip it to use your own card without doubled borders.
 
 ```typescript
 import {
@@ -275,7 +275,7 @@ const {
 
 ## Theming
 
-The default stylesheet ships a light theme and an automatic dark theme that follows `prefers-color-scheme`. Apps that manage their own theme can force a value with `theme="light" | "dark"` on `<ConversationPanel>` (or, when opted in via `disableRoot={false}`, on `<AgentProvider>` so it's forwarded onto the auto wrapper). Both set `data-mast-theme`.
+The default stylesheet ships a light theme (default) and an opt-in dark theme. Apps choose with `theme="light" | "dark" | "auto"` on `<ConversationPanel>` (or, when opted in via `disableRoot={false}`, on `<AgentProvider>` so it's forwarded onto the auto wrapper). Both set `data-mast-theme`. Pass `"auto"` to follow `prefers-color-scheme`; the library defaults to light when the attribute is unset, so apps without their own dark theme do not get a surprise dark panel inside an otherwise-light surface.
 
 Every rule in `styles.css` and the bundled theme presets lives inside a `@layer mast-ai` cascade layer. Layered rules always lose to unlayered rules, so a host stylesheet authored against the existing class names overrides the library at equal specificity without `!important`. Hosts that prefer to keep their overrides layered can declare `@layer mast-ai, host;` and write rules inside `@layer host { … }`.
 
@@ -300,7 +300,7 @@ import '@mast-ai/react-ui/styles.css';
 import '@mast-ai/react-ui/themes/tailwind-shadcn.css';
 ```
 
-Two gotchas when writing the mapping by hand: list `[data-mast-root]`, `[data-mast-root][data-mast-theme='dark']`, and `[data-mast-root][data-mast-theme='light']` together so source order tie-breaks against the library's dark-mode block, and pass `data-mast-theme={theme}` on the panel root so the library tracks the app's class-based dark mode (`.dark` on `<html>`).
+Two gotchas when writing the mapping by hand: list `[data-mast-root]`, `[data-mast-root][data-mast-theme='dark']`, `[data-mast-root][data-mast-theme='light']`, and `[data-mast-root][data-mast-theme='auto']` together so source order tie-breaks against the library's dark-mode blocks at every theme variant, and pass `data-mast-theme={theme}` on the panel root so the library tracks the app's class-based dark mode (`.dark` on `<html>`).
 
 The full token list, gotcha rationale, and a plain-CSS example are in `docs/react-ui/USAGE.md` §5.
 

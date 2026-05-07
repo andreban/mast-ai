@@ -16,18 +16,19 @@
  *
  * Two non-obvious tricks this preset relies on:
  *
- * 1. Listing all three selectors with equal specificity so source order
+ * 1. Listing every theme variant with equal specificity so source order
  *    tie-breaks in the consumer's favor. A bare [data-mast-root] block loses
- *    to the library's [data-mast-root][data-mast-theme='dark'] block in dark
- *    mode and the dark theme would keep the library's hardcoded colors. The
+ *    to the library's [data-mast-root][data-mast-theme='dark'] (and the
+ *    OS-following [data-mast-theme='auto']) blocks, so explicit dark mode
+ *    and OS-following users would keep the library's hardcoded colors. The
  *    preset declares its rules inside the same `@layer mast-ai` block as the
  *    default stylesheet, so the source-order tie-break is preserved when
  *    both files are loaded.
  *
  * 2. Setting data-mast-theme={theme} on the panel root in your app keeps the
  *    library's dark detection in sync with shadcn's class-based dark mode
- *    (.dark on <html>). Without it, the library follows OS preference and
- *    can mismatch the app theme.
+ *    (.dark on <html>). Without it, the library defaults to the light theme
+ *    and can mismatch an app forced into dark.
  *
  * See docs/react-ui/USAGE.md §5 for the full integration guide.
  */
@@ -35,7 +36,8 @@
 @layer mast-ai {
   [data-mast-root],
   [data-mast-root][data-mast-theme='dark'],
-  [data-mast-root][data-mast-theme='light'] {
+  [data-mast-root][data-mast-theme='light'],
+  [data-mast-root][data-mast-theme='auto'] {
     --mast-bg: hsl(var(--background));
     --mast-bg-subtle: hsl(var(--muted) / 0.2);
     --mast-fg: hsl(var(--foreground));

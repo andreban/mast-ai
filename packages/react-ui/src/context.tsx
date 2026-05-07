@@ -93,15 +93,15 @@ export interface AgentProviderProps {
    */
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
   /**
-   * Forces a theme on the auto-rendered `[data-mast-root]` wrapper. Only
+   * Selects the theme on the auto-rendered `[data-mast-root]` wrapper.
+   * Defaults to `'light'`. Pass `'dark'` to force the dark palette or
+   * `'auto'` to follow the OS `prefers-color-scheme` preference. Only
    * meaningful when `disableRoot` is explicitly `false` (so the provider
    * actually renders the wrapper); when omitted or `true`, this prop has no
    * effect and consumers should set `data-mast-theme` themselves on whatever
-   * element carries `data-mast-root`. When the wrapper is rendered without a
-   * theme set, the panel follows OS preference via the default stylesheet's
-   * `prefers-color-scheme` media query.
+   * element carries `data-mast-root`.
    */
-  theme?: 'light' | 'dark';
+  theme?: 'light' | 'dark' | 'auto';
   /**
    * Controls whether the provider renders an auto wrapper `<div data-mast-root>`
    * around `children`.

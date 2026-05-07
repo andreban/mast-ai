@@ -67,7 +67,7 @@
   }
 
   @media (prefers-color-scheme: dark) {
-    [data-mast-root]:not([data-mast-theme='light']) {
+    [data-mast-root][data-mast-theme='auto'] {
       --mast-bg: #111827;
       --mast-bg-subtle: #1f2937;
       --mast-fg: #f9fafb;
@@ -159,7 +159,25 @@
   /* ConversationPanel                                                          */
   /* -------------------------------------------------------------------------- */
 
+  /*
+   * `[data-mast-root]` is purely a theming scope: it defines the `--mast-*`
+   * tokens (above) and resets `box-sizing` for descendants so layout maths
+   * inside the panel stay predictable. Hosts that want the bundled panel
+   * chrome (border, padding, flex column, height: 100%) opt in by adding the
+   * `.mast-panel` class. `<ConversationPanel>` renders both the data
+   * attribute and the class so the default user-facing component looks
+   * identical to before; consumers composing primitives (see USAGE.md §8)
+   * can skip the class to drop the chrome and use their own card.
+   */
   [data-mast-root] {
+    box-sizing: border-box;
+  }
+
+  [data-mast-root] * {
+    box-sizing: border-box;
+  }
+
+  .mast-panel {
     display: flex;
     flex-direction: column;
     gap: var(--mast-gap);
@@ -172,11 +190,6 @@
     border: 1px solid var(--mast-border);
     border-radius: var(--mast-radius);
     padding: var(--mast-gap);
-    box-sizing: border-box;
-  }
-
-  [data-mast-root] * {
-    box-sizing: border-box;
   }
 
   /* -------------------------------------------------------------------------- */
