@@ -277,6 +277,8 @@ const {
 
 The default stylesheet ships a light theme and an automatic dark theme that follows `prefers-color-scheme`. Apps that manage their own theme can force a value with `theme="light" | "dark"` on `<ConversationPanel>` (or, when opted in via `disableRoot={false}`, on `<AgentProvider>` so it's forwarded onto the auto wrapper). Both set `data-mast-theme`.
 
+Every rule in `styles.css` and the bundled theme presets lives inside a `@layer mast-ai` cascade layer. Layered rules always lose to unlayered rules, so a host stylesheet authored against the existing class names overrides the library at equal specificity without `!important`. Hosts that prefer to keep their overrides layered can declare `@layer mast-ai, host;` and write rules inside `@layer host { … }`.
+
 Override individual tokens by setting CSS custom properties under `[data-mast-root]`:
 
 ```css
@@ -286,6 +288,8 @@ Override individual tokens by setting CSS custom properties under `[data-mast-ro
   --mast-radius: 0.25rem;
 }
 ```
+
+Element-shape tokens (`--mast-button-border`, `--mast-button-padding`, `--mast-input-border`, `--mast-message-border-width`, `--mast-user-bubble-border`) cover the long tail of "my buttons / inputs / message bubbles look slightly different" without reaching into specific class names. Defaults preserve the current visuals.
 
 For Tailwind / shadcn apps, import the bundled preset to remap every `--mast-*` token onto the standard shadcn HSL variables in one line:
 

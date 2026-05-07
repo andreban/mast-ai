@@ -19,7 +19,10 @@
  * 1. Listing all three selectors with equal specificity so source order
  *    tie-breaks in the consumer's favor. A bare [data-mast-root] block loses
  *    to the library's [data-mast-root][data-mast-theme='dark'] block in dark
- *    mode and the dark theme would keep the library's hardcoded colors.
+ *    mode and the dark theme would keep the library's hardcoded colors. The
+ *    preset declares its rules inside the same `@layer mast-ai` block as the
+ *    default stylesheet, so the source-order tie-break is preserved when
+ *    both files are loaded.
  *
  * 2. Setting data-mast-theme={theme} on the panel root in your app keeps the
  *    library's dark detection in sync with shadcn's class-based dark mode
@@ -29,27 +32,29 @@
  * See docs/react-ui/USAGE.md §5 for the full integration guide.
  */
 
-[data-mast-root],
-[data-mast-root][data-mast-theme='dark'],
-[data-mast-root][data-mast-theme='light'] {
-  --mast-bg: hsl(var(--background));
-  --mast-bg-subtle: hsl(var(--muted) / 0.2);
-  --mast-fg: hsl(var(--foreground));
-  --mast-fg-muted: hsl(var(--muted-foreground));
-  --mast-border: hsl(var(--border));
-  --mast-accent: hsl(var(--primary));
-  --mast-accent-fg: hsl(var(--primary-foreground));
-  --mast-thinking-bg: hsl(var(--muted));
-  --mast-thinking-fg: hsl(var(--muted-foreground));
-  --mast-tool-bg: hsl(var(--muted) / 0.4);
-  --mast-tool-fg: hsl(var(--muted-foreground));
-  --mast-tool-pending: hsl(var(--primary));
-  --mast-tool-error-bg: hsl(var(--destructive) / 0.1);
-  --mast-tool-error-fg: hsl(var(--destructive));
-  --mast-tool-cancelled-bg: hsl(var(--muted));
-  --mast-tool-cancelled-fg: hsl(var(--muted-foreground));
-  --mast-user-bubble: hsl(var(--primary));
-  --mast-user-fg: hsl(var(--primary-foreground));
-  --mast-mention-chip-bg: hsl(var(--primary) / 0.1);
-  --mast-mention-chip-fg: hsl(var(--primary));
-}
+@layer mast-ai {
+  [data-mast-root],
+  [data-mast-root][data-mast-theme='dark'],
+  [data-mast-root][data-mast-theme='light'] {
+    --mast-bg: hsl(var(--background));
+    --mast-bg-subtle: hsl(var(--muted) / 0.2);
+    --mast-fg: hsl(var(--foreground));
+    --mast-fg-muted: hsl(var(--muted-foreground));
+    --mast-border: hsl(var(--border));
+    --mast-accent: hsl(var(--primary));
+    --mast-accent-fg: hsl(var(--primary-foreground));
+    --mast-thinking-bg: hsl(var(--muted));
+    --mast-thinking-fg: hsl(var(--muted-foreground));
+    --mast-tool-bg: hsl(var(--muted) / 0.4);
+    --mast-tool-fg: hsl(var(--muted-foreground));
+    --mast-tool-pending: hsl(var(--primary));
+    --mast-tool-error-bg: hsl(var(--destructive) / 0.1);
+    --mast-tool-error-fg: hsl(var(--destructive));
+    --mast-tool-cancelled-bg: hsl(var(--muted));
+    --mast-tool-cancelled-fg: hsl(var(--muted-foreground));
+    --mast-user-bubble: hsl(var(--primary));
+    --mast-user-fg: hsl(var(--primary-foreground));
+    --mast-mention-chip-bg: hsl(var(--primary) / 0.1);
+    --mast-mention-chip-fg: hsl(var(--primary));
+  }
+} /* @layer mast-ai */

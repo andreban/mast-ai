@@ -1,48 +1,96 @@
 /* @mast-ai/react-ui default stylesheet — import as '@mast-ai/react-ui/styles.css' */
 
-/* -------------------------------------------------------------------------- */
-/* Theme tokens                                                               */
-/* -------------------------------------------------------------------------- */
+/*
+ * Every rule below is wrapped in @layer mast-ai. CSS cascade layers always
+ * lose to unlayered rules regardless of source order, so a host stylesheet
+ * authored against the existing class names overrides the library at equal
+ * specificity without `!important` or extra wrapping. Hosts that prefer to
+ * keep their overrides layered can author them inside their own layer
+ * declared after `mast-ai`, e.g.:
+ *
+ *   @layer mast-ai, host;
+ *   @layer host {
+ *     .mast-user-message-bubble { border-radius: 0; }
+ *   }
+ */
+@layer mast-ai {
+  /* -------------------------------------------------------------------------- */
+  /* Theme tokens                                                               */
+  /* -------------------------------------------------------------------------- */
 
-[data-mast-root] {
-  /* Color */
-  --mast-bg: #ffffff;
-  --mast-bg-subtle: #f9fafb;
-  --mast-fg: #111827;
-  --mast-fg-muted: #6b7280;
-  --mast-border: #e5e7eb;
-  --mast-accent: #2563eb;
-  --mast-accent-fg: #ffffff;
-  --mast-thinking-bg: #fefce8;
-  --mast-thinking-fg: #854d0e;
-  --mast-tool-bg: #f0fdf4;
-  --mast-tool-fg: #166534;
-  --mast-tool-pending: #f59e0b;
-  --mast-tool-error-bg: #fef2f2;
-  --mast-tool-error-fg: #991b1b;
-  --mast-tool-cancelled-bg: #f3f4f6;
-  --mast-tool-cancelled-fg: #4b5563;
-  --mast-user-bubble: #dbeafe;
-  --mast-user-fg: #1e3a8a;
-  --mast-mention-chip-bg: #dbeafe;
-  --mast-mention-chip-fg: #1e3a8a;
-  --mast-mention-picker-bg: var(--mast-bg);
-  --mast-mention-picker-active-bg: var(--mast-bg-subtle);
-  --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  [data-mast-root] {
+    /* Color */
+    --mast-bg: #ffffff;
+    --mast-bg-subtle: #f9fafb;
+    --mast-fg: #111827;
+    --mast-fg-muted: #6b7280;
+    --mast-border: #e5e7eb;
+    --mast-accent: #2563eb;
+    --mast-accent-fg: #ffffff;
+    --mast-thinking-bg: #fefce8;
+    --mast-thinking-fg: #854d0e;
+    --mast-tool-bg: #f0fdf4;
+    --mast-tool-fg: #166534;
+    --mast-tool-pending: #f59e0b;
+    --mast-tool-error-bg: #fef2f2;
+    --mast-tool-error-fg: #991b1b;
+    --mast-tool-cancelled-bg: #f3f4f6;
+    --mast-tool-cancelled-fg: #4b5563;
+    --mast-user-bubble: #dbeafe;
+    --mast-user-fg: #1e3a8a;
+    --mast-mention-chip-bg: #dbeafe;
+    --mast-mention-chip-fg: #1e3a8a;
+    --mast-mention-picker-bg: var(--mast-bg);
+    --mast-mention-picker-active-bg: var(--mast-bg-subtle);
+    --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
-  /* Typography */
-  --mast-font: system-ui, sans-serif;
-  --mast-font-mono: ui-monospace, monospace;
-  --mast-text-sm: 0.875rem;
-  --mast-text-base: 1rem;
+    /* Typography */
+    --mast-font: system-ui, sans-serif;
+    --mast-font-mono: ui-monospace, monospace;
+    --mast-text-sm: 0.875rem;
+    --mast-text-base: 1rem;
 
-  /* Spacing */
-  --mast-gap: 0.75rem;
-  --mast-radius: 0.5rem;
-}
+    /* Spacing */
+    --mast-gap: 0.75rem;
+    --mast-radius: 0.5rem;
 
-@media (prefers-color-scheme: dark) {
-  [data-mast-root]:not([data-mast-theme='light']) {
+    /* Element-shape tokens. Hosts adjust button, input, and message borders
+       through these without reaching into specific class names. Defaults
+       preserve current visuals. */
+    --mast-button-border: 1px solid transparent;
+    --mast-button-padding: 0.4rem 0.9rem;
+    --mast-input-border: 1px solid var(--mast-border);
+    --mast-message-border-width: 1px;
+    --mast-user-bubble-border: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-mast-root]:not([data-mast-theme='light']) {
+      --mast-bg: #111827;
+      --mast-bg-subtle: #1f2937;
+      --mast-fg: #f9fafb;
+      --mast-fg-muted: #9ca3af;
+      --mast-border: #374151;
+      --mast-accent: #3b82f6;
+      --mast-accent-fg: #ffffff;
+      --mast-thinking-bg: #1c1917;
+      --mast-thinking-fg: #fcd34d;
+      --mast-tool-bg: #052e16;
+      --mast-tool-fg: #86efac;
+      --mast-tool-pending: #fbbf24;
+      --mast-tool-error-bg: #450a0a;
+      --mast-tool-error-fg: #fecaca;
+      --mast-tool-cancelled-bg: #1f2937;
+      --mast-tool-cancelled-fg: #d1d5db;
+      --mast-user-bubble: #1e3a8a;
+      --mast-user-fg: #bfdbfe;
+      --mast-mention-chip-bg: #1e3a8a;
+      --mast-mention-chip-fg: #bfdbfe;
+      --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  [data-mast-root][data-mast-theme='dark'] {
     --mast-bg: #111827;
     --mast-bg-subtle: #1f2937;
     --mast-fg: #f9fafb;
@@ -65,589 +113,566 @@
     --mast-mention-chip-fg: #bfdbfe;
     --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   }
-}
 
-[data-mast-root][data-mast-theme='dark'] {
-  --mast-bg: #111827;
-  --mast-bg-subtle: #1f2937;
-  --mast-fg: #f9fafb;
-  --mast-fg-muted: #9ca3af;
-  --mast-border: #374151;
-  --mast-accent: #3b82f6;
-  --mast-accent-fg: #ffffff;
-  --mast-thinking-bg: #1c1917;
-  --mast-thinking-fg: #fcd34d;
-  --mast-tool-bg: #052e16;
-  --mast-tool-fg: #86efac;
-  --mast-tool-pending: #fbbf24;
-  --mast-tool-error-bg: #450a0a;
-  --mast-tool-error-fg: #fecaca;
-  --mast-tool-cancelled-bg: #1f2937;
-  --mast-tool-cancelled-fg: #d1d5db;
-  --mast-user-bubble: #1e3a8a;
-  --mast-user-fg: #bfdbfe;
-  --mast-mention-chip-bg: #1e3a8a;
-  --mast-mention-chip-fg: #bfdbfe;
-  --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
+  /* -------------------------------------------------------------------------- */
+  /* Utilities                                                                  */
+  /* -------------------------------------------------------------------------- */
 
-/* -------------------------------------------------------------------------- */
-/* Utilities                                                                  */
-/* -------------------------------------------------------------------------- */
-
-.mast-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-@keyframes mast-spin {
-  from {
-    transform: rotate(0deg);
+  .mast-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
-  to {
-    transform: rotate(360deg);
+
+  @keyframes mast-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
-}
 
-.mast-spin {
-  animation: mast-spin 1s linear infinite;
-}
-
-@keyframes mast-pulse {
-  0%,
-  100% {
-    opacity: 1;
+  .mast-spin {
+    animation: mast-spin 1s linear infinite;
   }
-  50% {
-    opacity: 0.4;
+
+  @keyframes mast-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* ConversationPanel                                                          */
-/* -------------------------------------------------------------------------- */
-
-[data-mast-root] {
-  display: flex;
-  flex-direction: column;
-  gap: var(--mast-gap);
-  height: 100%;
-  min-height: 0;
-  background: var(--mast-bg);
-  color: var(--mast-fg);
-  font-family: var(--mast-font);
-  font-size: var(--mast-text-base);
-  border: 1px solid var(--mast-border);
-  border-radius: var(--mast-radius);
-  padding: var(--mast-gap);
-  box-sizing: border-box;
-}
-
-[data-mast-root] * {
-  box-sizing: border-box;
-}
-
-/* -------------------------------------------------------------------------- */
-/* MessageList                                                                */
-/* -------------------------------------------------------------------------- */
-
-.mast-message-list {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--mast-gap);
-  background: var(--mast-bg-subtle);
-  border-radius: var(--mast-radius);
-}
-
-/* -------------------------------------------------------------------------- */
-/* UserMessage                                                                */
-/* -------------------------------------------------------------------------- */
-
-[data-mast-user-message] {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--mast-gap);
-}
-
-.mast-user-message-bubble {
-  background: var(--mast-user-bubble);
-  color: var(--mast-user-fg);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--mast-radius);
-  max-width: 80%;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-/* -------------------------------------------------------------------------- */
-/* AssistantMessage                                                           */
-/* -------------------------------------------------------------------------- */
-
-[data-mast-assistant-message] {
-  display: flex;
-  flex-direction: column;
-  gap: var(--mast-gap);
-  margin-bottom: var(--mast-gap);
-  color: var(--mast-fg);
-}
-
-.mast-assistant-message-text {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.mast-assistant-message-markdown {
-  line-height: 1.5;
-}
-
-.mast-assistant-message-markdown > :first-child {
-  margin-top: 0;
-}
-
-.mast-assistant-message-markdown > :last-child {
-  margin-bottom: 0;
-}
-
-.mast-assistant-message-markdown pre {
-  background: var(--mast-bg-subtle);
-  border: 1px solid var(--mast-border);
-  border-radius: var(--mast-radius);
-  padding: 0.5rem 0.75rem;
-  overflow-x: auto;
-  font-family: var(--mast-font-mono);
-  font-size: var(--mast-text-sm);
-}
-
-.mast-assistant-message-markdown code {
-  font-family: var(--mast-font-mono);
-  font-size: 0.9em;
-}
-
-.mast-assistant-message-markdown :not(pre) > code {
-  background: var(--mast-bg-subtle);
-  border: 1px solid var(--mast-border);
-  border-radius: 0.25rem;
-  padding: 0.05rem 0.3rem;
-}
-
-/* -------------------------------------------------------------------------- */
-/* ThinkingBlock                                                              */
-/* -------------------------------------------------------------------------- */
-
-.mast-thinking-block {
-  background: var(--mast-thinking-bg);
-  color: var(--mast-thinking-fg);
-  border: 1px solid var(--mast-border);
-  border-radius: var(--mast-radius);
-  padding: 0.5rem 0.75rem;
-  font-size: var(--mast-text-sm);
-}
-
-.mast-thinking-block-summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.mast-thinking-block-summary::-webkit-details-marker {
-  display: none;
-}
-
-.mast-thinking-block-icon {
-  display: inline-flex;
-  align-items: center;
-}
-
-.mast-thinking-block-label {
-  font-weight: 500;
-}
-
-.mast-thinking-block-pulse {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 9999px;
-  background: currentColor;
-  animation: mast-pulse 1.2s ease-in-out infinite;
-}
-
-.mast-thinking-block-content {
-  margin-top: 0.5rem;
-  white-space: pre-wrap;
-  font-family: var(--mast-font-mono);
-  font-size: var(--mast-text-sm);
-}
-
-/* -------------------------------------------------------------------------- */
-/* ToolCallBlock                                                              */
-/* -------------------------------------------------------------------------- */
-
-.mast-tool-call-block {
-  background: var(--mast-tool-bg);
-  color: var(--mast-tool-fg);
-  border: 1px solid var(--mast-border);
-  border-radius: var(--mast-radius);
-  padding: 0.5rem 0.75rem;
-  font-size: var(--mast-text-sm);
-}
-
-.mast-tool-call-block[data-streaming='true'] .mast-tool-call-block-status {
-  color: var(--mast-tool-pending);
-}
-
-.mast-tool-call-block[data-status='error'] {
-  background: var(--mast-tool-error-bg, #fef2f2);
-  color: var(--mast-tool-error-fg, #991b1b);
-}
-
-.mast-tool-call-block[data-status='error'] .mast-tool-call-block-status {
-  color: var(--mast-tool-error-fg, #991b1b);
-}
-
-.mast-tool-call-block[data-status='cancelled'] {
-  background: var(--mast-tool-cancelled-bg, #f3f4f6);
-  color: var(--mast-tool-cancelled-fg, #4b5563);
-}
-
-.mast-tool-call-block[data-status='cancelled'] .mast-tool-call-block-status {
-  color: var(--mast-tool-cancelled-fg, #4b5563);
-}
-
-.mast-tool-call-block-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.mast-tool-call-block-header::-webkit-details-marker {
-  display: none;
-}
-
-.mast-tool-call-block-chevron {
-  display: inline-block;
-  width: 0.75rem;
-  color: var(--mast-fg-muted);
-  transition: transform 0.15s ease;
-}
-
-.mast-tool-call-block[open] > .mast-tool-call-block-header > .mast-tool-call-block-chevron {
-  transform: rotate(90deg);
-}
-
-.mast-tool-call-block-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.mast-tool-call-block-status,
-.mast-tool-call-block-wrench {
-  display: inline-flex;
-  align-items: center;
-}
-
-.mast-tool-call-block-name {
-  font-family: var(--mast-font-mono);
-  font-weight: 500;
-}
-
-.mast-tool-call-block-sub-output {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.mast-tool-call-block-sub-text {
-  white-space: pre-wrap;
-  color: var(--mast-fg);
-}
-
-.mast-tool-call-block-nested {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-left: 0.75rem;
-  padding-left: 0.5rem;
-  border-left: 2px solid var(--mast-border);
-}
-
-.mast-tool-call-block-args,
-.mast-tool-call-block-result {
-  border: 1px solid var(--mast-border);
-  border-radius: var(--mast-radius);
-  background: var(--mast-bg);
-  color: var(--mast-fg);
-  padding: 0.25rem 0.5rem;
-}
-
-.mast-tool-call-block-args > summary,
-.mast-tool-call-block-result > summary {
-  cursor: pointer;
-  user-select: none;
-  font-size: var(--mast-text-sm);
-  color: var(--mast-fg-muted);
-}
-
-.mast-tool-call-block-pre {
-  margin: 0.5rem 0 0 0;
-  padding: 0.5rem;
-  background: var(--mast-bg-subtle);
-  border-radius: 0.25rem;
-  overflow-x: auto;
-  font-family: var(--mast-font-mono);
-  font-size: var(--mast-text-sm);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* -------------------------------------------------------------------------- */
-/* ChatInput                                                                  */
-/* -------------------------------------------------------------------------- */
-
-[data-mast-chat-input] {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--mast-bg);
-  border: 1px solid var(--mast-border);
-  border-radius: var(--mast-radius);
-}
-
-.mast-chat-input-textarea {
-  flex: 1 1 auto;
-  resize: none;
-  background: transparent;
-  color: var(--mast-fg);
-  font: inherit;
-  border: none;
-  outline: none;
-  padding: 0.25rem 0.5rem;
-  min-height: 1.5rem;
-  line-height: 1.4;
-}
-
-.mast-chat-input-textarea::placeholder {
-  color: var(--mast-fg-muted);
-}
-
-.mast-chat-input-textarea:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.mast-chat-input-send,
-.mast-chat-input-cancel {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  flex-shrink: 0;
-  background: var(--mast-accent);
-  color: var(--mast-accent-fg);
-  border: none;
-  border-radius: var(--mast-radius);
-  cursor: pointer;
-  padding: 0;
-}
-
-.mast-chat-input-send:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.mast-chat-input-cancel {
-  background: var(--mast-tool-pending);
-}
-
-/* -------------------------------------------------------------------------- */
-/* Inline approval                                                            */
-/* -------------------------------------------------------------------------- */
-
-.mast-inline-approval {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--mast-tool-pending);
-  border-radius: var(--mast-radius);
-  background: var(--mast-thinking-bg);
-  color: var(--mast-thinking-fg);
-}
-
-.mast-inline-approval-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: var(--mast-text-sm);
-}
-
-.mast-inline-approval-icon {
-  display: inline-flex;
-  align-items: center;
-}
-
-.mast-inline-approval-name {
-  font-family: var(--mast-font-mono);
-  font-weight: 600;
-}
-
-.mast-inline-approval-label {
-  color: var(--mast-fg-muted);
-}
-
-.mast-inline-approval-args {
-  margin: 0;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  background: var(--mast-bg);
-  color: var(--mast-fg);
-  font-family: var(--mast-font-mono);
-  font-size: 0.8125rem;
-  overflow-x: auto;
-}
-
-.mast-inline-approval-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.mast-inline-approval-button {
-  padding: 0.4rem 0.9rem;
-  border-radius: 0.375rem;
-  border: 1px solid transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
-.mast-inline-approval-approve {
-  background: var(--mast-accent);
-  color: var(--mast-accent-fg);
-}
-
-.mast-inline-approval-reject {
-  background: transparent;
-  border-color: currentColor;
-  color: inherit;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Mention picker                                                             */
-/* -------------------------------------------------------------------------- */
-
-.mast-mention-input .mast-mention-input-field {
-  flex: 1 1 auto;
-  position: relative;
-  min-width: 0;
-}
-
-.mast-mention-input-content {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.25rem;
-  width: 100%;
-  min-width: 0;
-}
-
-.mast-mention-input .mast-mention-input-textarea {
-  flex: 1 1 8rem;
-  min-width: 8rem;
-}
-
-.mast-mention-segment-text {
-  white-space: pre-wrap;
-  align-self: center;
-  font-size: var(--mast-text-base);
-}
-
-.mast-mention-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.1rem 0.4rem;
-  background: var(--mast-mention-chip-bg);
-  color: var(--mast-mention-chip-fg);
-  border-radius: 9999px;
-  font-size: var(--mast-text-sm);
-  font-weight: 500;
-}
-
-.mast-mention-chip-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  padding: 0;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 9999px;
-  line-height: 1;
-}
-
-.mast-mention-chip-remove:hover,
-.mast-mention-chip-remove:focus-visible {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.mast-mention-picker {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  right: 0;
-  margin: 0 0 0.25rem 0;
-  padding: 0.25rem;
-  list-style: none;
-  background: var(--mast-mention-picker-bg);
-  border: 1px solid var(--mast-border);
-  border-radius: var(--mast-radius);
-  box-shadow: var(--mast-mention-picker-shadow);
-  max-height: 14rem;
-  overflow-y: auto;
-  z-index: 10;
-}
-
-.mast-mention-picker-item {
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  font-size: var(--mast-text-sm);
-  color: var(--mast-fg);
-}
-
-.mast-mention-picker-item:hover {
-  background: var(--mast-mention-picker-active-bg);
-}
-
-.mast-mention-picker-active {
-  background: var(--mast-mention-picker-active-bg);
-}
-
-.mast-mention-picker-item-label {
-  font-weight: 500;
-}
-
-.mast-mention-picker-item-description {
-  font-size: var(--mast-text-sm);
-  color: var(--mast-fg-muted);
-}
+
+  /* -------------------------------------------------------------------------- */
+  /* ConversationPanel                                                          */
+  /* -------------------------------------------------------------------------- */
+
+  [data-mast-root] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mast-gap);
+    height: 100%;
+    min-height: 0;
+    background: var(--mast-bg);
+    color: var(--mast-fg);
+    font-family: var(--mast-font);
+    font-size: var(--mast-text-base);
+    border: 1px solid var(--mast-border);
+    border-radius: var(--mast-radius);
+    padding: var(--mast-gap);
+    box-sizing: border-box;
+  }
+
+  [data-mast-root] * {
+    box-sizing: border-box;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* MessageList                                                                */
+  /* -------------------------------------------------------------------------- */
+
+  .mast-message-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--mast-gap);
+    background: var(--mast-bg-subtle);
+    border-radius: var(--mast-radius);
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* UserMessage                                                                */
+  /* -------------------------------------------------------------------------- */
+
+  [data-mast-user-message] {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--mast-gap);
+  }
+
+  .mast-user-message-bubble {
+    background: var(--mast-user-bubble);
+    color: var(--mast-user-fg);
+    padding: 0.5rem 0.75rem;
+    border: var(--mast-user-bubble-border);
+    border-radius: var(--mast-radius);
+    max-width: 80%;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* AssistantMessage                                                           */
+  /* -------------------------------------------------------------------------- */
+
+  [data-mast-assistant-message] {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mast-gap);
+    margin-bottom: var(--mast-gap);
+    color: var(--mast-fg);
+  }
+
+  .mast-assistant-message-text {
+    margin: 0;
+    white-space: pre-wrap;
+  }
+
+  .mast-assistant-message-markdown {
+    line-height: 1.5;
+  }
+
+  .mast-assistant-message-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .mast-assistant-message-markdown > :last-child {
+    margin-bottom: 0;
+  }
+
+  .mast-assistant-message-markdown pre {
+    background: var(--mast-bg-subtle);
+    border: 1px solid var(--mast-border);
+    border-radius: var(--mast-radius);
+    padding: 0.5rem 0.75rem;
+    overflow-x: auto;
+    font-family: var(--mast-font-mono);
+    font-size: var(--mast-text-sm);
+  }
+
+  .mast-assistant-message-markdown code {
+    font-family: var(--mast-font-mono);
+    font-size: 0.9em;
+  }
+
+  .mast-assistant-message-markdown :not(pre) > code {
+    background: var(--mast-bg-subtle);
+    border: 1px solid var(--mast-border);
+    border-radius: 0.25rem;
+    padding: 0.05rem 0.3rem;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* ThinkingBlock                                                              */
+  /* -------------------------------------------------------------------------- */
+
+  .mast-thinking-block {
+    background: var(--mast-thinking-bg);
+    color: var(--mast-thinking-fg);
+    border: var(--mast-message-border-width) solid var(--mast-border);
+    border-radius: var(--mast-radius);
+    padding: 0.5rem 0.75rem;
+    font-size: var(--mast-text-sm);
+  }
+
+  .mast-thinking-block-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .mast-thinking-block-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mast-thinking-block-icon {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .mast-thinking-block-label {
+    font-weight: 500;
+  }
+
+  .mast-thinking-block-pulse {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: mast-pulse 1.2s ease-in-out infinite;
+  }
+
+  .mast-thinking-block-content {
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+    font-family: var(--mast-font-mono);
+    font-size: var(--mast-text-sm);
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* ToolCallBlock                                                              */
+  /* -------------------------------------------------------------------------- */
+
+  .mast-tool-call-block {
+    background: var(--mast-tool-bg);
+    color: var(--mast-tool-fg);
+    border: var(--mast-message-border-width) solid var(--mast-border);
+    border-radius: var(--mast-radius);
+    padding: 0.5rem 0.75rem;
+    font-size: var(--mast-text-sm);
+  }
+
+  .mast-tool-call-block[data-streaming='true'] .mast-tool-call-block-status {
+    color: var(--mast-tool-pending);
+  }
+
+  .mast-tool-call-block[data-status='error'] {
+    background: var(--mast-tool-error-bg, #fef2f2);
+    color: var(--mast-tool-error-fg, #991b1b);
+  }
+
+  .mast-tool-call-block[data-status='error'] .mast-tool-call-block-status {
+    color: var(--mast-tool-error-fg, #991b1b);
+  }
+
+  .mast-tool-call-block[data-status='cancelled'] {
+    background: var(--mast-tool-cancelled-bg, #f3f4f6);
+    color: var(--mast-tool-cancelled-fg, #4b5563);
+  }
+
+  .mast-tool-call-block[data-status='cancelled'] .mast-tool-call-block-status {
+    color: var(--mast-tool-cancelled-fg, #4b5563);
+  }
+
+  .mast-tool-call-block-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .mast-tool-call-block-header::-webkit-details-marker {
+    display: none;
+  }
+
+  .mast-tool-call-block-chevron {
+    display: inline-block;
+    width: 0.75rem;
+    color: var(--mast-fg-muted);
+    transition: transform 0.15s ease;
+  }
+
+  .mast-tool-call-block[open] > .mast-tool-call-block-header > .mast-tool-call-block-chevron {
+    transform: rotate(90deg);
+  }
+
+  .mast-tool-call-block-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .mast-tool-call-block-status,
+  .mast-tool-call-block-wrench {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .mast-tool-call-block-name {
+    font-family: var(--mast-font-mono);
+    font-weight: 500;
+  }
+
+  .mast-tool-call-block-sub-output {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .mast-tool-call-block-sub-text {
+    white-space: pre-wrap;
+    color: var(--mast-fg);
+  }
+
+  .mast-tool-call-block-nested {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-left: 0.75rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid var(--mast-border);
+  }
+
+  .mast-tool-call-block-args,
+  .mast-tool-call-block-result {
+    border: 1px solid var(--mast-border);
+    border-radius: var(--mast-radius);
+    background: var(--mast-bg);
+    color: var(--mast-fg);
+    padding: 0.25rem 0.5rem;
+  }
+
+  .mast-tool-call-block-args > summary,
+  .mast-tool-call-block-result > summary {
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--mast-text-sm);
+    color: var(--mast-fg-muted);
+  }
+
+  .mast-tool-call-block-pre {
+    margin: 0.5rem 0 0 0;
+    padding: 0.5rem;
+    background: var(--mast-bg-subtle);
+    border-radius: 0.25rem;
+    overflow-x: auto;
+    font-family: var(--mast-font-mono);
+    font-size: var(--mast-text-sm);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* ChatInput                                                                  */
+  /* -------------------------------------------------------------------------- */
+
+  [data-mast-chat-input] {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--mast-bg);
+    border: var(--mast-input-border);
+    border-radius: var(--mast-radius);
+  }
+
+  .mast-chat-input-textarea {
+    flex: 1 1 auto;
+    resize: none;
+    background: transparent;
+    color: var(--mast-fg);
+    font: inherit;
+    border: none;
+    outline: none;
+    padding: 0.25rem 0.5rem;
+    min-height: 1.5rem;
+    line-height: 1.4;
+  }
+
+  .mast-chat-input-textarea::placeholder {
+    color: var(--mast-fg-muted);
+  }
+
+  .mast-chat-input-textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .mast-chat-input-send,
+  .mast-chat-input-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    background: var(--mast-accent);
+    color: var(--mast-accent-fg);
+    border: var(--mast-button-border);
+    border-radius: var(--mast-radius);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .mast-chat-input-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .mast-chat-input-cancel {
+    background: var(--mast-tool-pending);
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* Inline approval                                                            */
+  /* -------------------------------------------------------------------------- */
+
+  .mast-inline-approval {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid var(--mast-tool-pending);
+    border-radius: var(--mast-radius);
+    background: var(--mast-thinking-bg);
+    color: var(--mast-thinking-fg);
+  }
+
+  .mast-inline-approval-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--mast-text-sm);
+  }
+
+  .mast-inline-approval-icon {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .mast-inline-approval-name {
+    font-family: var(--mast-font-mono);
+    font-weight: 600;
+  }
+
+  .mast-inline-approval-label {
+    color: var(--mast-fg-muted);
+  }
+
+  .mast-inline-approval-args {
+    margin: 0;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    background: var(--mast-bg);
+    color: var(--mast-fg);
+    font-family: var(--mast-font-mono);
+    font-size: 0.8125rem;
+    overflow-x: auto;
+  }
+
+  .mast-inline-approval-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .mast-inline-approval-button {
+    padding: var(--mast-button-padding);
+    border-radius: 0.375rem;
+    border: var(--mast-button-border);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .mast-inline-approval-approve {
+    background: var(--mast-accent);
+    color: var(--mast-accent-fg);
+  }
+
+  .mast-inline-approval-reject {
+    background: transparent;
+    border-color: currentColor;
+    color: inherit;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* Mention picker                                                             */
+  /* -------------------------------------------------------------------------- */
+
+  .mast-mention-input .mast-mention-input-field {
+    flex: 1 1 auto;
+    position: relative;
+    min-width: 0;
+  }
+
+  .mast-mention-input-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.25rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mast-mention-input .mast-mention-input-textarea {
+    flex: 1 1 8rem;
+    min-width: 8rem;
+  }
+
+  .mast-mention-segment-text {
+    white-space: pre-wrap;
+    align-self: center;
+    font-size: var(--mast-text-base);
+  }
+
+  .mast-mention-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.4rem;
+    background: var(--mast-mention-chip-bg);
+    color: var(--mast-mention-chip-fg);
+    border-radius: 9999px;
+    font-size: var(--mast-text-sm);
+    font-weight: 500;
+  }
+
+  .mast-mention-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    line-height: 1;
+  }
+
+  .mast-mention-chip-remove:hover,
+  .mast-mention-chip-remove:focus-visible {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .mast-mention-picker {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin: 0 0 0.25rem 0;
+    padding: 0.25rem;
+    list-style: none;
+    background: var(--mast-mention-picker-bg);
+    border: 1px solid var(--mast-border);
+    border-radius: var(--mast-radius);
+    box-shadow: var(--mast-mention-picker-shadow);
+    max-height: 14rem;
+    overflow-y: auto;
+    z-index: 10;
+  }
+
+  .mast-mention-picker-item {
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: var(--mast-text-sm);
+    color: var(--mast-fg);
+  }
+
+  .mast-mention-picker-item:hover {
+    background: var(--mast-mention-picker-active-bg);
+  }
+
+  .mast-mention-picker-active {
+    background: var(--mast-mention-picker-active-bg);
+  }
+
+  .mast-mention-picker-item-label {
+    font-weight: 500;
+  }
+
+  .mast-mention-picker-item-description {
+    font-size: var(--mast-text-sm);
+    color: var(--mast-fg-muted);
+  }
+} /* @layer mast-ai */
