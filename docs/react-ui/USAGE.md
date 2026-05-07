@@ -27,6 +27,7 @@ common use cases. The corresponding API reference lives in
 12. [Mention pipeline (`@`-mentions)](#12-mention-pipeline--mentions)
 13. [Overriding tool call labels (`getToolLabel`)](#13-overriding-tool-call-labels-gettoollabel)
 14. [Agent not yet configured (`runner={null}`)](#14-agent-not-yet-configured-runnernull)
+15. [Reading and modifying React state from tools](#15-reading-and-modifying-react-state-from-tools)
 
 ---
 
@@ -1370,6 +1371,129 @@ older workaround of constructing a stub `AgentRunner` whose adapter throws on
 call: it forces consumers to gate the input separately, and the stub's
 `generate()` will fire if any code path slips past the gate. `runner={null}`
 makes the disabled state explicit and uniformly handled by the library.
+
+---
+
+## 15. Reading and modifying React state from tools
+
+Tools that read or write React state hit two closure pitfalls when an LLM
+fires several tool calls in the same turn.
+
+The first is **stale reads**. If a tool's `call` references state directly
+(`tasks` from `useState`), the closure was captured when the tool was
+constructed. State updates made by tools earlier in the turn are not visible
+because React has not re-rendered yet.
+
+The second is **lost writes**. `setTasks([...tasks, newTask])` reads `tasks`
+from the same closure, so two `add_task` calls in a row both compute their
+next array from the same starting snapshot, and the second overwrites the
+first.
+
+The fixes are standard React patterns:
+
+1. Use the functional form of every state setter so each call composes with
+   the previous one without waiting for a re-render in between.
+
+   ```ts
+   setTasks((prev) => [...prev, newTask]);
+   ```
+
+2. Mirror state into a `useRef`, and update the ref synchronously inside the
+   functional updater so subsequent reads in the same turn see the post-write
+   value before React has re-rendered.
+
+   ```ts
+   setTasks((prev) => {
+     const next = [...prev, newTask];
+     tasksRef.current = next;
+     return next;
+   });
+   ```
+
+Construct the tools inside the component (typically once, with `useMemo`) so
+the setter and the ref are captured in their closures. Both have stable
+identities across renders, so the runner does not need to be torn down each
+time `tasks` changes:
+
+```tsx
+import { useMemo, useRef, useState } from 'react';
+import { AgentRunner, ToolRegistry, createAgent } from '@mast-ai/core';
+import type { Tool } from '@mast-ai/core';
+import { GoogleGenAIAdapter } from '@mast-ai/google-genai';
+import { AgentProvider, ConversationPanel } from '@mast-ai/react-ui';
+
+interface Task {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
+function App({ apiKey }: { apiKey: string }) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks; // keep the ref in sync with non-tool updates too
+
+  const runner = useMemo(() => {
+    const addTask: Tool = {
+      definition: () => ({
+        name: 'add_task',
+        description: 'Adds a task to the list.',
+        parameters: {
+          type: 'object',
+          properties: { name: { type: 'string' } },
+          required: ['name'],
+        },
+        scope: 'write',
+      }),
+      async call(args: unknown) {
+        const { name } = args as { name: string };
+        const newTask: Task = { id: crypto.randomUUID(), name, completed: false };
+        setTasks((prev) => {
+          const next = [...prev, newTask];
+          tasksRef.current = next;
+          return next;
+        });
+        return `Added "${name}".`;
+      },
+    };
+
+    const listTasks: Tool = {
+      definition: () => ({
+        name: 'list_tasks',
+        description: 'Lists all current tasks.',
+        parameters: { type: 'object', properties: {}, required: [] },
+        scope: 'read',
+      }),
+      async call() {
+        return JSON.stringify(tasksRef.current);
+      },
+    };
+
+    const registry = new ToolRegistry().register(addTask).register(listTasks);
+    return new AgentRunner(new GoogleGenAIAdapter(apiKey), registry);
+  }, [apiKey]);
+
+  const agent = createAgent({
+    name: 'TaskAssistant',
+    instructions: 'Help the user manage their tasks. Use add_task to add and list_tasks to read.',
+    tools: ['add_task', 'list_tasks'],
+  });
+
+  return (
+    <AgentProvider runner={runner} agent={agent}>
+      <ConversationPanel />
+    </AgentProvider>
+  );
+}
+```
+
+Updating `tasksRef.current` both during render (covers state changes that
+happen outside tools) and inside the functional updater (covers sequential
+writes within a single turn) keeps the ref correct in both directions.
+
+Class-based tools follow the same pattern: pass the setter and the ref into
+the constructor and read or write through them inside `call`. The `useMemo`
+factory function is the natural place to instantiate them.
 
 ---
 

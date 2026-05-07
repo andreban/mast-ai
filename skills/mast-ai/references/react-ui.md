@@ -298,6 +298,46 @@ Two gotchas when writing the mapping by hand: list `[data-mast-root]`, `[data-ma
 
 The full token list, gotcha rationale, and a plain-CSS example are in `docs/react-ui/USAGE.md` §5.
 
+## Tools that read or modify React state
+
+Tools that wrap component state hit two closure pitfalls when the LLM fires several tool calls in the same turn:
+
+- **Stale reads**: `call` references `tasks` from the closure, so state updates made by earlier tools in the turn are invisible (React has not re-rendered yet).
+- **Lost writes**: `setTasks([...tasks, newTask])` reads `tasks` from the closure, so two `add_task` calls compute the next array from the same snapshot and the second overwrites the first.
+
+Standard fix: functional updaters for writes, and a `useRef` mirror for reads. Update the ref synchronously inside the functional updater so subsequent tool calls in the same turn see the post-write value:
+
+```tsx
+const [tasks, setTasks] = useState<Task[]>([]);
+const tasksRef = useRef(tasks);
+tasksRef.current = tasks; // keep ref in sync with non-tool updates too
+
+const runner = useMemo(() => {
+  const addTask: Tool = {
+    definition: () => ({ name: 'add_task', /* ... */ scope: 'write' }),
+    async call(args: unknown) {
+      const { name } = args as { name: string };
+      setTasks((prev) => {
+        const next = [...prev, { id: crypto.randomUUID(), name, completed: false }];
+        tasksRef.current = next;
+        return next;
+      });
+      return `Added "${name}".`;
+    },
+  };
+  const listTasks: Tool = {
+    definition: () => ({ name: 'list_tasks', /* ... */ scope: 'read' }),
+    async call() {
+      return JSON.stringify(tasksRef.current);
+    },
+  };
+  const registry = new ToolRegistry().register(addTask).register(listTasks);
+  return new AgentRunner(new GoogleGenAIAdapter(apiKey), registry);
+}, [apiKey]);
+```
+
+Build the tools inside `useMemo` so the setter and ref identities are captured in stable closures and the runner does not get torn down on every `tasks` change. The full walkthrough is in `docs/react-ui/USAGE.md` §15.
+
 ## Icons
 
 Override any subset of the bundled inline SVG icons via the `icons` prop on `<AgentProvider>`. Unspecified keys fall back to the defaults.
