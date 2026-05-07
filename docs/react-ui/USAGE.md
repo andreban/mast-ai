@@ -337,12 +337,48 @@ and is safe to override at any scope.
 | `--mast-text-base`                | Body text size                                                 |
 | `--mast-gap`                      | Vertical / horizontal gap inside the panel                     |
 | `--mast-radius`                   | Border radius for buttons, blocks, and the panel itself        |
+| `--mast-button-border`            | Send / cancel / inline-approval button border                  |
+| `--mast-button-padding`           | Inline-approval button padding                                 |
+| `--mast-input-border`             | `<ChatInput>` wrapper border                                   |
+| `--mast-message-border-width`     | Tool-call and thinking-block border width                      |
+| `--mast-user-bubble-border`       | User message bubble border (default `none`)                    |
 
 Tokens whose default is `var(--mast-bg)` or `var(--mast-bg-subtle)` inherit
 from the base color tokens automatically, so overriding `--mast-bg` once is
 usually enough.
 
-### 5.3 Overriding individual tokens
+### 5.3 Cascade layer
+
+Every rule in `@mast-ai/react-ui/styles.css` (and the bundled theme presets)
+lives inside a CSS cascade layer named `mast-ai`. Layered rules always lose
+to unlayered rules regardless of source order, so a host stylesheet authored
+against the existing class names overrides the library at equal specificity:
+
+```css
+/* Host stylesheet — wins even when imported before @mast-ai/react-ui/styles.css. */
+.mast-user-message-bubble {
+  border-radius: 0;
+}
+```
+
+Hosts that prefer to keep their overrides layered can declare their own layer
+after `mast-ai`:
+
+```css
+@layer mast-ai, host;
+
+@layer host {
+  .mast-user-message-bubble {
+    border-radius: 0;
+  }
+}
+```
+
+This is the highest-leverage way to integrate the library into an existing
+design system: hosts no longer need descendant element selectors or
+`!important` to defeat the library's defaults.
+
+### 5.4 Overriding individual tokens
 
 Set whichever tokens you want to change on any selector that contains a
 `[data-mast-root]` element. The default stylesheet uses single-attribute
@@ -364,7 +400,7 @@ after `@mast-ai/react-ui/styles.css`.
 }
 ```
 
-### 5.4 Mapping onto an existing design system (Tailwind / shadcn)
+### 5.5 Mapping onto an existing design system (Tailwind / shadcn)
 
 Apps with their own design tokens typically want library components to inherit
 the app theme rather than ship a parallel palette. The pattern is to remap
@@ -443,7 +479,7 @@ forward `data-mast-theme` onto the element that carries `data-mast-root`:
 </aside>
 ```
 
-### 5.5 Importing the bundled Tailwind / shadcn preset
+### 5.6 Importing the bundled Tailwind / shadcn preset
 
 The preset above also ships as an importable stylesheet. Add it after the
 default styles import to skip writing the mapping yourself:
@@ -458,12 +494,12 @@ The preset assumes the standard shadcn variables (`--background`,
 `--muted-foreground`, `--border`, `--destructive`) are defined as raw HSL
 triples on `:root` and `.dark`, which is the default shadcn layout. Tailwind
 v4 / shadcn v4 projects that store full color values should copy the snippet
-in §5.4 and drop the `hsl()` wrapper instead.
+in §5.5 and drop the `hsl()` wrapper instead.
 
-You still need to forward the app theme via `data-mast-theme` (§5.4) so the
+You still need to forward the app theme via `data-mast-theme` (§5.5) so the
 library's dark detection stays in sync with the `.dark` class.
 
-### 5.6 Plain CSS without a design system
+### 5.7 Plain CSS without a design system
 
 For apps that do not use Tailwind or shadcn, override the tokens directly in
 your global stylesheet. The library's automatic dark mode applies whenever

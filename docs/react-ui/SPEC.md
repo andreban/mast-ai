@@ -62,6 +62,14 @@ import '@mast-ai/react-ui/styles.css';
 This file is plain CSS with no build-tool dependencies. It uses CSS custom properties
 scoped under `[data-mast-root]` so it does not pollute the global namespace.
 
+Every rule in `styles.css` (and the bundled theme presets in §2.4) is wrapped in
+a `@layer mast-ai { … }` block. Layered rules always lose to unlayered rules
+regardless of source order, so a host stylesheet authored against the
+existing class names overrides the library at equal specificity without
+`!important`. Hosts that prefer to keep their overrides layered can declare
+`@layer mast-ai, host;` and author rules inside `@layer host { … }` so their
+overrides still win.
+
 ### 2.2 CSS Custom Properties
 
 The default stylesheet defines a light theme and an automatic dark theme. Both are
@@ -100,6 +108,13 @@ at any scope without `!important`.
   /* Spacing */
   --mast-gap: 0.75rem;
   --mast-radius: 0.5rem;
+
+  /* Element shape — defaults preserve current visuals */
+  --mast-button-border: 1px solid transparent;
+  --mast-button-padding: 0.4rem 0.9rem;
+  --mast-input-border: 1px solid var(--mast-border);
+  --mast-message-border-width: 1px;
+  --mast-user-bubble-border: none;
 }
 
 /* Dark theme — activated by OS preference OR explicit attribute */
@@ -159,9 +174,12 @@ an existing design system in one import. Presets are plain CSS published under
 
 Presets use a triple-selector rule (`[data-mast-root], [data-mast-root][data-mast-theme='dark'], [data-mast-root][data-mast-theme='light']`)
 to match the specificity of the library's own dark-theme block, so source order
-tie-breaks in favour of the preset when it is loaded after `styles.css`. See
-[`USAGE.md` §5](./USAGE.md#5-theming) for the full integration guide,
-including how to forward `data-mast-theme` for class-based dark-mode setups.
+tie-breaks in favour of the preset when it is loaded after `styles.css`. The
+preset declares its rules inside the same `@layer mast-ai` block as the
+default stylesheet so the source-order tie-break is preserved when both files
+are loaded. See [`USAGE.md` §5](./USAGE.md#5-theming) for the full integration
+guide, including how to forward `data-mast-theme` for class-based dark-mode
+setups.
 
 ---
 
