@@ -33,12 +33,32 @@ common use cases. The corresponding API reference lives in
 ## 1. Installation
 
 ```bash
-npm install @mast-ai/core @mast-ai/react-ui @tanstack/react-virtual react react-dom
+npm install @mast-ai/core @mast-ai/react-ui @tanstack/react-virtual \
+  react-markdown remark-gfm rehype-sanitize \
+  react react-dom
 ```
 
 `@tanstack/react-virtual` is a required peer dependency: `<MessageList>` uses
 virtual scrolling because agent conversations grow unboundedly during long
 sessions. `react` and `react-dom` must be 19.0 or newer.
+
+`react-markdown`, `remark-gfm`, and `rehype-sanitize` are declared as optional
+peer dependencies, but most app setups need them installed anyway. The library
+imports them dynamically with a `try/catch` fallback to a plain `<p>`, but
+Vite's dependency pre-bundling (and any other bundler that walks `import(...)`
+sites eagerly) resolves those imports at build time and fails with errors like:
+
+```
+[vite] error while updating dependencies:
+Error: Build failed with 3 errors:
+node_modules/@mast-ai/react-ui/dist/index.js:…: ERROR: Could not resolve "react-markdown"
+node_modules/@mast-ai/react-ui/dist/index.js:…: ERROR: Could not resolve "remark-gfm"
+node_modules/@mast-ai/react-ui/dist/index.js:…: ERROR: Could not resolve "rehype-sanitize"
+```
+
+Installing them as shown above is the simplest fix. Apps that genuinely do not
+want markdown rendering and prefer the plain-text fallback can omit them and
+tell Vite not to pre-bundle them; see §1.1.
 
 Pick one or more LLM adapters to drive the runner. The examples in this guide
 use `@mast-ai/google-genai`:
@@ -47,16 +67,44 @@ use `@mast-ai/google-genai`:
 npm install @mast-ai/google-genai
 ```
 
-Optional dependencies, installed only if you want them:
+Other optional dependencies:
 
-| Package                                           | Used for                                    |
-| ------------------------------------------------- | ------------------------------------------- |
-| `react-markdown`, `remark-gfm`, `rehype-sanitize` | Markdown rendering inside assistant bubbles |
-| `lucide-react` (or any other icon set)            | Replacing the bundled inline SVG icons      |
+| Package                                | Used for                               |
+| -------------------------------------- | -------------------------------------- |
+| `lucide-react` (or any other icon set) | Replacing the bundled inline SVG icons |
 
 When `react-markdown` is installed it is detected at runtime. Sanitisation via
 `rehype-sanitize` is always applied; consumers that need unrestricted HTML
 should pass a `renderMessage` prop instead (see §7).
+
+### 1.1 Opting out of markdown rendering with Vite
+
+To skip the markdown packages entirely and let the library fall back to
+rendering assistant text inside a plain `<p>`, exclude them from Vite's
+dependency optimiser **and** mark them as external for the Rollup build:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  optimizeDeps: {
+    exclude: ['react-markdown', 'remark-gfm', 'rehype-sanitize'],
+  },
+  build: {
+    rollupOptions: {
+      external: ['react-markdown', 'remark-gfm', 'rehype-sanitize'],
+    },
+  },
+});
+```
+
+The `optimizeDeps.exclude` entry stops the dev-server pre-bundle scan from
+trying to resolve the missing modules; the `rollupOptions.external` entry does
+the same for production builds. With both in place the `import('react-markdown')`
+calls fail at runtime and the library's `try/catch` fallback kicks in.
 
 ### CSS import
 

@@ -33,6 +33,13 @@ When `react-markdown` is detected, `rehype-sanitize` is **always applied** — t
 does not expose a way to disable sanitisation. Apps that need unrestricted HTML rendering
 should supply a `renderMessage` prop instead.
 
+The library imports the three markdown packages via `import(...)` inside a
+`try/catch`, but Vite (and other bundlers that walk dynamic imports eagerly)
+resolves them at build time. In practice this means most app setups need to
+install them, or explicitly mark them external in their bundler config. See
+[`USAGE.md` §1](./USAGE.md#1-installation) for the recommended install command
+and an opt-out Vite config snippet.
+
 Icons are **bundled inline** — see [Section 6: Icons](#6-icons).
 
 ---
