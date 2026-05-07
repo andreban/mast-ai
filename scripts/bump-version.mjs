@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Bumps all four publishable packages to the same version in lockstep,
+// Bumps all publishable packages to the same version in lockstep,
 // and updates `@mast-ai/core` references in dependents to match.
 //
 // Usage: node scripts/bump-version.mjs <version>
@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
-const PACKAGES = ['core', 'google-genai', 'built-in-ai', 'react-ui'];
+const PACKAGES = ['core', 'google-genai', 'built-in-ai', 'openai', 'react-ui'];
 
 const newVersion = process.argv[2];
 if (!newVersion || !SEMVER.test(newVersion)) {
