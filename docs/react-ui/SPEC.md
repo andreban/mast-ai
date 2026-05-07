@@ -99,11 +99,13 @@ at any scope without `!important`.
   --mast-user-bubble: #dbeafe;
   --mast-user-fg: #1e3a8a;
 
-  /* Typography */
-  --mast-font: system-ui, sans-serif;
+  /* Typography — defaults inherit from the host so the panel adopts the
+     surrounding app's font and base size automatically. Hosts pin a fixed
+     look by setting --mast-font / --mast-text-base on [data-mast-root]. */
+  --mast-font: inherit;
   --mast-font-mono: ui-monospace, monospace;
-  --mast-text-sm: 0.875rem;
-  --mast-text-base: 1rem;
+  --mast-text-sm: 0.875em;
+  --mast-text-base: 1em;
 
   /* Spacing */
   --mast-gap: 0.75rem;

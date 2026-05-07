@@ -44,11 +44,13 @@
     --mast-mention-picker-active-bg: var(--mast-bg-subtle);
     --mast-mention-picker-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
-    /* Typography */
-    --mast-font: system-ui, sans-serif;
+    /* Typography. Defaults inherit from the host so the panel adopts the
+       surrounding app's font and base size automatically. Hosts that want a
+       fixed look pin --mast-font / --mast-text-base on [data-mast-root]. */
+    --mast-font: inherit;
     --mast-font-mono: ui-monospace, monospace;
-    --mast-text-sm: 0.875rem;
-    --mast-text-base: 1rem;
+    --mast-text-sm: 0.875em;
+    --mast-text-base: 1em;
 
     /* Spacing */
     --mast-gap: 0.75rem;
@@ -489,6 +491,7 @@
     border-radius: var(--mast-radius);
     cursor: pointer;
     padding: 0;
+    font-family: inherit;
   }
 
   .mast-chat-input-send:disabled {
