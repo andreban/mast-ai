@@ -47,6 +47,16 @@ npm run lint             # Lint
 npm run format           # Format
 ```
 
+### OpenAI Adapter (`packages/openai`)
+
+```bash
+npm run build            # Build with type declarations
+npm run dev              # Watch mode
+npm test                 # Run tests
+npm run lint             # Lint
+npm run format           # Format
+```
+
 ### Frontend Demo (`demos/core/basic-chat`)
 
 ```bash
@@ -92,6 +102,10 @@ packages/built-in-ai/src/
 ├── BuiltInAIAdapter.ts    → LlmAdapter wrapping Chrome Prompt API
 └── tools/                 → summarize, translate, detectLanguage, proofread
 
+packages/openai/src/
+├── OpenAIChatCompletionsAdapter.ts → LlmAdapter calling the OpenAI Chat Completions API
+└── OpenAIResponsesAdapter.ts → LlmAdapter calling the OpenAI Responses API (surfaces reasoning summaries)
+
 demos/core/basic-chat/src/
 └── main.ts          → Chat UI wiring ToolRegistry + AgentRunner
 
@@ -114,10 +128,11 @@ demos/core/rust-server/src/
 - **`@mast-ai/core`** — `AgentRunner`, `UrpAdapter`, `ToolRegistry`, all core types; no Node globals, browser-native
 - **`@mast-ai/google-genai`** — `GoogleGenAIAdapter`: calls Google GenAI directly from the browser (no backend needed)
 - **`@mast-ai/built-in-ai`** — `BuiltInAIAdapter`: wraps Chrome's built-in AI (Prompt API / Gemini Nano) as an `LlmAdapter`; also exposes browser built-in AI capabilities as MAST tools (`SummarizeTool`, `TranslateTool`, `DetectLanguageTool`, `ProofreadTool`)
+- **`@mast-ai/openai`** — `OpenAIChatCompletionsAdapter` (Chat Completions) and `OpenAIResponsesAdapter` (Responses API). Both call OpenAI directly from the browser. Use the Responses adapter to surface reasoning summaries from gpt-5 / o-series models as `thinking` events; the Chat Completions adapter has broader provider compatibility (OpenRouter, DeepSeek)
 
 ### Key Abstractions
 
-- **LlmAdapter** — swappable interface; `UrpAdapter` for remote backends, `GoogleGenAIAdapter` for direct API calls, `BuiltInAIAdapter` for on-device inference
+- **LlmAdapter** — swappable interface; `UrpAdapter` for remote backends, `GoogleGenAIAdapter` / `OpenAIChatCompletionsAdapter` for direct API calls, `BuiltInAIAdapter` for on-device inference
 - **URP (Universal Reasoning Protocol)** — the HTTP JSON/SSE protocol between browser and backend; defined in `docs/SPEC.md`
 - **ToolRegistry** — browser-side tool store; server only receives tool metadata, never executes tools
 - **AgentRunner** — emits `AgentEvent` stream (text delta, thinking, tool call, tool result, done, error)
@@ -161,13 +176,13 @@ Before starting work on a feature, check its subdirectory in `docs/` for context
 
 ## Releases
 
-The four `@mast-ai/*` packages are published to npm in lockstep — every release bumps all four to the same version, even if some packages have no source changes. Pre-1.0 the surfaces are tightly coupled, so version drift would add more confusion than value.
+The `@mast-ai/*` packages are published to npm in lockstep — every release bumps all of them to the same version, even if some packages have no source changes. Pre-1.0 the surfaces are tightly coupled, so version drift would add more confusion than value.
 
-Releases are cut by pushing a `vX.Y.Z` tag to `main`. The `.github/workflows/publish.yml` workflow then runs lint, tests, and build, and publishes all four packages to npm via OIDC trusted publishing (no `NPM_TOKEN` involved).
+Releases are cut by pushing a `vX.Y.Z` tag to `main`. The `.github/workflows/publish.yml` workflow then runs lint, tests, and build, and publishes every package to npm via OIDC trusted publishing (no `NPM_TOKEN` involved).
 
 ### Choosing the next version
 
-Use the highest-severity change across all four packages:
+Use the highest-severity change across all packages:
 
 - **Major** — any breaking change to a public API (removed/renamed exports, changed signatures, observable behaviour change callers may depend on).
 - **Minor** — any new public API; no breaking changes.
@@ -186,7 +201,7 @@ Then walk each package's commits since that tag:
 
 ```bash
 PREV=v0.1.0  # replace with the last published tag
-for pkg in core google-genai built-in-ai react-ui; do
+for pkg in core google-genai built-in-ai openai react-ui; do
   echo "--- @mast-ai/$pkg ---"
   git log "$PREV"..HEAD --oneline -- "packages/$pkg/"
 done
@@ -208,7 +223,7 @@ After determining the next version `X.Y.Z`:
 git checkout main && git pull
 git checkout -b chore/release-vX.Y.Z
 
-npm run bump-version X.Y.Z   # bumps all four packages + their @mast-ai/core deps
+npm run bump-version X.Y.Z   # bumps all packages + their @mast-ai/core deps
 npm install                  # refresh node_modules
 npm run format               # normalise package.json formatting
 
@@ -226,7 +241,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The tag push triggers `Publish`. If a publish step fails partway through (e.g. a network blip after `core` succeeds but before `react-ui`), re-run the workflow manually from the Actions tab via `workflow_dispatch` with the same tag — already-published packages will fail with `403` and the remaining ones will go through. Resolve by either bumping a patch version or unpublishing the partial release within npm's 72-hour window.
+The tag push triggers `Publish`. If a publish step fails partway through (e.g. a network blip after one package succeeds but before another), re-run the workflow manually from the Actions tab via `workflow_dispatch` with the same tag — already-published packages will fail with `403` and the remaining ones will go through. Resolve by either bumping a patch version or unpublishing the partial release within npm's 72-hour window.
 
 ### Bootstrapping a new package
 

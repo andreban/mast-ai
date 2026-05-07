@@ -1,0 +1,256 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #1a1a1a;
+  background-color: #ffffff;
+  --primary-color: #10a37f;
+  --primary-hover: #0d8a6c;
+  --bg-color: #f4f4f5;
+  --border-color: #e4e4e7;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar {
+  width: 320px;
+  background-color: var(--bg-color);
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.sidebar h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.sidebar h2 small {
+  font-size: 0.75rem;
+  color: #71717a;
+  font-weight: normal;
+}
+
+.config-panel label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #52525b;
+  margin-bottom: 0.4rem;
+}
+
+.config-panel input,
+.config-panel select {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.config-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: #71717a;
+  line-height: 1.4;
+}
+
+.config-hint code {
+  font-size: 0.75rem;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0.05em 0.3em;
+}
+
+.tools-panel h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+.tools-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tools-panel li {
+  margin: 0.25rem 0;
+}
+
+.tools-panel li code {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.message.user {
+  align-self: flex-end;
+}
+
+.message.assistant {
+  align-self: flex-start;
+}
+
+.message.system {
+  align-self: center;
+  max-width: 90%;
+}
+
+.bubble {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.user .bubble {
+  background-color: var(--primary-color);
+  color: white;
+  border-bottom-right-radius: 0;
+}
+
+.assistant .bubble {
+  background-color: var(--bg-color);
+  color: #1a1a1a;
+  border-bottom-left-radius: 0;
+}
+
+.system small {
+  color: #71717a;
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: #f8f8f8;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.system.error small {
+  color: #ef4444;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.system.thinking small {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.input-area {
+  padding: 1rem 2rem 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.status-indicator {
+  font-size: 0.75rem;
+  color: #71717a;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-indicator.running {
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.input-group {
+  display: flex;
+  gap: 1rem;
+}
+
+textarea {
+  flex: 1;
+  resize: none;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  height: 60px;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.2);
+}
+
+button {
+  padding: 0 1.5rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: var(--primary-hover);
+}
+
+button:disabled {
+  background-color: #86d3bd;
+  cursor: not-allowed;
+}
+
+.stop-button {
+  background-color: #ef4444;
+}
+
+.stop-button:hover {
+  background-color: #dc2626;
+}

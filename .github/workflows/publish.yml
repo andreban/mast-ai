@@ -32,7 +32,7 @@ jobs:
         run: |
           TAG_REF="${{ github.event.inputs.tag || github.ref_name }}"
           TAG_VERSION="${TAG_REF#v}"
-          for pkg in core google-genai built-in-ai react-ui; do
+          for pkg in core google-genai built-in-ai openai react-ui; do
             PKG_VERSION=$(node -p "require('./packages/$pkg/package.json').version")
             if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
               echo "Version mismatch: tag is $TAG_VERSION but @mast-ai/$pkg is $PKG_VERSION"
@@ -46,7 +46,7 @@ jobs:
 
       # Build before tests so workspace packages that depend on
       # @mast-ai/core can resolve its `dist/index.js` entry.
-      - run: npm run build -w @mast-ai/core -w @mast-ai/google-genai -w @mast-ai/built-in-ai -w @mast-ai/react-ui
+      - run: npm run build -w @mast-ai/core -w @mast-ai/google-genai -w @mast-ai/built-in-ai -w @mast-ai/openai -w @mast-ai/react-ui
 
       - run: npm test --workspaces --if-present
 
@@ -58,6 +58,9 @@ jobs:
 
       - name: Publish @mast-ai/built-in-ai
         run: npm publish --provenance -w @mast-ai/built-in-ai
+
+      - name: Publish @mast-ai/openai
+        run: npm publish --provenance -w @mast-ai/openai
 
       - name: Publish @mast-ai/react-ui
         run: npm publish --provenance -w @mast-ai/react-ui
