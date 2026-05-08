@@ -269,7 +269,13 @@ export class AgentRunner {
           }
           resultMessages.push({
             role: 'user',
-            content: { type: 'tool_result', id: call.id, name: call.name, result },
+            content: {
+              type: 'tool_result',
+              id: call.id,
+              name: call.name,
+              result,
+              provider_metadata: call.provider_metadata,
+            },
           });
         }
 

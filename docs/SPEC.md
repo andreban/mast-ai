@@ -63,7 +63,13 @@ export type Role = 'user' | 'assistant';
 export type MessageContent =
   | { type: 'text'; text: string }
   | { type: 'tool_calls'; calls: ToolCall[] }
-  | { type: 'tool_result'; id: string; name: string; result: unknown };
+  | {
+      type: 'tool_result';
+      id: string;
+      name: string;
+      result: unknown;
+      provider_metadata?: unknown;
+    };
 
 export interface Message {
   role: Role;
@@ -73,6 +79,8 @@ export interface Message {
 
 `MessageContent` is a discriminated union. A single assistant turn that requests one or more tools uses `type: 'tool_calls'`. Each tool result is a separate user-role message with `type: 'tool_result'`. The runner inserts these automatically; callers never construct tool messages manually.
 
+`tool_result.provider_metadata` is an opaque value copied verbatim from the originating `ToolCall.provider_metadata`. MAST never inspects it; adapters and backends use it to round-trip per-call data they need on the next turn (e.g. Gemini `thoughtSignature`).
+
 ### `ToolCall` (`src/types.ts`)
 
 ```typescript
@@ -80,8 +88,11 @@ export interface ToolCall {
   id: string; // opaque identifier echoed back to the adapter
   name: string;
   args: unknown; // parsed JSON object matching the tool's parameters schema
+  provider_metadata?: unknown; // opaque per-call metadata, round-tripped unchanged
 }
 ```
+
+`provider_metadata` is a generic, provider-agnostic escape hatch for opaque per-call data the adapter or backend needs to see again on the next turn. Examples include Gemini's `thoughtSignature` (which thinking models require on every replayed `functionCall` / `functionResponse` part). MAST treats the value as opaque: it is not parsed, validated, or merged. The runner copies it from `ToolCall` onto the matching `tool_result` message verbatim.
 
 ### `AgentEvent` (`src/types.ts`)
 
@@ -494,8 +505,19 @@ The URP is a language-agnostic JSON protocol that decouples the browser agent lo
   "id": "call_abc123",
   "name": "calculator",
   "arguments": { "expression": "2 + 2" },
+  // Optional: opaque per-call metadata (e.g. Gemini `thoughtSignature`).
+  // The server controls the shape; the client round-trips it unchanged
+  // on the matching tool_result message in the next turn.
+  "provider_metadata": { "thought_signature": "..." },
 }
 ```
+
+| Field               | Type     | Required | Notes                                                                                               |
+| ------------------- | -------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `id`                | `string` | Yes      | Opaque identifier echoed back on the matching `tool_result`                                         |
+| `name`              | `string` | Yes      | Tool name                                                                                           |
+| `arguments`         | `object` | Yes      | Parsed JSON object matching the tool's `parameters` schema                                          |
+| `provider_metadata` | `any`    | No       | Server-controlled opaque blob; client copies it verbatim onto the next turn's `tool_result` message |
 
 ### `UrpAdapter` (`src/adapter/urp.ts`)
 

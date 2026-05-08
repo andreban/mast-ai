@@ -18,6 +18,12 @@ export interface UrpToolCall {
   id: string;
   name: string;
   arguments: unknown;
+  /**
+   * Opaque per-call metadata controlled by the server (e.g. Gemini
+   * `thoughtSignature`). Round-tripped unchanged on the matching
+   * `tool_result` message in the next turn.
+   */
+  provider_metadata?: unknown;
 }
 
 /** Wire format for a non-streaming URP response. */
@@ -89,6 +95,7 @@ export class UrpAdapter implements LlmAdapter {
             id: tc.id,
             name: tc.name,
             args: tc.arguments,
+            provider_metadata: tc.provider_metadata,
           }))
         : [],
     };
@@ -121,6 +128,7 @@ export class UrpAdapter implements LlmAdapter {
             id: chunk.tool_call.id,
             name: chunk.tool_call.name,
             args: chunk.tool_call.arguments,
+            provider_metadata: chunk.tool_call.provider_metadata,
           },
         };
       }
