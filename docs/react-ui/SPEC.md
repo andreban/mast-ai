@@ -938,22 +938,22 @@ export paths under `@mast-ai/react-ui/themes/<name>.css` (see §2.4).
 `useAgentStream` subscribes to the `AgentEvent` stream from `AgentRunner` and
 maintains `ConversationEntry[]` as follows:
 
-| Event                                 | Action                                                                                                                                                                                |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| User sends message                    | Append `{ role: 'user', text: displayText ?? prompt, isStreaming: false }`; pass `prompt` to `runStream`                                                                              |
-| Run starts                            | Append `{ role: 'assistant', text: '', contentBlocks: [], isStreaming: true }`                                                                                                        |
-| `text_delta`                          | Mutate last entry: append `delta` to `text`                                                                                                                                           |
-| `thinking`                            | Mutate last entry: if last `contentBlocks` element is a `ThinkingEntry`, append `delta` to its `content`; otherwise push a new `{ id, type: 'thinking', content: delta }` block      |
-| `tool_call_started`                   | Mutate last entry: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` to `contentBlocks`                                                                         |
-| `onToolEvent` → `thinking`            | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                                                                                                     |
-| `onToolEvent` → `text_delta`          | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                                                                                                         |
-| `onToolEvent` → `tool_call_started`   | Mutate matching parent `ToolEventEntry`: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` onto `nestedToolEvents`                                              |
-| `onToolEvent` → `tool_call_completed` | Mutate matching nested `ToolEventEntry` (under the parent): set `result`, `isStreaming: false`, `status` from `event.error`                                                           |
-| Approval proxy notifies               | Mutate matching `ToolEventEntry` in `contentBlocks`: set `awaitingApproval` to `true`/`false`                                                                                         |
-| Approval proxy cancels                | Mutate matching `ToolEventEntry` in `contentBlocks`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                                                  |
-| `tool_call_completed`                 | Mutate matching `ToolEventEntry` in `contentBlocks`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`)                           |
-| `done`                                | Mutate last entry: set `text = output`, `isStreaming = false`                                                                                                                         |
-| Error / cancel                        | Mutate last entry: set `isStreaming = false`; optionally append error text                                                                                                            |
+| Event                                 | Action                                                                                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User sends message                    | Append `{ role: 'user', text: displayText ?? prompt, isStreaming: false }`; pass `prompt` to `runStream`                                                                        |
+| Run starts                            | Append `{ role: 'assistant', text: '', contentBlocks: [], isStreaming: true }`                                                                                                  |
+| `text_delta`                          | Mutate last entry: append `delta` to `text`                                                                                                                                     |
+| `thinking`                            | Mutate last entry: if last `contentBlocks` element is a `ThinkingEntry`, append `delta` to its `content`; otherwise push a new `{ id, type: 'thinking', content: delta }` block |
+| `tool_call_started`                   | Mutate last entry: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` to `contentBlocks`                                                                   |
+| `onToolEvent` → `thinking`            | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                                                                                               |
+| `onToolEvent` → `text_delta`          | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                                                                                                   |
+| `onToolEvent` → `tool_call_started`   | Mutate matching parent `ToolEventEntry`: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` onto `nestedToolEvents`                                        |
+| `onToolEvent` → `tool_call_completed` | Mutate matching nested `ToolEventEntry` (under the parent): set `result`, `isStreaming: false`, `status` from `event.error`                                                     |
+| Approval proxy notifies               | Mutate matching `ToolEventEntry` in `contentBlocks`: set `awaitingApproval` to `true`/`false`                                                                                   |
+| Approval proxy cancels                | Mutate matching `ToolEventEntry` in `contentBlocks`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                                            |
+| `tool_call_completed`                 | Mutate matching `ToolEventEntry` in `contentBlocks`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`)                     |
+| `done`                                | Mutate last entry: set `text = output`, `isStreaming = false`                                                                                                                   |
+| Error / cancel                        | Mutate last entry: set `isStreaming = false`; optionally append error text                                                                                                      |
 
 `onToolEvent` events are wired by passing an `onToolEvent` handler to `RunBuilder` inside `useAgentStream`. Events are matched to the correct `ToolEventEntry` by `toolName`. The `done` event from a sub-agent is ignored — the parent's `tool_call_completed` is the authoritative signal that a tool finished.
 
