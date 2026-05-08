@@ -112,6 +112,66 @@ describe('hallucinated tool calls', () => {
   });
 });
 
+describe('provider_metadata round-trip', () => {
+  it('copies provider_metadata from tool call onto matching tool_result message', async () => {
+    const turnRequests: AdapterRequest[] = [];
+    let callCount = 0;
+    const sentinel = { thought_signature: 'sig-abc' };
+
+    const adapter: LlmAdapter = {
+      generate: vi.fn(),
+      generateStream: (request: AdapterRequest) =>
+        (async function* () {
+          turnRequests.push(request);
+          if (callCount++ === 0) {
+            yield {
+              type: 'tool_call' as const,
+              toolCall: {
+                id: '1',
+                name: 'real_tool',
+                args: {},
+                provider_metadata: sentinel,
+              },
+            };
+          } else {
+            yield { type: 'text_delta' as const, delta: 'done' };
+          }
+        })(),
+    };
+
+    const registry = new ToolRegistry();
+    registry.register({
+      definition: () => ({
+        name: 'real_tool',
+        description: 'A real tool',
+        parameters: {},
+        scope: 'read' as const,
+      }),
+      call: async () => 'ok',
+    });
+
+    const runner = new AgentRunner(adapter, registry);
+    for await (const _ of runner.runStream(agent, 'go')) {
+      // drain
+    }
+
+    // The second request's history must carry both the tool_calls message
+    // (with provider_metadata on each call) and the matching tool_result
+    // message (with provider_metadata copied verbatim).
+    const secondRequest = turnRequests[1];
+    const toolCallsMsg = secondRequest.messages.find((m) => m.content.type === 'tool_calls');
+    expect(toolCallsMsg).toBeDefined();
+    const calls = (toolCallsMsg!.content as { calls: { provider_metadata?: unknown }[] }).calls;
+    expect(calls[0].provider_metadata).toBe(sentinel);
+
+    const toolResultMsg = secondRequest.messages.find((m) => m.content.type === 'tool_result');
+    expect(toolResultMsg).toBeDefined();
+    expect((toolResultMsg!.content as { provider_metadata?: unknown }).provider_metadata).toBe(
+      sentinel,
+    );
+  });
+});
+
 describe('RunBuilder.forwardTo', () => {
   it('forwards every non-done event to parentContext.onEvent in order', async () => {
     const runner = new AgentRunner(

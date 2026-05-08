@@ -13,6 +13,13 @@ export interface ToolCall {
   id: string; // opaque identifier echoed back to the adapter
   name: string;
   args: unknown; // parsed JSON object matching the tool's parameters schema
+  /**
+   * Opaque per-call metadata controlled by the adapter / backend
+   * (e.g. Gemini `thoughtSignature`). MAST round-trips this value
+   * unchanged on the matching `tool_result`; it has no schema and
+   * is never inspected by the runner.
+   */
+  provider_metadata?: unknown;
 }
 
 /**
@@ -21,7 +28,14 @@ export interface ToolCall {
 export type MessageContent =
   | { type: 'text'; text: string }
   | { type: 'tool_calls'; calls: ToolCall[] }
-  | { type: 'tool_result'; id: string; name: string; result: unknown };
+  | {
+      type: 'tool_result';
+      id: string;
+      name: string;
+      result: unknown;
+      /** Copied verbatim from the originating tool call. */
+      provider_metadata?: unknown;
+    };
 
 /**
  * A single message in a conversation history.

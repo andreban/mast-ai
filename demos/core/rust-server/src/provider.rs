@@ -63,15 +63,25 @@ fn build_model_request(payload: UrpRequest) -> Result<(ModelRequest, bool), (Sta
             UrpMessageContent::ToolCalls { calls } => {
                 let rig_calls = calls
                     .into_iter()
-                    .map(|c| ToolCall::new(c.id, c.name, c.arguments))
+                    .map(|c| ToolCall {
+                        id: c.id,
+                        name: c.name,
+                        args: c.arguments,
+                        provider_metadata: c.provider_metadata,
+                    })
                     .collect();
                 rig_messages.push(Message {
                     role,
                     content: MessageContent::ToolCalls(rig_calls),
                 });
             }
-            UrpMessageContent::ToolResult { id, name, result } => {
-                rig_messages.push(Message::tool_result(id, name, result, None));
+            UrpMessageContent::ToolResult {
+                id,
+                name,
+                result,
+                provider_metadata,
+            } => {
+                rig_messages.push(Message::tool_result(id, name, result, provider_metadata));
             }
         }
     }
@@ -102,6 +112,7 @@ async fn handle_streaming(
                         id: tc.id,
                         name: tc.name,
                         arguments: tc.args,
+                        provider_metadata: tc.provider_metadata,
                     },
                 },
                 Err(e) => {

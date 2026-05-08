@@ -47,6 +47,8 @@ pub enum UrpMessageContent {
         id: String,
         name: String,
         result: Value,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        provider_metadata: Option<Value>,
     },
 }
 
@@ -56,6 +58,8 @@ pub struct UrpToolCall {
     pub name: String,
     #[serde(default)]
     pub arguments: Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_metadata: Option<Value>,
 }
 
 #[derive(Serialize, Debug)]

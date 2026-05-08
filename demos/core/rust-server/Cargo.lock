@@ -11,7 +11,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 [[package]]
 name = "agent-rig"
 version = "0.1.0"
-source = "git+https://github.com/andreban/agent-rig.git#59dbc5df554f83909626735f22619ba5a5eeb370"
+source = "git+https://github.com/andreban/agent-rig.git#537cd5e9c06e7ec266451c14e4d47fbddc3bfb6d"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -523,7 +523,7 @@ dependencies = [
 [[package]]
 name = "geologia"
 version = "0.1.0"
-source = "git+https://github.com/andreban/geologia.git#08ad998601db705bda409a445a83251c462597d3"
+source = "git+https://github.com/andreban/geologia.git#a70cb53eee11b239ab135038fbc72f5dcf9dadab"
 dependencies = [
  "reqwest",
  "serde",
@@ -1040,7 +1040,7 @@ dependencies = [
 [[package]]
 name = "ollama-rs"
 version = "0.1.0"
-source = "git+https://github.com/andreban/ollama-rs#08c2dccbb4dbbda0d5f68aae0a47686e99459074"
+source = "git+https://github.com/andreban/ollama-rs#e8c2fb73fbaa8bf0a90b27798215d9199c444436"
 dependencies = [
  "async-stream",
  "futures-util",
