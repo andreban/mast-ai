@@ -1,7 +1,14 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-export type { ConversationEntry, ToolEventEntry, ToolCallStatus, IconMap } from './types.js';
+export type {
+  ConversationEntry,
+  ContentBlock,
+  ThinkingEntry,
+  ToolEventEntry,
+  ToolCallStatus,
+  IconMap,
+} from './types.js';
 export { useAgentStream } from './hooks/useAgentStream.js';
 export type { UseAgentStreamOptions, UseAgentStreamReturn } from './hooks/useAgentStream.js';
 export { AgentProvider, useAgent } from './context.js';

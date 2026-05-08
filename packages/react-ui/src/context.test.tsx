@@ -343,14 +343,14 @@ describe('useAgent', () => {
         id: 'u-1',
         role: 'user',
         text: 'previously',
-        toolEvents: [],
+        contentBlocks: [],
         isStreaming: false,
       },
       {
         id: 'a-1',
         role: 'assistant',
         text: 'previously answered',
-        toolEvents: [],
+        contentBlocks: [],
         isStreaming: false,
       },
     ];

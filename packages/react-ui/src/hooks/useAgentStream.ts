@@ -4,7 +4,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Conversation, Message } from '@mast-ai/core';
 import type { AgentEvent } from '@mast-ai/core';
-import type { ConversationEntry, ToolCallStatus, ToolEventEntry } from '../types.js';
+import type {
+  ContentBlock,
+  ConversationEntry,
+  ThinkingEntry,
+  ToolCallStatus,
+  ToolEventEntry,
+} from '../types.js';
 
 // ---------------------------------------------------------------------------
 // Private helpers
@@ -15,7 +21,7 @@ function makeEntry(
   text: string,
   isStreaming: boolean,
 ): ConversationEntry {
-  return { id: crypto.randomUUID(), role, text, toolEvents: [], isStreaming };
+  return { id: crypto.randomUUID(), role, text, contentBlocks: [], isStreaming };
 }
 
 /**
@@ -33,7 +39,7 @@ function updateEntry(
 /**
  * Returns a new array where the first `ToolEventEntry` in the entry identified
  * by `entryId` that matches `toolName` and is still streaming is replaced by
- * the result of `updater`. All other entries and tool events are unchanged.
+ * the result of `updater`. All other entries and content blocks are unchanged.
  */
 function updateToolEvent(
   entries: ConversationEntry[],
@@ -43,14 +49,14 @@ function updateToolEvent(
 ): ConversationEntry[] {
   return updateEntry(entries, entryId, (entry) => {
     let patched = false;
-    const toolEvents = entry.toolEvents.map((t) => {
-      if (!patched && t.name === toolName && t.isStreaming) {
+    const contentBlocks: ContentBlock[] = entry.contentBlocks.map((block) => {
+      if (!patched && block.type !== 'thinking' && block.name === toolName && block.isStreaming) {
         patched = true;
-        return updater(t);
+        return updater(block);
       }
-      return t;
+      return block;
     });
-    return { ...entry, toolEvents };
+    return { ...entry, contentBlocks };
   });
 }
 
@@ -374,11 +380,27 @@ export function useAgentStream(
                 })),
               );
             } else if (event.type === 'thinking') {
+              const delta = event.delta;
               setEntries((prev) =>
-                updateEntry(prev, assistantId, (e) => ({
-                  ...e,
-                  thinking: (e.thinking ?? '') + event.delta,
-                })),
+                updateEntry(prev, assistantId, (e) => {
+                  const lastBlock = e.contentBlocks.at(-1);
+                  if (lastBlock?.type === 'thinking') {
+                    // Append to the current thinking block.
+                    const contentBlocks: ContentBlock[] = e.contentBlocks.map((b, i) =>
+                      i === e.contentBlocks.length - 1
+                        ? { ...(b as ThinkingEntry), content: (b as ThinkingEntry).content + delta }
+                        : b,
+                    );
+                    return { ...e, contentBlocks };
+                  }
+                  // Start a new thinking block (first delta, or after a tool call).
+                  const newBlock: ThinkingEntry = {
+                    id: crypto.randomUUID(),
+                    type: 'thinking',
+                    content: delta,
+                  };
+                  return { ...e, contentBlocks: [...e.contentBlocks, newBlock] };
+                }),
               );
             } else if (event.type === 'tool_call_started') {
               const toolEvent: ToolEventEntry = {
@@ -391,7 +413,7 @@ export function useAgentStream(
               setEntries((prev) =>
                 updateEntry(prev, assistantId, (e) => ({
                   ...e,
-                  toolEvents: [...e.toolEvents, toolEvent],
+                  contentBlocks: [...e.contentBlocks, toolEvent],
                 })),
               );
             } else if (event.type === 'tool_call_completed') {
