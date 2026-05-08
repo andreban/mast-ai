@@ -18,6 +18,7 @@ import {
 
 import { AgentProvider, useAgent } from './context.js';
 import { INLINE_APPROVAL, type OnApprovalRequired } from './approval.js';
+import type { ToolEventEntry } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -160,7 +161,9 @@ describe('AgentProvider — approval flow', () => {
 
     expect(tool.call).not.toHaveBeenCalled();
     const lastTurn = result.current.messages.at(-1);
-    const completed = lastTurn?.toolEvents.find((t) => t.name === 'sensitive');
+    const completed = lastTurn?.contentBlocks.find(
+      (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+    );
     expect(completed?.result).toMatch(/cancel/i);
   });
 
@@ -176,7 +179,9 @@ describe('AgentProvider — approval flow', () => {
 
     expect(tool.call).not.toHaveBeenCalled();
     const lastTurn = result.current.messages.at(-1);
-    const completed = lastTurn?.toolEvents.find((t) => t.name === 'sensitive');
+    const completed = lastTurn?.contentBlocks.find(
+      (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+    );
     expect(completed?.result).toBe('synthetic result');
   });
 
@@ -192,7 +197,9 @@ describe('AgentProvider — approval flow', () => {
 
     expect(tool.call).toHaveBeenCalledTimes(1);
     const lastTurn = result.current.messages.at(-1);
-    const completed = lastTurn?.toolEvents.find((t) => t.name === 'sensitive');
+    const completed = lastTurn?.contentBlocks.find(
+      (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+    );
     expect(completed?.result).toBe('real-result');
   });
 
@@ -263,7 +270,9 @@ describe('AgentProvider — approval flow', () => {
     expect(result.current.pendingApprovals).toHaveLength(0);
     const completed = result.current.messages
       .at(-1)
-      ?.toolEvents.find((t) => t.name === 'sensitive');
+      ?.contentBlocks.find(
+        (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+      );
     expect(completed?.result).toBe('real-result');
     expect(completed?.status).toBe('success');
   });
@@ -309,7 +318,9 @@ describe('AgentProvider — approval flow', () => {
 
       const awaitingEntry = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(awaitingEntry?.awaitingApproval).toBe(true);
       expect(awaitingEntry?.isStreaming).toBe(true);
 
@@ -322,7 +333,9 @@ describe('AgentProvider — approval flow', () => {
 
       const completed = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(completed?.awaitingApproval).toBe(false);
       expect(completed?.isStreaming).toBe(false);
     });
@@ -339,7 +352,9 @@ describe('AgentProvider — approval flow', () => {
 
       const completed = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(completed?.awaitingApproval).toBe(false);
     });
 
@@ -357,7 +372,9 @@ describe('AgentProvider — approval flow', () => {
 
       const completed = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(completed?.awaitingApproval).toBe(false);
     });
   });
@@ -370,7 +387,11 @@ describe('AgentProvider — approval flow', () => {
 
       await sendAndWait(result, 'go');
 
-      const completed = result.current.messages.at(-1)?.toolEvents.find((t) => t.name === 'safe');
+      const completed = result.current.messages
+        .at(-1)
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'safe',
+        );
       expect(completed?.status).toBe('success');
     });
 
@@ -394,7 +415,11 @@ describe('AgentProvider — approval flow', () => {
 
       await sendAndWait(result, 'go');
 
-      const completed = result.current.messages.at(-1)?.toolEvents.find((t) => t.name === 'safe');
+      const completed = result.current.messages
+        .at(-1)
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'safe',
+        );
       expect(completed?.status).toBe('error');
     });
 
@@ -410,7 +435,9 @@ describe('AgentProvider — approval flow', () => {
 
       const completed = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(completed?.status).toBe('cancelled');
     });
   });
@@ -467,7 +494,9 @@ describe('AgentProvider — approval flow', () => {
       expect(result.current.pendingApprovals).toHaveLength(0);
       const completed = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(completed?.result).toBe('real-result');
       expect(completed?.status).toBe('success');
     });
@@ -497,7 +526,9 @@ describe('AgentProvider — approval flow', () => {
       expect(tool.call).not.toHaveBeenCalled();
       const completed = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(completed?.status).toBe('cancelled');
       expect(completed?.result).toMatch(/cancel/i);
     });
@@ -527,7 +558,9 @@ describe('AgentProvider — approval flow', () => {
       expect(tool.call).not.toHaveBeenCalled();
       const completed = result.current.messages
         .at(-1)
-        ?.toolEvents.find((t) => t.name === 'sensitive');
+        ?.contentBlocks.find(
+          (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+        );
       expect(completed?.result).toBe('synthetic');
     });
 

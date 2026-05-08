@@ -175,12 +175,19 @@ export function AssistantMessage({
         data-streaming={entry.isStreaming ? 'true' : undefined}
         className={rootClass}
       >
-        {entry.thinking ? (
-          <ThinkingBlock content={entry.thinking} isStreaming={entry.isStreaming} />
-        ) : null}
-        {entry.toolEvents.map((toolEvent, index) => (
-          <Fragment key={`${toolEvent.id}-${index}`}>{renderToolEvent(toolEvent)}</Fragment>
-        ))}
+        {entry.contentBlocks.map((block, index) => {
+          const isLastBlock = index === entry.contentBlocks.length - 1;
+          if (block.type === 'thinking') {
+            return (
+              <ThinkingBlock
+                key={block.id}
+                content={block.content}
+                isStreaming={entry.isStreaming && isLastBlock}
+              />
+            );
+          }
+          return <Fragment key={`${block.id}-${index}`}>{renderToolEvent(block)}</Fragment>;
+        })}
         {entry.text ? (
           renderMessage ? (
             renderMessage(entry.text)

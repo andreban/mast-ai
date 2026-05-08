@@ -227,12 +227,21 @@ export interface ToolEventEntry {
   status?: ToolCallStatus; // populated when isStreaming flips to false
 }
 
+export interface ThinkingEntry {
+  id: string; // stable key for React reconciliation
+  type: 'thinking';
+  content: string; // accumulated reasoning text
+}
+
+// Ordered list of content blocks within one assistant turn.
+// ThinkingEntry and ToolEventEntry are interleaved in the order they occurred.
+export type ContentBlock = ThinkingEntry | ToolEventEntry;
+
 export interface ConversationEntry {
   id: string; // stable key for React reconciliation
   role: 'user' | 'assistant';
   text: string; // accumulated text (empty while streaming)
-  thinking?: string; // accumulated thinking (empty while streaming)
-  toolEvents: ToolEventEntry[];
+  contentBlocks: ContentBlock[]; // ordered thinking blocks and tool calls
   isStreaming: boolean;
 }
 ```
@@ -248,8 +257,16 @@ A `'cancelled'` status set by the proxy is preserved when the runner emits the
 final `tool_call_completed` event so the synthetic cancelled result does not
 get reclassified as success.
 
-`nestedToolEvents` captures the tool calls a sub-agent fires while the
-parent tool is executing. The list is populated as `tool_call_started` and
+`contentBlocks` replaces the former separate `thinking` string and `toolEvents` array.
+Each `thinking` delta is appended to the last `ThinkingEntry` in `contentBlocks`, or
+starts a new one when the previous block is a tool call (or the array is empty). Each
+`tool_call_started` pushes a new `ToolEventEntry`. This interleaved ordering means
+multi-turn thinking (think → tool → think again) renders correctly: two separate
+`<ThinkingBlock>` components are shown, one before and one after the `<ToolCallBlock>`,
+rather than a single merged block displayed before all tool calls.
+
+`nestedToolEvents` on a `ToolEventEntry` captures the tool calls a sub-agent fires
+while the parent tool is executing. The list is populated as `tool_call_started` and
 `tool_call_completed` events arrive on the parent's `onToolEvent` callback;
 `<ToolCallBlock>` renders nested entries recursively. Currently scoped to a
 single level of nesting — grandchild events route back to the outermost
@@ -566,9 +583,12 @@ interface MessageItemProps {
 
 ### 4.5 `<AssistantMessage>`
 
-Renders an assistant turn: optional `<ThinkingBlock>`, zero or more
-`<ToolCallBlock>` entries, then the final text. Text is rendered via the optional
-`react-markdown` renderer or the `renderMessage` override.
+Renders an assistant turn: the ordered `contentBlocks` (each block is either a
+`<ThinkingBlock>` or a `<ToolCallBlock>`, interleaved in the sequence they occurred),
+then the final text. Text is rendered via the optional `react-markdown` renderer or
+the `renderMessage` override. Only the last `ThinkingEntry` block shows a streaming
+pulse indicator while the entry is still generating; earlier thinking blocks are
+rendered as completed.
 
 ```tsx
 interface AssistantMessageProps {
@@ -918,22 +938,22 @@ export paths under `@mast-ai/react-ui/themes/<name>.css` (see §2.4).
 `useAgentStream` subscribes to the `AgentEvent` stream from `AgentRunner` and
 maintains `ConversationEntry[]` as follows:
 
-| Event                                 | Action                                                                                                                                   |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| User sends message                    | Append `{ role: 'user', text: displayText ?? prompt, isStreaming: false }`; pass `prompt` to `runStream`                                 |
-| Run starts                            | Append `{ role: 'assistant', text: '', isStreaming: true }`                                                                              |
-| `text_delta`                          | Mutate last entry: append `delta` to `text`                                                                                              |
-| `thinking`                            | Mutate last entry: append `delta` to `thinking`                                                                                          |
-| `tool_call_started`                   | Mutate last entry: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` to `toolEvents`                               |
-| `onToolEvent` → `thinking`            | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                                                        |
-| `onToolEvent` → `text_delta`          | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                                                            |
-| `onToolEvent` → `tool_call_started`   | Mutate matching parent `ToolEventEntry`: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` onto `nestedToolEvents` |
-| `onToolEvent` → `tool_call_completed` | Mutate matching nested `ToolEventEntry` (under the parent): set `result`, `isStreaming: false`, `status` from `event.error`              |
-| Approval proxy notifies               | Mutate matching `ToolEventEntry`: set `awaitingApproval` to `true`/`false`                                                               |
-| Approval proxy cancels                | Mutate matching `ToolEventEntry`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                        |
-| `tool_call_completed`                 | Mutate matching `ToolEventEntry`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`) |
-| `done`                                | Mutate last entry: set `text = output`, `isStreaming = false`                                                                            |
-| Error / cancel                        | Mutate last entry: set `isStreaming = false`; optionally append error text                                                               |
+| Event                                 | Action                                                                                                                                                                                |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| User sends message                    | Append `{ role: 'user', text: displayText ?? prompt, isStreaming: false }`; pass `prompt` to `runStream`                                                                              |
+| Run starts                            | Append `{ role: 'assistant', text: '', contentBlocks: [], isStreaming: true }`                                                                                                        |
+| `text_delta`                          | Mutate last entry: append `delta` to `text`                                                                                                                                           |
+| `thinking`                            | Mutate last entry: if last `contentBlocks` element is a `ThinkingEntry`, append `delta` to its `content`; otherwise push a new `{ id, type: 'thinking', content: delta }` block      |
+| `tool_call_started`                   | Mutate last entry: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` to `contentBlocks`                                                                         |
+| `onToolEvent` → `thinking`            | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                                                                                                     |
+| `onToolEvent` → `text_delta`          | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                                                                                                         |
+| `onToolEvent` → `tool_call_started`   | Mutate matching parent `ToolEventEntry`: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` onto `nestedToolEvents`                                              |
+| `onToolEvent` → `tool_call_completed` | Mutate matching nested `ToolEventEntry` (under the parent): set `result`, `isStreaming: false`, `status` from `event.error`                                                           |
+| Approval proxy notifies               | Mutate matching `ToolEventEntry` in `contentBlocks`: set `awaitingApproval` to `true`/`false`                                                                                         |
+| Approval proxy cancels                | Mutate matching `ToolEventEntry` in `contentBlocks`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                                                  |
+| `tool_call_completed`                 | Mutate matching `ToolEventEntry` in `contentBlocks`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`)                           |
+| `done`                                | Mutate last entry: set `text = output`, `isStreaming = false`                                                                                                                         |
+| Error / cancel                        | Mutate last entry: set `isStreaming = false`; optionally append error text                                                                                                            |
 
 `onToolEvent` events are wired by passing an `onToolEvent` handler to `RunBuilder` inside `useAgentStream`. Events are matched to the correct `ToolEventEntry` by `toolName`. The `done` event from a sub-agent is ignored — the parent's `tool_call_completed` is the authoritative signal that a tool finished.
 

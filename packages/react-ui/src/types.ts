@@ -100,6 +100,33 @@ export interface ToolEventEntry {
 }
 
 /**
+ * A thinking/reasoning block produced during one LLM turn.
+ *
+ * Created when the first `thinking` delta arrives after a tool call (or at
+ * the very start of the stream) and accumulated until the next tool call or
+ * the end of the turn. Multiple `ThinkingEntry` blocks may appear in
+ * `ConversationEntry.contentBlocks` when the model thinks, calls a tool,
+ * then thinks again.
+ */
+export interface ThinkingEntry {
+  /** Stable identifier used as the React `key` for this block. */
+  id: string;
+
+  /** Discriminator. */
+  type: 'thinking';
+
+  /** Accumulated reasoning text. Grows with each `thinking` delta. */
+  content: string;
+}
+
+/**
+ * A single content block within an assistant turn. Either a thinking/reasoning
+ * trace or a tool invocation. The array is ordered by arrival time, so
+ * thinking blocks and tool calls are interleaved in the sequence they occurred.
+ */
+export type ContentBlock = ThinkingEntry | ToolEventEntry;
+
+/**
  * The rendered state of a single turn in the conversation.
  *
  * Each `sendMessage` call produces one user entry and one assistant entry.
@@ -123,17 +150,15 @@ export interface ConversationEntry {
   text: string;
 
   /**
-   * Accumulated thinking/reasoning trace for this assistant turn.
-   * Only present when the model emits `thinking` deltas.
+   * Ordered list of content blocks produced during this assistant turn.
+   *
+   * Each `thinking` delta is accumulated into the last `ThinkingEntry` block,
+   * or starts a new one when the previous block is a tool call. Each
+   * `tool_call_started` event appends a `ToolEventEntry`. The ordering
+   * faithfully reflects the sequence in which thinking and tool calls occurred,
+   * so multi-turn reasoning (think → tool → think again) renders correctly.
    */
-  thinking?: string;
-
-  /**
-   * Ordered list of tool invocations made during this assistant turn.
-   * Each element corresponds to one `tool_call_started` event and is updated
-   * in-place as the tool executes.
-   */
-  toolEvents: ToolEventEntry[];
+  contentBlocks: ContentBlock[];
 
   /**
    * `true` while the assistant is generating this entry; `false` once `done`,

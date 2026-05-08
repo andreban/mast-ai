@@ -4,6 +4,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import type { AgentEvent, Conversation } from '@mast-ai/core';
+import type { ThinkingEntry, ToolEventEntry } from '../types.js';
 import { useAgentStream } from './useAgentStream.js';
 
 // ---------------------------------------------------------------------------
@@ -226,7 +227,7 @@ describe('useAgentStream', () => {
   // Thinking streaming
   // -------------------------------------------------------------------------
 
-  it('accumulates thinking deltas into the thinking field', async () => {
+  it('accumulates thinking deltas into a ThinkingEntry in contentBlocks', async () => {
     const conv = mockConversation([
       { type: 'thinking', delta: 'Step 1. ' },
       { type: 'thinking', delta: 'Step 2.' },
@@ -239,11 +240,14 @@ describe('useAgentStream', () => {
       result.current.sendMessage('think');
     });
 
-    expect(result.current.entries[1].thinking).toBe('Step 1. Step 2.');
+    const blocks = result.current.entries[1].contentBlocks;
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].type).toBe('thinking');
+    expect((blocks[0] as ThinkingEntry).content).toBe('Step 1. Step 2.');
     expect(result.current.entries[1].text).toBe('Answer');
   });
 
-  it('thinking field is undefined when no thinking deltas are emitted', async () => {
+  it('contentBlocks is empty when no thinking or tool events are emitted', async () => {
     const conv = mockConversation([
       { type: 'text_delta', delta: 'Answer' },
       { type: 'done', output: 'Answer', history: [] },
@@ -254,14 +258,38 @@ describe('useAgentStream', () => {
       result.current.sendMessage('hi');
     });
 
-    expect(result.current.entries[1].thinking).toBeUndefined();
+    expect(result.current.entries[1].contentBlocks).toHaveLength(0);
+  });
+
+  it('creates separate ThinkingEntry blocks for thinking before and after a tool call', async () => {
+    const conv = mockConversation([
+      { type: 'thinking', delta: 'Pre-tool thought.' },
+      { type: 'tool_call_started', name: 'search', args: {} },
+      { type: 'tool_call_completed', name: 'search', result: 'data' },
+      { type: 'thinking', delta: 'Post-tool thought.' },
+      { type: 'done', output: 'Answer', history: [] },
+    ]);
+    const { result } = renderHook(() => useAgentStream(conv));
+
+    await act(async () => {
+      result.current.sendMessage('research');
+    });
+
+    const blocks = result.current.entries[1].contentBlocks;
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0].type).toBe('thinking');
+    expect((blocks[0] as ThinkingEntry).content).toBe('Pre-tool thought.');
+    expect(blocks[1].type).toBe('tool_call_completed');
+    expect((blocks[1] as ToolEventEntry).name).toBe('search');
+    expect(blocks[2].type).toBe('thinking');
+    expect((blocks[2] as ThinkingEntry).content).toBe('Post-tool thought.');
   });
 
   // -------------------------------------------------------------------------
   // Tool call lifecycle
   // -------------------------------------------------------------------------
 
-  it('appends a streaming ToolEventEntry on tool_call_started', async () => {
+  it('appends a streaming ToolEventEntry in contentBlocks on tool_call_started', async () => {
     const { conversation, resume } = pausableConversation(
       [{ type: 'tool_call_started', name: 'my_tool', args: { x: 1 } }],
       [
@@ -277,9 +305,9 @@ describe('useAgentStream', () => {
 
     // The tool_call_started state update is async; waitFor polls until it lands.
     await waitFor(() => {
-      expect(result.current.entries[1].toolEvents).toHaveLength(1);
+      expect(result.current.entries[1].contentBlocks).toHaveLength(1);
     });
-    expect(result.current.entries[1].toolEvents[0]).toMatchObject({
+    expect(result.current.entries[1].contentBlocks[0]).toMatchObject({
       type: 'tool_call_started',
       name: 'my_tool',
       args: { x: 1 },
@@ -290,7 +318,7 @@ describe('useAgentStream', () => {
     await act(async () => {});
   });
 
-  it('marks ToolEventEntry completed with result on tool_call_completed', async () => {
+  it('marks ToolEventEntry in contentBlocks completed with result on tool_call_completed', async () => {
     const conv = mockConversation([
       { type: 'tool_call_started', name: 'calc', args: { expr: '2+2' } },
       { type: 'tool_call_completed', name: 'calc', result: 4 },
@@ -302,7 +330,7 @@ describe('useAgentStream', () => {
       result.current.sendMessage('calculate');
     });
 
-    const toolEvent = result.current.entries[1].toolEvents[0];
+    const toolEvent = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
     expect(toolEvent.type).toBe('tool_call_completed');
     expect(toolEvent.result).toBe(4);
     expect(toolEvent.isStreaming).toBe(false);
@@ -336,7 +364,8 @@ describe('useAgentStream', () => {
       result.current.sendMessage('run agent');
     });
 
-    expect(result.current.entries[1].toolEvents[0].subThinking).toBe('Considering... Done.');
+    const toolBlock = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
+    expect(toolBlock.subThinking).toBe('Considering... Done.');
   });
 
   // -------------------------------------------------------------------------
@@ -367,7 +396,8 @@ describe('useAgentStream', () => {
       result.current.sendMessage('run agent');
     });
 
-    expect(result.current.entries[1].toolEvents[0].subText).toBe('Sub response.');
+    const toolBlock = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
+    expect(toolBlock.subText).toBe('Sub response.');
   });
 
   // -------------------------------------------------------------------------
@@ -446,7 +476,7 @@ describe('useAgentStream', () => {
       result.current.sendMessage('run nested');
     });
 
-    const parent = result.current.entries[1].toolEvents[0];
+    const parent = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
     expect(parent.name).toBe('agent_tool');
     expect(parent.nestedToolEvents).toHaveLength(1);
     expect(parent.nestedToolEvents![0]).toMatchObject({
@@ -498,11 +528,11 @@ describe('useAgentStream', () => {
     });
 
     await waitFor(() => {
-      const parent = result.current.entries[1].toolEvents[0];
+      const parent = result.current.entries[1].contentBlocks[0] as ToolEventEntry | undefined;
       expect(parent?.nestedToolEvents).toHaveLength(1);
     });
 
-    const parent = result.current.entries[1].toolEvents[0];
+    const parent = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
     expect(parent.nestedToolEvents![0]).toMatchObject({
       type: 'tool_call_started',
       name: 'inner_tool',
@@ -542,7 +572,7 @@ describe('useAgentStream', () => {
       result.current.sendMessage('run');
     });
 
-    const parent = result.current.entries[1].toolEvents[0];
+    const parent = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
     expect(parent.nestedToolEvents![0].status).toBe('error');
   });
 
@@ -572,7 +602,8 @@ describe('useAgentStream', () => {
       result.current.sendMessage('run');
     });
 
-    const nested = result.current.entries[1].toolEvents[0].nestedToolEvents!;
+    const parent = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
+    const nested = parent.nestedToolEvents!;
     expect(nested.map((n) => n.name)).toEqual(['inner_a', 'inner_b']);
     expect(nested.map((n) => n.result)).toEqual(['a', 'b']);
     expect(nested.every((n) => !n.isStreaming)).toBe(true);
@@ -604,7 +635,7 @@ describe('useAgentStream', () => {
       result.current.sendMessage('run');
     });
 
-    const parent = result.current.entries[1].toolEvents[0];
+    const parent = result.current.entries[1].contentBlocks[0] as ToolEventEntry;
     expect(parent.subThinking).toBe('planning ');
     expect(parent.subText).toBe('narration ');
     expect(parent.nestedToolEvents).toHaveLength(1);
@@ -637,15 +668,17 @@ describe('useAgentStream', () => {
       result.current.sendMessage('run both');
     });
 
-    const toolEvents = result.current.entries[1].toolEvents;
-    expect(toolEvents).toHaveLength(2);
+    const toolBlocks = result.current.entries[1].contentBlocks.filter(
+      (b): b is ToolEventEntry => b.type !== 'thinking',
+    );
+    expect(toolBlocks).toHaveLength(2);
 
-    const a = toolEvents.find((t) => t.name === 'tool_a')!;
+    const a = toolBlocks.find((t) => t.name === 'tool_a')!;
     expect(a.subText).toBe('Sub text A');
     expect(a.result).toBe('result_a');
     expect(a.isStreaming).toBe(false);
 
-    const b = toolEvents.find((t) => t.name === 'tool_b')!;
+    const b = toolBlocks.find((t) => t.name === 'tool_b')!;
     expect(b.subThinking).toBe('Sub thinking B');
     expect(b.result).toBe('result_b');
     expect(b.isStreaming).toBe(false);
