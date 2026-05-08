@@ -1,6 +1,6 @@
 {
   "name": "@mast-ai/react-ui",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,7 +35,7 @@
     "format": "prettier --write src"
   },
   "peerDependencies": {
-    "@mast-ai/core": "^0.5.0",
+    "@mast-ai/core": "^0.6.0",
     "@tanstack/react-virtual": ">=3.0.0",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"

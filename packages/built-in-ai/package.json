@@ -1,6 +1,6 @@
 {
   "name": "@mast-ai/built-in-ai",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,7 +27,7 @@
     "format": "prettier --write src"
   },
   "dependencies": {
-    "@mast-ai/core": "^0.5.0"
+    "@mast-ai/core": "^0.6.0"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
