@@ -224,8 +224,12 @@ export class AgentRunner {
       }
 
       if (toolCalls.length > 0) {
+        // Emit tool_call_started only for registered tools so hallucinated
+        // calls never appear in the UI.
         for (const call of toolCalls) {
-          yield { type: 'tool_call_started', name: call.name, args: call.args };
+          if (this.registry.getTool(call.name)) {
+            yield { type: 'tool_call_started', name: call.name, args: call.args };
+          }
         }
 
         const toolResults = await Promise.all(
@@ -234,8 +238,9 @@ export class AgentRunner {
             if (!tool) {
               return {
                 call,
-                result: `Error: Tool '${call.name}' not found.`,
+                result: `Tool '${call.name}' does not exist and was not called.`,
                 error: true as const,
+                hallucinated: true as const,
               };
             }
             try {
@@ -243,17 +248,25 @@ export class AgentRunner {
                 signal,
                 onEvent: onToolEvent ? (event) => onToolEvent(call.name, event) : undefined,
               });
-              return { call, result, error: false as const };
+              return { call, result, error: false as const, hallucinated: false as const };
             } catch (err) {
               const message = err instanceof Error ? err.message : String(err);
-              return { call, result: `Error executing tool: ${message}`, error: true as const };
+              return {
+                call,
+                result: `Error executing tool: ${message}`,
+                error: true as const,
+                hallucinated: false as const,
+              };
             }
           }),
         );
 
         const resultMessages: Message[] = [];
-        for (const { call, result, error } of toolResults) {
-          yield { type: 'tool_call_completed', name: call.name, result, error };
+        for (const { call, result, error, hallucinated } of toolResults) {
+          // Suppress completed events for hallucinated calls — they had no started event.
+          if (!hallucinated) {
+            yield { type: 'tool_call_completed', name: call.name, result, error };
+          }
           resultMessages.push({
             role: 'user',
             content: { type: 'tool_result', id: call.id, name: call.name, result },
