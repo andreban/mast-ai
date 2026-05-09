@@ -21,6 +21,17 @@ export interface ApprovalRequest {
   name: string;
   /** Arguments the model passed to the tool. */
   args: unknown;
+  /**
+   * Forwarded from the active run. Custom approval handlers that block on a
+   * UI (a confirmation dialog, an inline queue) should listen for this signal
+   * and resolve early when it aborts so a `cancel()` on the run does not
+   * strand the runner waiting on a decision that will never come.
+   *
+   * The handler's response in the abort case is up to it; the runner re-checks
+   * the signal on the next loop iteration and throws regardless, so any
+   * decision returned by the handler is effectively discarded.
+   */
+  signal?: AbortSignal;
 }
 
 /**

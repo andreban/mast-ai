@@ -3,11 +3,11 @@
 
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ToolEventEntry } from '../types.js';
 import { ToolCallBlock } from './ToolCallBlock.js';
-import { ToolLabelContext } from './ToolLabelContext.js';
+import { NestedToolRenderContext, ToolLabelContext } from './ToolLabelContext.js';
 
 function makeEntry(overrides: Partial<ToolEventEntry> = {}): ToolEventEntry {
   return {
@@ -234,6 +234,65 @@ describe('<ToolCallBlock>', () => {
       // Nested entry uses the resolver's value.
       expect(screen.getByText('Proofreader')).toBeDefined();
       expect(screen.queryByText('delegate_to_skill')).toBeNull();
+    });
+
+    it('routes nested entries through NestedToolRenderContext when one is provided', () => {
+      const renderNested = vi.fn((entry: ToolEventEntry) => (
+        <span data-testid={`custom-${entry.name}`}>{entry.name}</span>
+      ));
+      const parent: ToolEventEntry = {
+        id: 'parent',
+        type: 'tool_call_started',
+        name: 'agent_tool',
+        args: {},
+        isStreaming: true,
+        nestedToolEvents: [
+          {
+            id: 'nested-a',
+            type: 'tool_call_started',
+            name: 'inner_a',
+            args: {},
+            isStreaming: true,
+          },
+        ],
+      };
+      render(
+        <NestedToolRenderContext.Provider value={renderNested}>
+          <ToolCallBlock entry={parent} />
+        </NestedToolRenderContext.Provider>,
+      );
+      expect(screen.getByTestId('custom-inner_a').textContent).toBe('inner_a');
+      // The bare recursive ToolCallBlock should NOT have rendered for the
+      // nested entry — only the top-level parent block exists.
+      expect(screen.queryAllByTestId('mast-tool-call-status')).toHaveLength(1);
+      expect(renderNested).toHaveBeenCalledWith(parent.nestedToolEvents![0]);
+    });
+
+    it('falls back to bare recursive ToolCallBlock when no NestedToolRenderContext is provided', () => {
+      const parent: ToolEventEntry = {
+        id: 'parent',
+        type: 'tool_call_started',
+        name: 'agent_tool',
+        args: {},
+        isStreaming: true,
+        nestedToolEvents: [
+          {
+            id: 'nested-a',
+            type: 'tool_call_completed',
+            name: 'inner_a',
+            args: {},
+            result: 'a',
+            isStreaming: false,
+            status: 'success',
+          },
+        ],
+      };
+      const { container } = render(<ToolCallBlock entry={parent} />);
+      const nestedBlocks = container.querySelectorAll(
+        '.mast-tool-call-block-nested [data-mast-tool-call-block]',
+      );
+      expect(nestedBlocks).toHaveLength(1);
+      expect(nestedBlocks[0].getAttribute('data-tool-name')).toBe('inner_a');
     });
 
     it('renders multiple nested entries in order', () => {

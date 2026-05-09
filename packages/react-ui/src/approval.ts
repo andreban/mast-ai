@@ -105,8 +105,16 @@ export interface ApprovalHandlerHooks {
    * Pushes a pending approval onto the queue and returns a promise that
    * resolves once the consumer calls `approve()` (with `true`), `reject()`
    * (with `false`), or `reject(result)` (with the result string).
+   *
+   * When `signal` is provided, the queue resolver also resolves with `false`
+   * if the signal aborts before a decision is reached, so cancelling the run
+   * unblocks the awaiter.
    */
-  enqueueInline?: (toolName: string, args: unknown) => Promise<boolean | string>;
+  enqueueInline?: (
+    toolName: string,
+    args: unknown,
+    signal?: AbortSignal,
+  ) => Promise<boolean | string>;
 }
 
 /**
@@ -143,7 +151,7 @@ export function createApprovalHandler(
   hooks: ApprovalHandlerHooks = {},
 ): ApprovalHandler {
   return {
-    async requestApproval({ name, args }) {
+    async requestApproval({ name, args, signal }) {
       const override = getApprovalOverride();
       // `!name` in the override list short-circuits to approve, matching the
       // suppression rule in `computeNeedsApproval`.
@@ -164,7 +172,7 @@ export function createApprovalHandler(
         let resolved: boolean | string;
         if (initial === INLINE_APPROVAL) {
           // No queue wired — fall through to approve so the run does not deadlock.
-          resolved = hooks.enqueueInline ? await hooks.enqueueInline(name, args) : true;
+          resolved = hooks.enqueueInline ? await hooks.enqueueInline(name, args, signal) : true;
         } else {
           resolved = initial;
         }

@@ -25,3 +25,17 @@ export type GetToolLabel = (entry: ToolEventEntry) => ReactNode;
  * 3. `entry.name`.
  */
 export const ToolLabelContext = createContext<GetToolLabel | undefined>(undefined);
+
+/**
+ * Renders a single tool event, deciding whether to show the inline approval
+ * card or a regular `<ToolCallBlock>`. The same closure that
+ * `<AssistantMessage>` builds for top-level entries; published via context so
+ * `<ToolCallBlock>` can use it for entries inside `nestedToolEvents` and the
+ * approval-aware branch is reachable at every nesting depth.
+ *
+ * `<ToolCallBlock>` falls back to a bare recursive `<ToolCallBlock>` when no
+ * provider is in scope, so the component still works standalone.
+ */
+export const NestedToolRenderContext = createContext<
+  ((entry: ToolEventEntry) => ReactNode) | undefined
+>(undefined);

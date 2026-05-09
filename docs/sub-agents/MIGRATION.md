@@ -31,6 +31,9 @@ Three primitives are added to `@mast-ai/core` and re-exported from
 interface ApprovalRequest {
   name: string;
   args: unknown;
+  // Forwarded from the active run; handlers that block on a UI should listen
+  // for it and resolve early when it aborts.
+  signal?: AbortSignal;
 }
 
 type ApprovalResponse = { type: 'approve' } | { type: 'reject'; result?: string };

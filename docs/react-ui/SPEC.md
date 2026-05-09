@@ -697,7 +697,12 @@ ergonomic to relabel one tool while leaving everything else untouched.
 - Tools that are not sub-agents will have no `subThinking` or `subText`; they show
   only the spinner → check transition and args/result.
 - When `entry.nestedToolEvents` is non-empty, each nested tool call renders
-  recursively inside the parent block, indented with a left border.
+  recursively inside the parent block, indented with a left border. When the
+  block is rendered inside an `<AssistantMessage>`, the nested entries flow
+  through the same approval-aware renderer as top-level entries (via the
+  `NestedToolRenderContext`), so an inline approval card surfaces on
+  sub-agent tool calls at any nesting depth. Standalone usage (no provider
+  in scope) falls back to a bare recursive `<ToolCallBlock>`.
 - Uses `<details>/<summary>` for the outer block, args, and result expand/collapse so
   the component is keyboard-accessible without JavaScript.
 
@@ -948,9 +953,9 @@ maintains `ConversationEntry[]` as follows:
 | `onToolEvent` → `thinking`            | Mutate matching `ToolEventEntry`: append `delta` to `subThinking`                                                                                                               |
 | `onToolEvent` → `text_delta`          | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                                                                                                   |
 | `onToolEvent` → `tool_call_started`   | Mutate matching parent `ToolEventEntry`: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` onto `nestedToolEvents`                                        |
-| `onToolEvent` → `tool_call_completed` | Mutate matching nested `ToolEventEntry` (under the parent): set `result`, `isStreaming: false`, `status` from `event.error`                                                     |
-| Approval handler notifies             | Mutate matching `ToolEventEntry` in `contentBlocks`: set `awaitingApproval` to `true`/`false`                                                                                   |
-| Approval handler cancels              | Mutate matching `ToolEventEntry` in `contentBlocks`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                                            |
+| `onToolEvent` → `tool_call_completed` | Mutate matching nested `ToolEventEntry` (under the parent): set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`)              |
+| Approval handler notifies             | Mutate the deepest matching streaming `ToolEventEntry` (walking `nestedToolEvents` recursively): set `awaitingApproval` to `true`/`false`                                       |
+| Approval handler cancels              | Mutate the deepest matching streaming `ToolEventEntry` (walking `nestedToolEvents` recursively): set `status: 'cancelled'` (sticky across `tool_call_completed`)                |
 | `tool_call_completed`                 | Mutate matching `ToolEventEntry` in `contentBlocks`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`)                     |
 | `done`                                | Mutate last entry: set `text = output`, `isStreaming = false`                                                                                                                   |
 | Error / cancel                        | Mutate last entry: set `isStreaming = false`; optionally append error text                                                                                                      |
@@ -1074,6 +1079,13 @@ a handle.
 
 When `reset()` is called while approvals are pending, the library calls `reject()`
 on each so the underlying handler invocations finish and the run terminates cleanly.
+
+When `cancel()` is called while approvals are pending, the inline queue listens
+on the run's `AbortSignal` and resolves each pending entry as a rejection so the
+runner's next loop iteration sees the abort and throws. Approvals are removed
+from `useAgent().pendingApprovals` and the matching `ToolEventEntry.status`
+becomes `'cancelled'`. Without this wiring `cancel()` would strand the runner
+indefinitely on the unresolved approval Promise.
 
 ### 9.4 Runtime override: `approvalOverride`
 

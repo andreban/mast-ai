@@ -10,7 +10,11 @@ import type { ConversationEntry, ToolEventEntry } from '../types.js';
 import { InlineApproval } from './InlineApproval.js';
 import { ThinkingBlock } from './ThinkingBlock.js';
 import { ToolCallBlock } from './ToolCallBlock.js';
-import { ToolLabelContext, type GetToolLabel } from './ToolLabelContext.js';
+import {
+  NestedToolRenderContext,
+  ToolLabelContext,
+  type GetToolLabel,
+} from './ToolLabelContext.js';
 
 /**
  * Slot for replacing only the inline approval card while keeping the default
@@ -35,8 +39,10 @@ export interface AssistantMessageProps {
    */
   renderMessage?: (text: string) => ReactNode;
   /**
-   * Replaces the default tool-call renderer. Called once per element of
-   * `entry.toolEvents`.
+   * Replaces the default tool-call renderer. Called once per top-level tool
+   * event in `entry.contentBlocks` and once per nested tool event reached
+   * through `nestedToolEvents` (so sub-agent tool calls flow through the
+   * same slot).
    *
    * Receives the tool event and, when the call is awaiting an inline
    * approval decision, a {@link PendingApproval} handle exposing
@@ -55,8 +61,10 @@ export interface AssistantMessageProps {
   /**
    * Replaces only the inline approval card. Called once per tool event whose
    * call is awaiting an inline approval decision (i.e. has a matching
-   * {@link PendingApproval} handle); non-approval tool events fall through to
-   * `renderToolCall` or the default `<ToolCallBlock>`.
+   * {@link PendingApproval} handle), at any nesting depth — sub-agent tool
+   * calls reach this slot via the same path as top-level entries.
+   * Non-approval tool events fall through to `renderToolCall` or the default
+   * `<ToolCallBlock>`.
    *
    * Use this slot to customise the approval prompt without rebuilding the
    * tool-call rendering for every other event. Takes precedence over
@@ -165,34 +173,36 @@ export function AssistantMessage({
 
   return (
     <ToolLabelContext.Provider value={getToolLabel}>
-      <div
-        data-mast-assistant-message
-        data-streaming={entry.isStreaming ? 'true' : undefined}
-        className={rootClass}
-      >
-        {entry.contentBlocks.map((block, index) => {
-          const isLastBlock = index === entry.contentBlocks.length - 1;
-          if (block.type === 'thinking') {
-            return (
-              <ThinkingBlock
-                key={block.id}
-                content={block.content}
-                isStreaming={entry.isStreaming && isLastBlock}
-              />
-            );
-          }
-          return <Fragment key={`${block.id}-${index}`}>{renderToolEvent(block)}</Fragment>;
-        })}
-        {entry.text ? (
-          renderMessage ? (
-            renderMessage(entry.text)
-          ) : (
-            <Suspense fallback={<p className="mast-assistant-message-text">{entry.text}</p>}>
-              <MarkdownText>{entry.text}</MarkdownText>
-            </Suspense>
-          )
-        ) : null}
-      </div>
+      <NestedToolRenderContext.Provider value={renderToolEvent}>
+        <div
+          data-mast-assistant-message
+          data-streaming={entry.isStreaming ? 'true' : undefined}
+          className={rootClass}
+        >
+          {entry.contentBlocks.map((block, index) => {
+            const isLastBlock = index === entry.contentBlocks.length - 1;
+            if (block.type === 'thinking') {
+              return (
+                <ThinkingBlock
+                  key={block.id}
+                  content={block.content}
+                  isStreaming={entry.isStreaming && isLastBlock}
+                />
+              );
+            }
+            return <Fragment key={`${block.id}-${index}`}>{renderToolEvent(block)}</Fragment>;
+          })}
+          {entry.text ? (
+            renderMessage ? (
+              renderMessage(entry.text)
+            ) : (
+              <Suspense fallback={<p className="mast-assistant-message-text">{entry.text}</p>}>
+                <MarkdownText>{entry.text}</MarkdownText>
+              </Suspense>
+            )
+          ) : null}
+        </div>
+      </NestedToolRenderContext.Provider>
     </ToolLabelContext.Provider>
   );
 }
