@@ -48,6 +48,9 @@ export function createAgentTool(
       const input = options.buildInput(args);
       const builder = runner.runBuilder(agent).forwardTo(context);
       if (context.signal) builder.signal(context.signal);
+      if (context.approvalHandler && !runner.approvalHandler) {
+        builder.withApprovalHandler(context.approvalHandler);
+      }
 
       for await (const event of builder.runStream(input)) {
         if (event.type === 'done') {

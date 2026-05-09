@@ -11,7 +11,7 @@ import {
   ToolRegistry,
 } from './tool.js';
 import { AgentError } from './error.js';
-import { Conversation } from './conversation.js';
+import { Conversation, type ConversationOptions } from './conversation.js';
 
 type StreamExecutor = (
   input: string,
@@ -156,8 +156,8 @@ export class AgentRunner {
   ) {}
 
   /** Creates a Conversation that automatically tracks history across turns. */
-  conversation(agent: AgentConfig): Conversation {
-    return new Conversation(this, agent);
+  conversation(agent: AgentConfig, options?: ConversationOptions): Conversation {
+    return new Conversation(this, agent, options);
   }
 
   /** Primary entry point for multi-turn use. */
