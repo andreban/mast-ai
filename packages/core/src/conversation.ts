@@ -3,6 +3,17 @@
 
 import type { AgentConfig, AgentEvent, AgentResult, Message } from './types.js';
 import type { AgentRunner } from './runner.js';
+import type { ApprovalHandler } from './tool.js';
+
+/** Configuration for {@link Conversation}. */
+export interface ConversationOptions {
+  /**
+   * Approval handler attached to every {@link Conversation.runStream} call.
+   * Read by reference on every run, so consumers may swap the handler
+   * implementation (e.g. via a React ref) without rebuilding the conversation.
+   */
+  approvalHandler?: ApprovalHandler;
+}
 
 /**
  * Stateful wrapper around {@link AgentRunner} that automatically accumulates
@@ -18,6 +29,7 @@ export class Conversation {
   constructor(
     private readonly runner: AgentRunner,
     private readonly agent: AgentConfig,
+    private readonly options: ConversationOptions = {},
   ) {}
 
   private buildStream(
@@ -28,6 +40,9 @@ export class Conversation {
     const builder = this.runner.runBuilder(this.agent).history([...this.history]);
     if (signal) builder.signal(signal);
     if (onToolEvent) builder.onToolEvent(onToolEvent);
+    if (this.options.approvalHandler) {
+      builder.withApprovalHandler(this.options.approvalHandler);
+    }
     return builder.runStream(input);
   }
 

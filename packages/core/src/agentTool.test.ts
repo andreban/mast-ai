@@ -5,9 +5,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { createAgentTool } from './agentTool.js';
 import { AgentRunner } from './runner.js';
 import { AgentError } from './error.js';
+import { ApprovalResponse, ToolRegistry } from './tool.js';
 import type { LlmAdapter, AdapterRequest, AdapterStreamChunk } from './adapter/index.js';
 import type { AgentConfig, AgentEvent } from './types.js';
-import type { ToolContext } from './tool.js';
+import type { ApprovalHandler, Tool, ToolContext } from './tool.js';
 
 function streamingAdapter(chunks: AdapterStreamChunk[]): LlmAdapter {
   return {
@@ -120,6 +121,109 @@ describe('createAgentTool', () => {
     });
 
     await expect(tool.call({}, {})).rejects.toBeInstanceOf(AgentError);
+  });
+
+  describe('approvalHandler inheritance', () => {
+    function childToolCallAdapter(toolName: string): LlmAdapter {
+      let turn = 0;
+      return {
+        generate: vi.fn(),
+        generateStream: (_request: AdapterRequest) =>
+          (async function* () {
+            if (turn++ === 0) {
+              yield {
+                type: 'tool_call' as const,
+                toolCall: { id: '1', name: toolName, args: {} },
+              };
+            } else {
+              yield { type: 'text_delta' as const, delta: 'done' };
+            }
+          })(),
+      };
+    }
+
+    function approvalTool(name: string): Tool {
+      return {
+        definition: () => ({
+          name,
+          description: `${name} tool`,
+          parameters: {},
+          scope: 'write' as const,
+          requiresApproval: true,
+        }),
+        call: vi.fn(async () => 'tool-ran'),
+      };
+    }
+
+    function childRunnerWithTool(tool: Tool): AgentRunner {
+      const registry = new ToolRegistry();
+      registry.register(tool);
+      return new AgentRunner(childToolCallAdapter(tool.definition().name), registry);
+    }
+
+    it('forwards ctx.approvalHandler to the child run when the child runner has no default', async () => {
+      const inheritedHandler: ApprovalHandler = {
+        requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+      };
+      const childTool = approvalTool('child_tool');
+      const childRunner = childRunnerWithTool(childTool);
+
+      const tool = createAgentTool(childRunner, childAgent, {
+        name: 'sub',
+        description: 'sub',
+        parameters: {},
+        buildInput: () => 'go',
+      });
+
+      await tool.call({}, { approvalHandler: inheritedHandler });
+
+      expect(inheritedHandler.requestApproval).toHaveBeenCalledWith({
+        name: 'child_tool',
+        args: {},
+      });
+      expect(childTool.call).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses the child runner's own approvalHandler instead of inheriting", async () => {
+      const inheritedHandler: ApprovalHandler = {
+        requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.reject()),
+      };
+      const childOwnHandler: ApprovalHandler = {
+        requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+      };
+      const childTool = approvalTool('child_tool');
+      const childRunner = childRunnerWithTool(childTool);
+      childRunner.approvalHandler = childOwnHandler;
+
+      const tool = createAgentTool(childRunner, childAgent, {
+        name: 'sub',
+        description: 'sub',
+        parameters: {},
+        buildInput: () => 'go',
+      });
+
+      await tool.call({}, { approvalHandler: inheritedHandler });
+
+      expect(childOwnHandler.requestApproval).toHaveBeenCalledTimes(1);
+      expect(inheritedHandler.requestApproval).not.toHaveBeenCalled();
+      expect(childTool.call).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs the child ungated when neither ctx.approvalHandler nor a child runner default is set', async () => {
+      const childTool = approvalTool('child_tool');
+      const childRunner = childRunnerWithTool(childTool);
+
+      const tool = createAgentTool(childRunner, childAgent, {
+        name: 'sub',
+        description: 'sub',
+        parameters: {},
+        buildInput: () => 'go',
+      });
+
+      await tool.call({}, {});
+
+      expect(childTool.call).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('passes the result of buildInput as the child input', async () => {
