@@ -403,7 +403,7 @@ for await (const event of conv2.runStream('Hello!', abortController.signal)) {
 
 ### `createAgentTool` (`src/agentTool.ts`)
 
-A sub-agent is exposed to its parent as a plain `Tool`. `createAgentTool` is the helper that wraps an `AgentConfig` + `AgentRunner` pair as a `Tool`, encoding the sub-agent contract documented in [Tool Event Streaming](./tool-event-streaming/PLAN.md) so individual tool authors do not have to reimplement it (and get it wrong).
+A sub-agent is exposed to its parent as a plain `Tool`. `createAgentTool` is the helper that wraps an `AgentConfig` + `AgentRunner` pair as a `Tool`, encoding the sub-agent contract documented in [Tool Event Streaming](./urp-server/tool-event-streaming/PLAN.md) so individual tool authors do not have to reimplement it (and get it wrong).
 
 ```typescript
 export interface AgentToolOptions {
@@ -432,7 +432,7 @@ The returned tool's `call(args, context)`:
 5. Returns the `done.output` string as the tool result.
 6. Throws `AgentError` if the stream ends without a `done` event.
 
-`done` events are filtered because they carry the child's full conversation `history`, which must not leak to parent UI consumers registered via `RunBuilder.onToolEvent` (see [Tool Event Streaming](./tool-event-streaming/PLAN.md#consumer-integration)).
+`done` events are filtered because they carry the child's full conversation `history`, which must not leak to parent UI consumers registered via `RunBuilder.onToolEvent` (see [Tool Event Streaming](./urp-server/tool-event-streaming/PLAN.md#consumer-integration)).
 
 Because `runner` and `agent` are passed in separately, the child can use a different adapter, registry, instructions, or tool allowlist than the parent — true decoupling between parent and child execution modes. Approval policy is the one cross-cutting concern that travels with the run rather than the runner: a parent UI's handler reaches the child by default, with opt-out via the child runner's own handler.
 

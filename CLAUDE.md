@@ -154,7 +154,7 @@ demos/core/rust-server/src/
 - `docs/SPEC.md` — type definitions and URP protocol schema
 - `docs/urp-server/IMPLEMENTATION.md` — guide for implementing a compatible backend
 - `docs/built-in-ai/` — plans and phase docs for the `@mast-ai/built-in-ai` package
-- `docs/tool-event-streaming/` — plan for tool event streaming feature
+- `docs/urp-server/tool-event-streaming/` — plan for tool event streaming feature
 - `docs/archive/` — completed planning documents
 
 `docs/PRD.md` and `docs/SPEC.md` are library-level and live in the `docs/` root. Sub-feature docs go in a subdirectory under `docs/` with their own `PRD.md` and `SPEC.md`. When a feature is complete, move its subdirectory to `docs/archive/`. Do not rewrite or restructure files in `docs/archive/`.
