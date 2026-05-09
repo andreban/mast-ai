@@ -318,7 +318,7 @@ function SetPageTitleApproval({
         <button
           type="button"
           className="demo-approval-button demo-approval-reject"
-          onClick={approval.reject}
+          onClick={() => approval.reject()}
         >
           Discard
         </button>
@@ -337,14 +337,7 @@ const renderApproval: RenderApproval = (entry, approval) => {
   if (entry.name === 'set_page_title') {
     return <SetPageTitleApproval entry={entry} approval={approval} />;
   }
-  return (
-    <InlineApproval
-      entry={entry}
-      approve={approval.approve}
-      reject={approval.reject}
-      respondWith={approval.respondWith}
-    />
-  );
+  return <InlineApproval entry={entry} approve={approval.approve} reject={approval.reject} />;
 };
 
 /** Header indicator that demonstrates reading `pendingApprovals` via `useAgent`. */

@@ -948,14 +948,7 @@ const renderToolCall = (entry: ToolEventEntry, approval?: PendingApproval) => {
     if (entry.name === 'set_page_title') {
       return <SetPageTitleApproval entry={entry} approval={approval} />;
     }
-    return (
-      <InlineApproval
-        entry={entry}
-        approve={approval.approve}
-        reject={approval.reject}
-        respondWith={approval.respondWith}
-      />
-    );
+    return <InlineApproval entry={entry} approve={approval.approve} reject={approval.reject} />;
   }
   return <ToolCallBlock entry={entry} />;
 };
@@ -968,9 +961,10 @@ const renderToolCall = (entry: ToolEventEntry, approval?: PendingApproval) => {
 Each `PendingApproval` exposes:
 
 - `approve()` — runs the tool normally.
-- `reject()` — runner receives a synthetic "user cancelled" result.
-- `respondWith(result)` — skips execution and injects `result` as the tool
-  result.
+- `reject()` — runner receives a synthetic "user cancelled" result and the UI
+  marks the call as `'cancelled'`.
+- `reject(result)` — skips execution and injects `result` as the tool result;
+  the UI marks the call as `'cancelled'`.
 
 The library handles all promise-resolver plumbing; consumers never call
 `new Promise` themselves. The active set is also available via
@@ -1017,14 +1011,7 @@ const renderApproval: RenderApproval = (entry, approval) => {
     }
     default:
       // Fall back to the bundled card for tools without bespoke copy.
-      return (
-        <InlineApproval
-          entry={entry}
-          approve={approval.approve}
-          reject={approval.reject}
-          respondWith={approval.respondWith}
-        />
-      );
+      return <InlineApproval entry={entry} approve={approval.approve} reject={approval.reject} />;
   }
 };
 

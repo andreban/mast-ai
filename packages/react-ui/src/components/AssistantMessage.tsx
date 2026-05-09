@@ -16,7 +16,7 @@ import { ToolLabelContext, type GetToolLabel } from './ToolLabelContext.js';
  * Slot for replacing only the inline approval card while keeping the default
  * `<ToolCallBlock>` rendering for non-approval tool events. Receives the
  * matching {@link ToolEventEntry} and the live {@link PendingApproval} handle
- * exposing `approve()`, `reject()`, and `respondWith()`.
+ * exposing `approve()` and `reject()`.
  */
 export type RenderApproval = (entry: ToolEventEntry, approval: PendingApproval) => ReactNode;
 
@@ -40,9 +40,9 @@ export interface AssistantMessageProps {
    *
    * Receives the tool event and, when the call is awaiting an inline
    * approval decision, a {@link PendingApproval} handle exposing
-   * `approve()`, `reject()`, and `respondWith()`. Consumers can dispatch on
-   * tool name, and use the bundled `<InlineApproval>` or `<ToolCallBlock>`
-   * components as building blocks.
+   * `approve()` and `reject()`. Consumers can dispatch on tool name, and use
+   * the bundled `<InlineApproval>` or `<ToolCallBlock>` components as
+   * building blocks.
    *
    * When this prop is omitted, the library defaults to rendering
    * `<InlineApproval>` for tool events with a pending approval handle and
@@ -157,12 +157,7 @@ export function AssistantMessage({
 
     if (approval) {
       return (
-        <InlineApproval
-          entry={toolEvent}
-          approve={approval.approve}
-          reject={approval.reject}
-          respondWith={approval.respondWith}
-        />
+        <InlineApproval entry={toolEvent} approve={approval.approve} reject={approval.reject} />
       );
     }
     return <ToolCallBlock entry={toolEvent} />;

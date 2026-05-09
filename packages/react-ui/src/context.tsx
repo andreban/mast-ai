@@ -11,15 +11,19 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { AgentRunner } from '@mast-ai/core';
-import type { AgentConfig, Conversation, Message } from '@mast-ai/core';
+import type {
+  AgentConfig,
+  AgentRunner,
+  ApprovalHandler,
+  Conversation,
+  Message,
+} from '@mast-ai/core';
 
 import { useAgentStream } from './hooks/useAgentStream.js';
 import { IconProvider } from './icons.js';
 import {
-  INLINE_APPROVAL,
-  withApprovalProxy,
-  type ApprovalProxyHooks,
+  createApprovalHandler,
+  type ApprovalHandlerHooks,
   type OnApprovalRequired,
   type PendingApproval,
 } from './approval.js';
@@ -67,11 +71,10 @@ export interface AgentProviderProps {
    */
   onApprovalRequired?: OnApprovalRequired;
   /**
-   * Runtime override of the per-tool approval policy. Bare names add approval
-   * even when the tool's own `requiresApproval` is `false`; names prefixed with
-   * `!` suppress approval even when `requiresApproval` is `true`.
+   * Runtime override of the per-tool approval policy. Names prefixed with `!`
+   * suppress approval even when the tool's own `requiresApproval` is `true`.
    *
-   * @example ['third_party_tool', '!safe_tool']
+   * @example ['!safe_tool']
    */
   approvalOverride?: string[];
   /**
@@ -150,9 +153,8 @@ export interface UseAgentReturn {
   /**
    * Tool calls awaiting an inline approval decision. Populated when
    * `onApprovalRequired` resolves to `INLINE_APPROVAL` for a call. Each entry
-   * carries `approve()`, `reject()`, and `respondWith()` callbacks that
-   * resolve the underlying tool execution; the runner is paused until one is
-   * called.
+   * carries `approve()` and `reject()` callbacks that resolve the underlying
+   * tool execution; the runner is paused until one is called.
    */
   pendingApprovals: PendingApproval[];
   /**
@@ -169,19 +171,12 @@ export interface UseAgentReturn {
 const AgentContext = createContext<UseAgentReturn | null>(null);
 
 /**
- * Default `onApprovalRequired` used when the host app omits the prop. Returning
- * `INLINE_APPROVAL` for every call honours `requiresApproval: true` by default:
- * the call is enqueued on `useAgent().pendingApprovals` (and rendered inline by
- * the bundled `<InlineApproval>` slot) instead of executing silently.
- */
-const DEFAULT_ON_APPROVAL_REQUIRED: OnApprovalRequired = async () => INLINE_APPROVAL;
-
-/**
  * Wraps a subtree with agent context.
  *
- * Internally creates a {@link Conversation} via `runner.conversation(agent)`
- * and drives it with {@link useAgentStream}. Children access the resulting
- * state through {@link useAgent}.
+ * Internally creates a {@link Conversation} via
+ * `runner.conversation(agent, { approvalHandler })` and drives it with
+ * {@link useAgentStream}. Children access the resulting state through
+ * {@link useAgent}.
  */
 export function AgentProvider({
   runner,
@@ -203,51 +198,39 @@ export function AgentProvider({
   // call `reset()` and remount the provider with new initial values.
   const initialHistoryRef = useRef(initialHistory);
   const initialEntriesRef = useRef(initialEntries);
-  // Refs let the approval proxy read the latest callback and override on each
-  // tool invocation without rebuilding the wrapped runner on every render.
+  // Refs let the approval handler read the latest callback and override on
+  // each tool invocation without rebuilding the handler on every render.
   const onApprovalRef = useRef(onApprovalRequired);
   onApprovalRef.current = onApprovalRequired;
   const approvalOverrideRef = useRef(approvalOverride);
   approvalOverrideRef.current = approvalOverride;
 
-  // The proxy's React-side hooks. Filled in below once the stream hook and
-  // queue setter exist; the proxy reads through these refs so the wrapper can
-  // be built before the rest of the React state.
+  // The handler's React-side hooks. Filled in below once the stream hook and
+  // queue setter exist; the handler reads through these refs so it can be
+  // built before the rest of the React state.
   const notifyAwaitingRef = useRef<((name: string, awaiting: boolean) => void) | null>(null);
   const setStatusRef = useRef<((name: string, status: ToolCallStatus) => void) | null>(null);
   const enqueueInlineRef = useRef<
     ((toolName: string, args: unknown) => Promise<boolean | string>) | null
   >(null);
 
-  const wrappedRunner = useMemo(() => {
-    if (runner === null) return null;
-    const hasApproval = onApprovalRequired !== undefined;
-    const hasOverride = approvalOverride !== undefined && approvalOverride.length > 0;
-    // Without an explicit callback or override we still need to wrap when at
-    // least one registered tool declares `requiresApproval: true`, so the
-    // default INLINE_APPROVAL callback can intercept it. When no tool needs
-    // approval the proxy would be a no-op, so skip the wrap entirely.
-    const tools = runner.registry?.getTools?.() ?? [];
-    const hasApprovalTool = tools.some((def) => def.requiresApproval === true);
-    if (!hasApproval && !hasOverride && !hasApprovalTool) return runner;
-    const hooks: ApprovalProxyHooks = {
+  const approvalHandler = useMemo<ApprovalHandler>(() => {
+    const hooks: ApprovalHandlerHooks = {
       notifyAwaiting: (name, awaiting) => notifyAwaitingRef.current?.(name, awaiting),
       setStatus: (name, status) => setStatusRef.current?.(name, status),
       enqueueInline: (name, args) =>
         enqueueInlineRef.current?.(name, args) ?? Promise.resolve(true),
     };
-    const provider = withApprovalProxy(
-      runner.registry,
-      () => onApprovalRef.current ?? DEFAULT_ON_APPROVAL_REQUIRED,
+    return createApprovalHandler(
+      () => onApprovalRef.current,
       () => approvalOverrideRef.current,
       hooks,
     );
-    return new AgentRunner(runner.adapter, provider);
-  }, [runner, onApprovalRequired, approvalOverride]);
+  }, []);
 
   const [conversation, setConversation] = useState<Conversation | null>(() => {
-    if (wrappedRunner === null) return null;
-    const conv = wrappedRunner.conversation(agent);
+    if (runner === null) return null;
+    const conv = runner.conversation(agent, { approvalHandler });
     if (initialHistoryRef.current && initialHistoryRef.current.length > 0) {
       conv.history = [...initialHistoryRef.current];
     }
@@ -261,14 +244,14 @@ export function AgentProvider({
   // conversation when the runner reference changes — that case is out of
   // scope and consumers should call `reset()` to start a fresh conversation.
   useEffect(() => {
-    if (wrappedRunner !== null && conversation === null) {
-      const conv = wrappedRunner.conversation(agent);
+    if (runner !== null && conversation === null) {
+      const conv = runner.conversation(agent, { approvalHandler });
       if (initialHistoryRef.current && initialHistoryRef.current.length > 0) {
         conv.history = [...initialHistoryRef.current];
       }
       setConversation(conv);
     }
-  }, [wrappedRunner, conversation, agent]);
+  }, [runner, conversation, agent, approvalHandler]);
 
   const onTurnComplete = useCallback(
     (committedEntries: ConversationEntry[], committedHistory: Message[]) => {
@@ -307,8 +290,7 @@ export function AgentProvider({
         toolName,
         args,
         approve: () => finish(true),
-        reject: () => finish(false),
-        respondWith: (result) => finish(result),
+        reject: (result) => finish(result ?? false),
       };
       setPendingApprovals((prev) => [...prev, handle]);
     });
@@ -316,15 +298,15 @@ export function AgentProvider({
   enqueueInlineRef.current = enqueueInline;
 
   const reset = useCallback(() => {
-    // Force-resolve any pending approvals so their proxies finish and the
-    // run terminates cleanly. `reject()` resolves with `false`, which the
-    // proxy translates into the synthetic cancelled result.
+    // Force-resolve any pending approvals so their handler invocations finish
+    // and the run terminates cleanly. `reject()` resolves with `false`, which
+    // the handler translates into the synthetic cancelled result.
     pendingApprovalsRef.current.forEach((p) => p.reject());
     resetStream();
-    setConversation(wrappedRunner === null ? null : wrappedRunner.conversation(agent));
-  }, [resetStream, wrappedRunner, agent]);
+    setConversation(runner === null ? null : runner.conversation(agent, { approvalHandler }));
+  }, [resetStream, runner, agent, approvalHandler]);
 
-  const isReady = wrappedRunner !== null;
+  const isReady = runner !== null;
   const value = useMemo<UseAgentReturn>(
     () => ({
       messages: entries,

@@ -6,10 +6,13 @@ import { describe, it, expect, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import {
   AgentRunner,
+  ApprovalResponse,
   ToolRegistry,
+  createAgentTool,
   type AdapterRequest,
   type AdapterStreamChunk,
   type AgentConfig,
+  type ApprovalHandler,
   type LlmAdapter,
   type Tool,
   type ToolContext,
@@ -167,7 +170,7 @@ describe('AgentProvider — approval flow', () => {
     expect(completed?.result).toMatch(/cancel/i);
   });
 
-  it('injects the string return value as the tool result without executing the tool', async () => {
+  it('rejects with the string return value as the tool result and marks status cancelled', async () => {
     const { runner, tool } = makeRunnerWithTool(SENSITIVE_DEF);
     const onApprovalRequired = vi.fn(async () => 'synthetic result');
 
@@ -183,6 +186,7 @@ describe('AgentProvider — approval flow', () => {
       (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
     );
     expect(completed?.result).toBe('synthetic result');
+    expect(completed?.status).toBe('cancelled');
   });
 
   it('executes the tool normally when the callback returns true', async () => {
@@ -201,24 +205,6 @@ describe('AgentProvider — approval flow', () => {
       (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
     );
     expect(completed?.result).toBe('real-result');
-  });
-
-  it('approvalOverride adds approval to a tool that does not declare requiresApproval', async () => {
-    const { runner, tool } = makeRunnerWithTool(SAFE_DEF);
-    const onApprovalRequired = vi.fn(async () => true);
-
-    const { result } = renderHook(() => useAgent(), {
-      wrapper: wrapper({
-        runner,
-        onApprovalRequired,
-        approvalOverride: ['safe'],
-      }),
-    });
-
-    await sendAndWait(result, 'go');
-
-    expect(onApprovalRequired).toHaveBeenCalledTimes(1);
-    expect(tool.call).toHaveBeenCalledTimes(1);
   });
 
   it('approvalOverride with `!` suppresses approval for a tool flagged requiresApproval: true', async () => {
@@ -310,7 +296,7 @@ describe('AgentProvider — approval flow', () => {
         result.current.sendMessage('go');
       });
 
-      // Let the runner emit tool_call_started and the proxy notify awaiting=true.
+      // Let the runner emit tool_call_started and the handler notify awaiting=true.
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -533,7 +519,7 @@ describe('AgentProvider — approval flow', () => {
       expect(completed?.result).toMatch(/cancel/i);
     });
 
-    it('respondWith() injects the string as the tool result without executing the tool', async () => {
+    it('reject(result) injects the string as the tool result and marks status cancelled', async () => {
       const { runner, tool } = makeRunnerWithTool(SENSITIVE_DEF);
       const onApprovalRequired = vi.fn(async () => INLINE_APPROVAL);
 
@@ -550,7 +536,7 @@ describe('AgentProvider — approval flow', () => {
       });
 
       await act(async () => {
-        result.current.pendingApprovals[0].respondWith('synthetic');
+        result.current.pendingApprovals[0].reject('synthetic');
         await Promise.resolve();
         await Promise.resolve();
       });
@@ -562,6 +548,7 @@ describe('AgentProvider — approval flow', () => {
           (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
         );
       expect(completed?.result).toBe('synthetic');
+      expect(completed?.status).toBe('cancelled');
     });
 
     it('reset() rejects in-flight approvals so the run terminates', async () => {
@@ -591,6 +578,179 @@ describe('AgentProvider — approval flow', () => {
       expect(tool.call).not.toHaveBeenCalled();
       expect(result.current.pendingApprovals).toHaveLength(0);
       expect(result.current.messages).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Sub-agent approval propagation — issue #128 and follow-ups
+  // -------------------------------------------------------------------------
+
+  describe('sub-agent approval propagation', () => {
+    /**
+     * Adapter that emits a single `tool_call` for `toolName` on its first call
+     * and a final `done` text on the second. Useful for scripting either a
+     * parent or a child run that does exactly one tool dispatch.
+     */
+    function singleToolCallAdapter(toolName: string, doneText = 'done'): LlmAdapter {
+      let turn = 0;
+      return {
+        generate: vi.fn(),
+        generateStream: (_request: AdapterRequest) =>
+          (async function* () {
+            if (turn++ === 0) {
+              yield {
+                type: 'tool_call',
+                toolCall: { id: 'c1', name: toolName, args: { x: 1 } },
+              } satisfies AdapterStreamChunk;
+            } else {
+              yield { type: 'text_delta', delta: doneText } satisfies AdapterStreamChunk;
+            }
+          })(),
+      };
+    }
+
+    function delegateAgent(): AgentConfig {
+      return { name: 'Parent', instructions: 'Parent agent.', tools: ['delegate'] };
+    }
+
+    function childAgent(): AgentConfig {
+      return { name: 'Child', instructions: 'Child agent.', tools: ['sensitive'] };
+    }
+
+    /** Wrapper using a custom AgentConfig (rather than the module-scoped default). */
+    function wrapperWithAgent(props: {
+      runner: AgentRunner;
+      agent: AgentConfig;
+      onApprovalRequired?: OnApprovalRequired;
+    }) {
+      return function Wrapper({ children }: { children: ReactNode }) {
+        return (
+          <AgentProvider
+            runner={props.runner}
+            agent={props.agent}
+            onApprovalRequired={props.onApprovalRequired}
+          >
+            {children}
+          </AgentProvider>
+        );
+      };
+    }
+
+    it('regression #128: createAgentTool sub-agent fires onApprovalRequired for the inner call', async () => {
+      // Same runner shared by parent and child — the original bug topology.
+      const sensitive = new StubTool(SENSITIVE_DEF, 'sensitive-result');
+      const registry = new ToolRegistry().register(sensitive);
+
+      // Parent calls 'delegate'; child calls 'sensitive'; child finishes;
+      // parent finishes. Four scripted turns on a single adapter.
+      const adapter = scriptedAdapter([
+        [{ type: 'tool_call', toolCall: { id: 'p1', name: 'delegate', args: { task: 'go' } } }],
+        [{ type: 'tool_call', toolCall: { id: 'c1', name: 'sensitive', args: { x: 1 } } }],
+        [{ type: 'text_delta', delta: 'child-done' }],
+        [{ type: 'text_delta', delta: 'parent-done' }],
+      ]);
+      const runner = new AgentRunner(adapter, registry);
+
+      registry.register(
+        createAgentTool(runner, childAgent(), {
+          name: 'delegate',
+          description: 'Hand off to the coder.',
+          parameters: { type: 'object' },
+          scope: 'write',
+          buildInput: (a) => (a as { task: string }).task,
+        }),
+      );
+
+      const onApprovalRequired = vi.fn(async () => true);
+
+      const { result } = renderHook(() => useAgent(), {
+        wrapper: wrapperWithAgent({ runner, agent: delegateAgent(), onApprovalRequired }),
+      });
+
+      await sendAndWait(result, 'plan');
+
+      expect(onApprovalRequired).toHaveBeenCalledTimes(1);
+      expect(onApprovalRequired).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'sensitive' }),
+      );
+      expect(sensitive.call).toHaveBeenCalledTimes(1);
+    });
+
+    it('independent runner inherits: child runner with its own AgentRunner surfaces approvals to the parent provider', async () => {
+      // Child runner uses a completely separate adapter and registry.
+      const sensitive = new StubTool(SENSITIVE_DEF, 'sensitive-result');
+      const childRegistry = new ToolRegistry().register(sensitive);
+      const childRunner = new AgentRunner(singleToolCallAdapter('sensitive'), childRegistry);
+
+      // Parent runner has only the delegate tool, no shared registry with child.
+      const parentRegistry = new ToolRegistry();
+      const parentRunner = new AgentRunner(singleToolCallAdapter('delegate'), parentRegistry);
+
+      parentRegistry.register(
+        createAgentTool(childRunner, childAgent(), {
+          name: 'delegate',
+          description: 'Hand off to the child.',
+          parameters: { type: 'object' },
+          scope: 'write',
+          buildInput: () => 'go',
+        }),
+      );
+
+      const onApprovalRequired = vi.fn(async () => true);
+
+      const { result } = renderHook(() => useAgent(), {
+        wrapper: wrapperWithAgent({
+          runner: parentRunner,
+          agent: delegateAgent(),
+          onApprovalRequired,
+        }),
+      });
+
+      await sendAndWait(result, 'plan');
+
+      expect(onApprovalRequired).toHaveBeenCalledTimes(1);
+      expect(onApprovalRequired).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'sensitive' }),
+      );
+      expect(sensitive.call).toHaveBeenCalledTimes(1);
+    });
+
+    it("isolated child handler wins: the child runner's own approvalHandler is consulted instead of the parent provider's", async () => {
+      const sensitive = new StubTool(SENSITIVE_DEF, 'sensitive-result');
+      const childRegistry = new ToolRegistry().register(sensitive);
+      const childRunner = new AgentRunner(singleToolCallAdapter('sensitive'), childRegistry);
+      const childOwnHandler: ApprovalHandler = {
+        requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+      };
+      childRunner.approvalHandler = childOwnHandler;
+
+      const parentRegistry = new ToolRegistry();
+      const parentRunner = new AgentRunner(singleToolCallAdapter('delegate'), parentRegistry);
+      parentRegistry.register(
+        createAgentTool(childRunner, childAgent(), {
+          name: 'delegate',
+          description: 'Hand off to the child.',
+          parameters: { type: 'object' },
+          scope: 'write',
+          buildInput: () => 'go',
+        }),
+      );
+
+      const onApprovalRequired = vi.fn(async () => true);
+
+      const { result } = renderHook(() => useAgent(), {
+        wrapper: wrapperWithAgent({
+          runner: parentRunner,
+          agent: delegateAgent(),
+          onApprovalRequired,
+        }),
+      });
+
+      await sendAndWait(result, 'plan');
+
+      expect(childOwnHandler.requestApproval).toHaveBeenCalledTimes(1);
+      expect(onApprovalRequired).not.toHaveBeenCalled();
+      expect(sensitive.call).toHaveBeenCalledTimes(1);
     });
   });
 });

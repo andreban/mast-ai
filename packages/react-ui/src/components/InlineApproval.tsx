@@ -13,10 +13,12 @@ export interface InlineApprovalProps {
   entry: ToolEventEntry;
   /** Approve the call; the underlying tool will execute. */
   approve: () => void;
-  /** Reject the call; the runner receives the synthetic cancelled result. */
-  reject: () => void;
-  /** Skip execution and inject `result` as the tool result. */
-  respondWith: (result: string) => void;
+  /**
+   * Reject the call. With no argument the runner receives the default
+   * cancelled result; with a string the runner receives that string as the
+   * tool result. The UI marks the call as `'cancelled'` in both cases.
+   */
+  reject: (result?: string) => void;
   /** Optional class added to the root element. */
   className?: string;
 }
@@ -69,7 +71,7 @@ export function InlineApproval({ entry, approve, reject, className }: InlineAppr
         <button
           type="button"
           className="mast-inline-approval-button mast-inline-approval-reject"
-          onClick={reject}
+          onClick={() => reject()}
         >
           Reject
         </button>
