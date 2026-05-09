@@ -3,7 +3,13 @@
 
 import type { AgentConfig, AgentEvent, AgentResult, Message, ToolCall } from './types.js';
 import type { LlmAdapter, AdapterRequest } from './adapter/index.js';
-import { type ToolContext, type ToolProvider, ToolRegistry } from './tool.js';
+import {
+  APPROVAL_CANCELLED_RESULT,
+  type ApprovalHandler,
+  type ToolContext,
+  type ToolProvider,
+  ToolRegistry,
+} from './tool.js';
 import { AgentError } from './error.js';
 import { Conversation } from './conversation.js';
 
@@ -12,6 +18,7 @@ type StreamExecutor = (
   history: Message[],
   signal?: AbortSignal,
   onToolEvent?: (toolName: string, event: AgentEvent) => void,
+  approvalHandler?: ApprovalHandler,
 ) => AsyncIterable<AgentEvent>;
 
 /**
@@ -25,6 +32,8 @@ export class RunBuilder {
   private _signal?: AbortSignal;
   private _onToolEvent?: (toolName: string, event: AgentEvent) => void;
   private _forwardContext?: ToolContext;
+  /** @internal Read by {@link AgentRunner} to resolve the per-run handler. */
+  _approvalHandler?: ApprovalHandler;
 
   constructor(
     private readonly agent: AgentConfig,
@@ -70,9 +79,24 @@ export class RunBuilder {
     return this;
   }
 
+  /**
+   * Attach an {@link ApprovalHandler} that gates `requiresApproval` tools for
+   * this run. Overrides any handler set on the runner.
+   */
+  withApprovalHandler(handler: ApprovalHandler): this {
+    this._approvalHandler = handler;
+    return this;
+  }
+
   /** Executes the run and returns a stream of {@link AgentEvent} objects. */
   runStream(input: string): AsyncIterable<AgentEvent> {
-    const stream = this.execute(input, this._history, this._signal, this._onToolEvent);
+    const stream = this.execute(
+      input,
+      this._history,
+      this._signal,
+      this._onToolEvent,
+      this._approvalHandler,
+    );
     const onEvent = this._forwardContext?.onEvent;
     if (!onEvent) return stream;
     return (async function* () {
@@ -117,6 +141,13 @@ export class RunBuilder {
  * {@link AgentRunner.run} / {@link AgentRunner.runStream} (single-turn).
  */
 export class AgentRunner {
+  /**
+   * Default {@link ApprovalHandler} consulted for `requiresApproval` tools when
+   * a per-run handler is not attached via {@link RunBuilder.withApprovalHandler}.
+   * Mutable so consumers may attach a handler after construction.
+   */
+  approvalHandler?: ApprovalHandler;
+
   constructor(
     /** The LLM adapter used to generate responses. */
     public readonly adapter: LlmAdapter,
@@ -131,8 +162,15 @@ export class AgentRunner {
 
   /** Primary entry point for multi-turn use. */
   runBuilder(agent: AgentConfig): RunBuilder {
-    return new RunBuilder(agent, (input, history, signal, onToolEvent) =>
-      this.executeStream(agent, input, history, signal, onToolEvent),
+    return new RunBuilder(agent, (input, history, signal, onToolEvent, approvalHandler) =>
+      this.executeStream(
+        agent,
+        input,
+        history,
+        signal,
+        onToolEvent,
+        approvalHandler ?? this.approvalHandler,
+      ),
     );
   }
 
@@ -161,6 +199,7 @@ export class AgentRunner {
     history: Message[],
     signal?: AbortSignal,
     onToolEvent?: (toolName: string, event: AgentEvent) => void,
+    approvalHandler?: ApprovalHandler,
   ): AsyncIterable<AgentEvent> {
     // Use the explicit tool list when provided; otherwise expose all registered tools.
     const toolDefinitions = agent.tools
@@ -243,10 +282,25 @@ export class AgentRunner {
                 hallucinated: true as const,
               };
             }
+            if (tool.definition().requiresApproval && approvalHandler) {
+              const decision = await approvalHandler.requestApproval({
+                name: call.name,
+                args: call.args,
+              });
+              if (decision.type === 'reject') {
+                return {
+                  call,
+                  result: decision.result ?? APPROVAL_CANCELLED_RESULT,
+                  error: false as const,
+                  hallucinated: false as const,
+                };
+              }
+            }
             try {
               const result = await tool.call(call.args, {
                 signal,
                 onEvent: onToolEvent ? (event) => onToolEvent(call.name, event) : undefined,
+                approvalHandler,
               });
               return { call, result, error: false as const, hallucinated: false as const };
             } catch (err) {
