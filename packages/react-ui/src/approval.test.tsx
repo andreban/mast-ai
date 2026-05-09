@@ -753,4 +753,201 @@ describe('AgentProvider — approval flow', () => {
       expect(sensitive.call).toHaveBeenCalledTimes(1);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Nested approval rendering and cancellation — issue #142
+  // -------------------------------------------------------------------------
+
+  describe('nested approval state propagation (issue #142)', () => {
+    function delegateAgent(): AgentConfig {
+      return { name: 'Parent', instructions: 'Parent agent.', tools: ['delegate'] };
+    }
+
+    function childAgent(): AgentConfig {
+      return { name: 'Child', instructions: 'Child agent.', tools: ['sensitive'] };
+    }
+
+    function wrapperWithAgent(props: {
+      runner: AgentRunner;
+      agent: AgentConfig;
+      onApprovalRequired?: OnApprovalRequired;
+    }) {
+      return function Wrapper({ children }: { children: ReactNode }) {
+        return (
+          <AgentProvider
+            runner={props.runner}
+            agent={props.agent}
+            onApprovalRequired={props.onApprovalRequired}
+          >
+            {children}
+          </AgentProvider>
+        );
+      };
+    }
+
+    /**
+     * Builds a parent+child topology where the parent calls `delegate` and the
+     * child calls `sensitive` (which has `requiresApproval: true`). The
+     * scripted adapter ends each role's run on its second turn so the loop
+     * terminates after the approval flow plays out.
+     */
+    function buildDelegateTopology() {
+      const sensitive = new StubTool(SENSITIVE_DEF, 'sensitive-result');
+      const registry = new ToolRegistry().register(sensitive);
+      const adapter = scriptedAdapter([
+        [{ type: 'tool_call', toolCall: { id: 'p1', name: 'delegate', args: { task: 'go' } } }],
+        [{ type: 'tool_call', toolCall: { id: 'c1', name: 'sensitive', args: { x: 1 } } }],
+        [{ type: 'text_delta', delta: 'child-done' }],
+        [{ type: 'text_delta', delta: 'parent-done' }],
+      ]);
+      const runner = new AgentRunner(adapter, registry);
+      registry.register(
+        createAgentTool(runner, childAgent(), {
+          name: 'delegate',
+          description: 'Hand off to the child.',
+          parameters: { type: 'object' },
+          scope: 'write',
+          buildInput: (a) => (a as { task: string }).task,
+        }),
+      );
+      return { runner, sensitive };
+    }
+
+    /** Returns the nested `sensitive` entry under the parent `delegate`, if present. */
+    function findNestedSensitive(result: {
+      current: ReturnType<typeof useAgent>;
+    }): ToolEventEntry | undefined {
+      const lastTurn = result.current.messages.at(-1);
+      const delegate = lastTurn?.contentBlocks.find(
+        (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'delegate',
+      );
+      return delegate?.nestedToolEvents?.find((n) => n.name === 'sensitive');
+    }
+
+    it('marks the nested entry as awaitingApproval while the inline queue is pending', async () => {
+      const { runner } = buildDelegateTopology();
+
+      const { result } = renderHook(() => useAgent(), {
+        wrapper: wrapperWithAgent({ runner, agent: delegateAgent() }),
+      });
+
+      act(() => {
+        result.current.sendMessage('plan');
+      });
+      // Let the parent dispatch `delegate`, the child dispatch `sensitive`,
+      // and the approval handler enqueue the inline pending approval.
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      const nested = findNestedSensitive(result);
+      expect(nested).toBeDefined();
+      expect(nested?.awaitingApproval).toBe(true);
+      expect(nested?.isStreaming).toBe(true);
+      expect(result.current.pendingApprovals).toHaveLength(1);
+      expect(result.current.pendingApprovals[0].toolName).toBe('sensitive');
+    });
+
+    it("clears awaitingApproval and marks status 'cancelled' on the nested entry when reject() is called", async () => {
+      const { runner, sensitive } = buildDelegateTopology();
+
+      const { result } = renderHook(() => useAgent(), {
+        wrapper: wrapperWithAgent({ runner, agent: delegateAgent() }),
+      });
+
+      act(() => {
+        result.current.sendMessage('plan');
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        result.current.pendingApprovals[0].reject();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(sensitive.call).not.toHaveBeenCalled();
+      const nested = findNestedSensitive(result);
+      expect(nested?.awaitingApproval).toBe(false);
+      expect(nested?.status).toBe('cancelled');
+      expect(nested?.isStreaming).toBe(false);
+      expect(nested?.result).toMatch(/cancel/i);
+    });
+
+    it('cancel() during a nested pending approval unblocks the run and removes the pending entry', async () => {
+      const { runner, sensitive } = buildDelegateTopology();
+
+      const { result } = renderHook(() => useAgent(), {
+        wrapper: wrapperWithAgent({ runner, agent: delegateAgent() }),
+      });
+
+      act(() => {
+        result.current.sendMessage('plan');
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(result.current.pendingApprovals).toHaveLength(1);
+      expect(result.current.isRunning).toBe(true);
+
+      await act(async () => {
+        result.current.cancel();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(sensitive.call).not.toHaveBeenCalled();
+      expect(result.current.pendingApprovals).toHaveLength(0);
+      expect(result.current.isRunning).toBe(false);
+      const lastTurn = result.current.messages.at(-1);
+      expect(lastTurn?.isStreaming).toBe(false);
+    });
+
+    it('cancel() during a top-level pending approval unblocks the run', async () => {
+      // Same flow but with the sensitive tool called directly by the agent
+      // (no sub-agent wrapping), to confirm abort wiring also works at the
+      // top level — the contract should not be specific to nesting.
+      const sensitive = new StubTool(SENSITIVE_DEF, 'sensitive-result');
+      const registry = new ToolRegistry().register(sensitive);
+      const adapter = scriptedAdapter([
+        [{ type: 'tool_call', toolCall: { id: '1', name: 'sensitive', args: {} } }],
+        [{ type: 'text_delta', delta: 'done' }],
+      ]);
+      const runner = new AgentRunner(adapter, registry);
+
+      const { result } = renderHook(() => useAgent(), { wrapper: wrapper({ runner }) });
+
+      act(() => {
+        result.current.sendMessage('go');
+      });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(result.current.pendingApprovals).toHaveLength(1);
+      expect(result.current.isRunning).toBe(true);
+
+      await act(async () => {
+        result.current.cancel();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(sensitive.call).not.toHaveBeenCalled();
+      expect(result.current.pendingApprovals).toHaveLength(0);
+      expect(result.current.isRunning).toBe(false);
+    });
+  });
 });

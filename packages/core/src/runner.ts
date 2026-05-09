@@ -286,6 +286,7 @@ export class AgentRunner {
               const decision = await approvalHandler.requestApproval({
                 name: call.name,
                 args: call.args,
+                signal,
               });
               if (decision.type === 'reject') {
                 return {

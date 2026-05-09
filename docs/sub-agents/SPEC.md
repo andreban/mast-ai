@@ -225,6 +225,13 @@ export interface ApprovalRequest {
   name: string;
   /** Arguments the model passed to the tool. */
   args: unknown;
+  /**
+   * Forwarded from the active run. Custom approval handlers that block on a
+   * UI (a confirmation dialog, an inline queue) should listen on this signal
+   * and resolve early when it aborts so a `cancel()` on the run does not
+   * strand the runner waiting on a decision that will never come.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -341,7 +348,11 @@ The decision is applied uniformly:
 const def = tool.definition();
 const handler = builder._approvalHandler ?? this.approvalHandler;
 if (def.requiresApproval && handler) {
-  const response = await handler.requestApproval({ name: call.name, args: call.args });
+  const response = await handler.requestApproval({
+    name: call.name,
+    args: call.args,
+    signal,
+  });
   if (response.type === 'reject') {
     return response.result ?? APPROVAL_CANCELLED_RESULT;
   }

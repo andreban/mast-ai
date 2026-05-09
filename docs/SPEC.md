@@ -143,6 +143,10 @@ export interface Tool<TArgs = unknown, TResult = unknown> {
 export interface ApprovalRequest {
   name: string;
   args: unknown;
+  // Forwarded from the active run. Handlers that block on a UI (a
+  // confirmation dialog, an inline queue) should listen on this signal and
+  // resolve early when it aborts so cancelling the run unblocks the awaiter.
+  signal?: AbortSignal;
 }
 
 // `result` (or APPROVAL_CANCELLED_RESULT, when omitted) is what the model sees as the tool result on a reject.

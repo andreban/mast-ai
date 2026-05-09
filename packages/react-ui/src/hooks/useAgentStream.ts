@@ -86,6 +86,76 @@ function updateNestedToolEvent(
   });
 }
 
+/**
+ * Recursively walks `nestedToolEvents` looking for the deepest streaming
+ * `ToolEventEntry` whose `name` matches `toolName`, replacing it with the
+ * result of `updater`. Returns `{ events, patched }` so callers can detect
+ * whether a match was found and avoid creating a fresh array when nothing
+ * changed.
+ *
+ * "Deepest first" matches the runtime semantics of the approval handler:
+ * `notifyAwaiting(name, true)` always refers to the currently-suspended
+ * tool, which is the most deeply nested one with that name still running.
+ */
+function patchToolEventsByName(
+  events: ToolEventEntry[],
+  toolName: string,
+  updater: (t: ToolEventEntry) => ToolEventEntry,
+): { events: ToolEventEntry[]; patched: boolean } {
+  let patched = false;
+  const next = events.map((event) => {
+    if (patched) return event;
+    if (event.nestedToolEvents && event.nestedToolEvents.length > 0) {
+      const r = patchToolEventsByName(event.nestedToolEvents, toolName, updater);
+      if (r.patched) {
+        patched = true;
+        return { ...event, nestedToolEvents: r.events };
+      }
+    }
+    if (event.name === toolName && event.isStreaming) {
+      patched = true;
+      return updater(event);
+    }
+    return event;
+  });
+  return { events: patched ? next : events, patched };
+}
+
+/**
+ * Like {@link updateToolEvent} but walks `nestedToolEvents` recursively so
+ * that approval-state setters can target tool calls fired by sub-agents.
+ *
+ * Used by `setToolAwaitingApproval` and `setToolStatus`, which receive only a
+ * tool name (not the parent path) because the runner's approval gate fires
+ * for whichever tool is currently suspended — at any depth of nesting.
+ */
+function updateToolEventDeep(
+  entries: ConversationEntry[],
+  entryId: string,
+  toolName: string,
+  updater: (t: ToolEventEntry) => ToolEventEntry,
+): ConversationEntry[] {
+  return updateEntry(entries, entryId, (entry) => {
+    let patched = false;
+    const contentBlocks: ContentBlock[] = entry.contentBlocks.map((block) => {
+      if (patched || block.type === 'thinking') return block;
+      if (block.nestedToolEvents && block.nestedToolEvents.length > 0) {
+        const r = patchToolEventsByName(block.nestedToolEvents, toolName, updater);
+        if (r.patched) {
+          patched = true;
+          return { ...block, nestedToolEvents: r.events };
+        }
+      }
+      if (block.name === toolName && block.isStreaming) {
+        patched = true;
+        return updater(block);
+      }
+      return block;
+    });
+    return patched ? { ...entry, contentBlocks } : entry;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -172,8 +242,10 @@ export interface UseAgentStreamReturn {
   reset: () => void;
 
   /**
-   * Sets the `awaitingApproval` flag on the first matching streaming
+   * Sets the `awaitingApproval` flag on the deepest matching streaming
    * `ToolEventEntry` (by `name`) within the most recent assistant entry.
+   * The traversal walks `nestedToolEvents` recursively so sub-agent tool
+   * calls are reachable.
    *
    * Used by the approval proxy in `AgentProvider` to surface "awaiting human
    * decision" as a first-class state on the entry, so renderers can show a
@@ -182,10 +254,12 @@ export interface UseAgentStreamReturn {
   setToolAwaitingApproval: (name: string, awaiting: boolean) => void;
 
   /**
-   * Sets the `status` field on the first matching streaming `ToolEventEntry`
-   * (by `name`). Used by the approval proxy to mark a call as `'cancelled'`
-   * before the runner emits `tool_call_completed` so the eventual completion
-   * event preserves the cancellation rather than defaulting to `'success'`.
+   * Sets the `status` field on the deepest matching streaming `ToolEventEntry`
+   * (by `name`). The traversal walks `nestedToolEvents` recursively so
+   * sub-agent tool calls are reachable. Used by the approval proxy to mark a
+   * call as `'cancelled'` before the runner emits `tool_call_completed` so
+   * the eventual completion event preserves the cancellation rather than
+   * defaulting to `'success'`.
    */
   setToolStatus: (name: string, status: ToolCallStatus) => void;
 }
@@ -280,7 +354,7 @@ export function useAgentStream(
     setEntries((prev) => {
       const assistantId = findStreamingAssistantId(prev);
       if (assistantId === undefined) return prev;
-      return updateToolEvent(prev, assistantId, name, (t) => ({
+      return updateToolEventDeep(prev, assistantId, name, (t) => ({
         ...t,
         awaitingApproval: awaiting,
       }));
@@ -291,7 +365,7 @@ export function useAgentStream(
     setEntries((prev) => {
       const assistantId = findStreamingAssistantId(prev);
       if (assistantId === undefined) return prev;
-      return updateToolEvent(prev, assistantId, name, (t) => ({ ...t, status }));
+      return updateToolEventDeep(prev, assistantId, name, (t) => ({ ...t, status }));
     });
   }, []);
 
@@ -362,7 +436,10 @@ export function useAgentStream(
                     type: 'tool_call_completed',
                     result: completedEvent.result,
                     isStreaming: false,
-                    status: completedEvent.error ? 'error' : 'success',
+                    // Preserve a status set by the proxy (e.g. 'cancelled');
+                    // only fall back to error/success based on the runner's
+                    // flag. Mirrors the top-level tool_call_completed branch.
+                    status: n.status ?? (completedEvent.error ? 'error' : 'success'),
                   })),
                 );
               }

@@ -500,4 +500,59 @@ describe('approval gating', () => {
     expect(handler.requestApproval).not.toHaveBeenCalled();
     expect(receivedCtx?.approvalHandler).toBe(handler);
   });
+
+  it('forwards the run signal to ApprovalRequest so handlers can race their UI against cancel', async () => {
+    const handler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+    };
+    const tool = approvalTool('risky_tool', { requiresApproval: true });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+    runner.approvalHandler = handler;
+
+    const controller = new AbortController();
+    await drain(runner.runBuilder(agent).signal(controller.signal).runStream('go'));
+
+    expect(handler.requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'risky_tool',
+        signal: controller.signal,
+      }),
+    );
+  });
+
+  it('aborts cleanly when the signal fires while requestApproval is awaiting', async () => {
+    const controller = new AbortController();
+    const handler: ApprovalHandler = {
+      // Race the abort: resolve as 'reject' once the signal fires, mimicking
+      // an inline-approval queue that listens on the signal.
+      requestApproval: vi.fn(({ signal }) => {
+        return new Promise((resolve) => {
+          if (signal?.aborted) {
+            resolve(ApprovalResponse.reject());
+            return;
+          }
+          signal?.addEventListener('abort', () => resolve(ApprovalResponse.reject()), {
+            once: true,
+          });
+        });
+      }),
+    };
+    const tool = approvalTool('risky_tool', { requiresApproval: true });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+    runner.approvalHandler = handler;
+
+    const stream = runner.runBuilder(agent).signal(controller.signal).runStream('go');
+    // Kick the loop forward so requestApproval starts awaiting, then abort.
+    const collected: AgentEvent[] = [];
+    const pump = (async () => {
+      for await (const event of stream) collected.push(event);
+    })();
+
+    // Let the runner reach the awaiting requestApproval call.
+    await new Promise((r) => setTimeout(r, 0));
+    controller.abort();
+
+    await expect(pump).rejects.toThrow(AgentError);
+    expect(tool.call).not.toHaveBeenCalled();
+  });
 });

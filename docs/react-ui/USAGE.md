@@ -1122,6 +1122,15 @@ Nesting is currently scoped to a single level (a sub-agent calling its own
 tools). Grandchild events route back to the outermost matching parent; deeper
 disambiguation is a future extension tracked in the SPEC.
 
+Approvals on sub-agent tool calls (tools whose `requiresApproval` is `true`,
+registered on the child runner's registry) surface inline beneath the
+nested entry: the same `<InlineApproval>` card — or your `renderApproval` /
+`renderToolCall` slot — is reused for entries at any depth. Calling
+`cancel()` (or pressing the cancel button in `<ChatInput>`) while a nested
+approval is pending unblocks the run cleanly: the pending entry is removed
+from `useAgent().pendingApprovals`, the matching `ToolEventEntry.status`
+becomes `'cancelled'`, and the runner unwinds.
+
 ### 11.1 Custom sub-agent tools: use `forwardTo(context)`
 
 `createAgentTool` is the canonical wrapper, but some tools need custom logic

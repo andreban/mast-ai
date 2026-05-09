@@ -211,15 +211,15 @@ export function AgentProvider({
   const notifyAwaitingRef = useRef<((name: string, awaiting: boolean) => void) | null>(null);
   const setStatusRef = useRef<((name: string, status: ToolCallStatus) => void) | null>(null);
   const enqueueInlineRef = useRef<
-    ((toolName: string, args: unknown) => Promise<boolean | string>) | null
+    ((toolName: string, args: unknown, signal?: AbortSignal) => Promise<boolean | string>) | null
   >(null);
 
   const approvalHandler = useMemo<ApprovalHandler>(() => {
     const hooks: ApprovalHandlerHooks = {
       notifyAwaiting: (name, awaiting) => notifyAwaitingRef.current?.(name, awaiting),
       setStatus: (name, status) => setStatusRef.current?.(name, status),
-      enqueueInline: (name, args) =>
-        enqueueInlineRef.current?.(name, args) ?? Promise.resolve(true),
+      enqueueInline: (name, args, signal) =>
+        enqueueInlineRef.current?.(name, args, signal) ?? Promise.resolve(true),
     };
     return createApprovalHandler(
       () => onApprovalRef.current,
@@ -280,12 +280,25 @@ export function AgentProvider({
   const pendingApprovalsRef = useRef<PendingApproval[]>(pendingApprovals);
   pendingApprovalsRef.current = pendingApprovals;
 
-  const enqueueInline = useCallback((toolName: string, args: unknown) => {
+  const enqueueInline = useCallback((toolName: string, args: unknown, signal?: AbortSignal) => {
     return new Promise<boolean | string>((resolve) => {
+      // If the run has already been cancelled before we even enqueue, settle
+      // immediately so the runner's next loop iteration sees the abort and
+      // throws — without ever showing an approval card.
+      if (signal?.aborted) {
+        resolve(false);
+        return;
+      }
+      let settled = false;
+      const onAbort = () => finish(false);
       const finish = (decision: boolean | string) => {
+        if (settled) return;
+        settled = true;
+        if (signal) signal.removeEventListener('abort', onAbort);
         setPendingApprovals((prev) => prev.filter((p) => p !== handle));
         resolve(decision);
       };
+      if (signal) signal.addEventListener('abort', onAbort);
       const handle: PendingApproval = {
         toolName,
         args,

@@ -1,13 +1,13 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useContext } from 'react';
+import { Fragment, useContext } from 'react';
 import type { ReactNode } from 'react';
 
 import { useIcons } from '../icons.js';
 import type { ToolEventEntry } from '../types.js';
 import { ThinkingBlock } from './ThinkingBlock.js';
-import { ToolLabelContext } from './ToolLabelContext.js';
+import { NestedToolRenderContext, ToolLabelContext } from './ToolLabelContext.js';
 
 /**
  * Props accepted by {@link ToolCallBlock}.
@@ -74,7 +74,11 @@ function formatJson(value: unknown): string {
  *
  * When `entry.nestedToolEvents` is non-empty, each nested tool call is rendered
  * recursively inside the parent block so a sub-agent's tool calls appear
- * indented beneath the sub-agent's narration.
+ * indented beneath the sub-agent's narration. When the block is rendered inside
+ * an `<AssistantMessage>`, that parent publishes its approval-aware renderer
+ * via the `NestedToolRenderContext`, so an inline approval card surfaces on
+ * sub-agent tool calls at any nesting depth. Standalone usage (no provider in
+ * scope) falls back to a bare recursive `<ToolCallBlock>`.
  *
  * The outer block, args, and result expand/collapse all use native
  * `<details>/<summary>` so the component is keyboard-accessible without
@@ -108,6 +112,7 @@ export function ToolCallBlock({
 }: ToolCallBlockProps) {
   const icons = useIcons();
   const getToolLabel = useContext(ToolLabelContext);
+  const renderNested = useContext(NestedToolRenderContext);
   const rootClass = ['mast-tool-call-block', className].filter(Boolean).join(' ');
   const hasSubAgentOutput = entry.subThinking !== undefined || entry.subText !== undefined;
   const nestedToolEvents = entry.nestedToolEvents ?? [];
@@ -164,9 +169,13 @@ export function ToolCallBlock({
 
         {nestedToolEvents.length > 0 ? (
           <div className="mast-tool-call-block-nested" data-testid="mast-tool-call-nested">
-            {nestedToolEvents.map((nested) => (
-              <ToolCallBlock key={nested.id} entry={nested} />
-            ))}
+            {nestedToolEvents.map((nested) =>
+              renderNested ? (
+                <Fragment key={nested.id}>{renderNested(nested)}</Fragment>
+              ) : (
+                <ToolCallBlock key={nested.id} entry={nested} />
+              ),
+            )}
           </div>
         ) : null}
 

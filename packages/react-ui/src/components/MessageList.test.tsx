@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import {
   AgentRunner,
   ToolRegistry,
+  createAgentTool,
   type AdapterRequest,
   type AdapterStreamChunk,
   type AgentConfig,
@@ -430,5 +431,100 @@ describe('<MessageList>', () => {
     expect(await screen.findByTestId('approval-slot')).toBeDefined();
     expect(screen.queryByTestId('tool-slot')).toBeNull();
     expect(renderApproval).toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // Nested approval rendering — issue #142
+  // -------------------------------------------------------------------------
+
+  /**
+   * Builds a parent+child topology where the parent calls `delegate` and the
+   * child calls `sensitive` (which has `requiresApproval: true`). Used to
+   * verify that the approval card renders against a nested tool entry.
+   */
+  function makeNestedApprovalRunner(): AgentRunner {
+    const registry = new ToolRegistry().register(new StubTool(SENSITIVE_DEF));
+    const adapter = scriptedAdapter([
+      [{ type: 'tool_call', toolCall: { id: 'p1', name: 'delegate', args: { task: 'go' } } }],
+      [{ type: 'tool_call', toolCall: { id: 'c1', name: 'sensitive', args: { foo: 'bar' } } }],
+      [{ type: 'text_delta', delta: 'child-done' }],
+      [{ type: 'text_delta', delta: 'parent-done' }],
+    ]);
+    const runner = new AgentRunner(adapter, registry);
+    registry.register(
+      createAgentTool(
+        runner,
+        { name: 'Child', instructions: 'Child', tools: ['sensitive'] },
+        {
+          name: 'delegate',
+          description: 'Hand off to the child.',
+          parameters: { type: 'object' },
+          scope: 'write',
+          buildInput: (a) => (a as { task: string }).task,
+        },
+      ),
+    );
+    return runner;
+  }
+
+  const delegateAgentConfig: AgentConfig = {
+    name: 'Parent',
+    instructions: 'Parent.',
+    tools: ['delegate'],
+  };
+
+  it('renders <InlineApproval> for a sub-agent tool call by default', async () => {
+    const user = userEvent.setup();
+    const runner = makeNestedApprovalRunner();
+
+    render(
+      <AgentProvider
+        runner={runner}
+        agent={delegateAgentConfig}
+        onApprovalRequired={async () => INLINE_APPROVAL}
+      >
+        <SendButton text="plan" />
+        <MessageList />
+      </AgentProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'send plan' }));
+
+    // The bundled <InlineApproval> renders inside the nested entry, beneath
+    // the parent `delegate` block. Without the fix this card never appears.
+    await waitFor(() => {
+      expect(document.querySelector('[data-mast-inline-approval]')).not.toBeNull();
+    });
+    const card = document.querySelector('[data-mast-inline-approval]') as HTMLElement;
+    const nestedContainer = card.closest('.mast-tool-call-block-nested');
+    expect(nestedContainer).not.toBeNull();
+  });
+
+  it('forwards renderApproval to nested tool entries', async () => {
+    const user = userEvent.setup();
+    const runner = makeNestedApprovalRunner();
+    const renderApproval = vi.fn(
+      (entry: ToolEventEntry, _approval: PendingApproval): ReactNode => (
+        <div data-testid="custom-approval">custom: {entry.name}</div>
+      ),
+    );
+
+    render(
+      <AgentProvider
+        runner={runner}
+        agent={delegateAgentConfig}
+        onApprovalRequired={async () => INLINE_APPROVAL}
+      >
+        <SendButton text="plan" />
+        <MessageList renderApproval={renderApproval} />
+      </AgentProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'send plan' }));
+
+    const card = await screen.findByTestId('custom-approval');
+    expect(card.textContent).toContain('custom: sensitive');
+    // The bundled card must not also render alongside the custom slot.
+    expect(document.querySelector('[data-mast-inline-approval]')).toBeNull();
   });
 });
