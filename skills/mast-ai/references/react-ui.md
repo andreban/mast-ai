@@ -31,7 +31,7 @@ interface AgentProviderProps {
   children: ReactNode;
   icons?: IconMap;
   onApprovalRequired?: OnApprovalRequired;
-  approvalOverride?: string[]; // bare names add approval; '!name' suppresses it
+  approvalOverride?: string[]; // '!name' suppresses approval for that tool; bare names are accepted for symmetry but no longer add approval (set `requiresApproval: true` on the definition instead)
   initialHistory?: Message[]; // read once on mount
   initialEntries?: ConversationEntry[]; // read once on mount
   onConversationChange?: (history: Message[], entries: ConversationEntry[]) => void;
@@ -40,7 +40,7 @@ interface AgentProviderProps {
 }
 ```
 
-Internally creates a `Conversation` via `runner.conversation(agent)`. To switch conversations at runtime, remount with a React `key` and seed via `initialHistory` / `initialEntries`. `onConversationChange` fires only after a successful `done` event (not on cancel or error).
+Internally creates a `Conversation` via `runner.conversation(agent, { approvalHandler })`, where `approvalHandler` bridges `onApprovalRequired` and `approvalOverride` into the runner's per-run gating contract. The user's `runner` is used directly (no shadow runner). To switch conversations at runtime, remount with a React `key` and seed via `initialHistory` / `initialEntries`. `onConversationChange` fires only after a successful `done` event (not on cancel or error).
 
 `runner={null}` is the "agent not yet configured" state for chat UIs that mount before the user has supplied an API key, signed in, etc. `useAgent()` returns disabled-state defaults (`isReady: false`, empty messages/history, no-op `sendMessage` with a console warning), and `<ChatInput>` greys out automatically. Switching `null` → real runner does not require remounting; the conversation starts fresh on the next `sendMessage` (and picks up `initialHistory` if provided). Prefer this over constructing a stub runner whose adapter throws.
 
@@ -131,11 +131,11 @@ interface ToolEventEntry {
 
 ## Approval Flow
 
-Three pieces:
+Approval is enforced inside `@mast-ai/core`'s `AgentRunner`: before invoking any tool whose `ToolDefinition.requiresApproval` is `true`, the runner consults the `ApprovalHandler` `<AgentProvider>` attached to the run. Three pieces:
 
 1. Tool author sets `requiresApproval: true` on the tool definition.
 2. By default, the library routes such calls through the inline approval queue (`useAgent().pendingApprovals`) rendered by `<InlineApproval>`. Apps may supply `onApprovalRequired` on `<AgentProvider>` to plug in a different confirmation UI, auto-approve specific tools, inject canned results, or short-circuit cancellations.
-3. Optional: `approvalOverride={['!safe_tool', 'third_party_tool']}` adjusts policy at runtime.
+3. Optional: `approvalOverride={['!safe_tool']}` suppresses approval for a flagged tool at runtime. To _add_ approval to a tool that does not declare it, set `requiresApproval: true` on the definition at registration — the runner only consults the handler for flagged tools.
 
 ```typescript
 import { INLINE_APPROVAL } from '@mast-ai/react-ui';
@@ -149,9 +149,11 @@ type OnApprovalRequired = (toolCall: {
 Return values:
 
 - `true`: run the tool normally.
-- `false`: runner receives a synthetic "user cancelled" result.
-- `string`: skip execution and inject the string as the tool result.
+- `false`: skip execution; runner receives the default cancelled string and the UI marks the call as `'cancelled'`.
+- `string`: skip execution and inject the string as the tool result; the UI marks the call as `'cancelled'`.
 - `INLINE_APPROVAL`: defer to the inline approval queue (see below).
+
+Sub-agents started via `createAgentTool` automatically inherit the parent's `ApprovalHandler` through `ToolContext.approvalHandler`, so a `requiresApproval: true` tool registered on a child runner surfaces approvals to the same `<AgentProvider>` UI — even when the child uses an independent `AgentRunner` with a different adapter or registry. A child runner that sets its own `approvalHandler` opts out of inheritance and enforces its own policy.
 
 ### Inline approvals
 

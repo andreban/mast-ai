@@ -131,6 +131,8 @@ export interface ToolDefinition {
   name: string;
   description: string;
   parameters: Record<string, unknown>; // JSON Schema object
+  scope: 'read' | 'write'; // 'read' is non-mutating; 'write' modifies state
+  requiresApproval?: boolean; // tool author declares this tool is sensitive
 }
 
 export interface Tool<TArgs = unknown, TResult = unknown> {
@@ -138,9 +140,24 @@ export interface Tool<TArgs = unknown, TResult = unknown> {
   call(args: TArgs, context: ToolContext): Promise<TResult>;
 }
 
+export interface ApprovalRequest {
+  name: string;
+  args: unknown;
+}
+
+// `result` (or APPROVAL_CANCELLED_RESULT, when omitted) is what the model sees as the tool result on a reject.
+export type ApprovalResponse = { type: 'approve' } | { type: 'reject'; result?: string };
+
+export interface ApprovalHandler {
+  requestApproval(request: ApprovalRequest): Promise<ApprovalResponse>;
+}
+
+export const APPROVAL_CANCELLED_RESULT: string;
+
 export interface ToolContext {
   signal?: AbortSignal; // forwarded from the runner; allows long-running tools to be cancelled
   onEvent?: (event: AgentEvent) => void; // optional; tools wrapping sub-agents call this to surface child events
+  approvalHandler?: ApprovalHandler; // active handler for the current run; set by the runner when invoking tools
 }
 
 export class ToolRegistry {
@@ -162,6 +179,24 @@ export type ToolRegistryEventMap = {
 `ToolDefinition` is the runtime metadata forwarded to the remote backend in a URP request. It is never stored inside `AgentConfig`.
 
 Mutation events fire synchronously from `register()` and `unregister()` after the internal map is updated. `register()` throwing on a duplicate name does not fire `tool-registered`; `unregister()` for an unknown name is a silent no-op. `ToolRegistryView` forwards events from its parent registry but delivers only those for tools whose `scope` matches the view's scope.
+
+#### Approval gating
+
+`requiresApproval` gating is enforced by `AgentRunner` itself. Before invoking any tool whose definition has `requiresApproval: true`, the runner consults the active `ApprovalHandler` (resolved as `RunBuilder._approvalHandler ?? AgentRunner.approvalHandler`):
+
+- `{ type: 'approve' }` — the tool runs as normal.
+- `{ type: 'reject', result }` — execution is skipped; the model receives `result` (or `APPROVAL_CANCELLED_RESULT` when omitted) as the synthetic tool result, and a `tool_call_completed` event is emitted with `error: false`. The UI consumer is responsible for any cancelled-status styling.
+
+Tools without `requiresApproval: true` never invoke the handler. When no handler is attached, flagged tools execute ungated — the gate is opt-in at the consumer.
+
+The active handler is also threaded into `ToolContext.approvalHandler` so tools that internally start sub-agent runs (notably `createAgentTool`) can forward the handler to the child run. The propagation contract:
+
+- `Conversation` — accepts `{ approvalHandler }` via `runner.conversation(agent, options)`; `Conversation.runStream` calls `RunBuilder.withApprovalHandler` for every turn so the same handler covers the whole conversation.
+- `RunBuilder.withApprovalHandler(handler)` — overrides the runner-level default for a single run.
+- `AgentRunner.approvalHandler` — runner-level default consulted when no per-run handler is set.
+- `createAgentTool` — when `context.approvalHandler` is present and the child runner has no `approvalHandler` of its own, attaches the parent's handler to the child's `RunBuilder`. If the child runner has a handler, it wins (explicit child policy beats inheritance).
+
+The result is that approval policy travels with the _run_ rather than the runner: a sub-agent on an independent runner still surfaces approvals to whichever UI built the parent's `Conversation`, unless the child runner declares its own policy.
 
 ### `LlmAdapter` (`src/adapter/index.ts`)
 
@@ -219,8 +254,14 @@ export interface AgentResult {
 export class AgentRunner {
   constructor(adapter: LlmAdapter, registry?: ToolRegistry);
 
+  /**
+   * Default ApprovalHandler consulted for `requiresApproval` tools when no
+   * per-run handler is attached via RunBuilder.withApprovalHandler.
+   */
+  approvalHandler?: ApprovalHandler;
+
   /** Creates a Conversation that automatically tracks history across turns. */
-  conversation(agent: AgentConfig): Conversation;
+  conversation(agent: AgentConfig, options?: ConversationOptions): Conversation;
 
   /** Primary entry point for manual multi-turn use. */
   runBuilder(agent: AgentConfig): RunBuilder;
@@ -240,11 +281,12 @@ The agentic loop lives in `RunBuilder.runStream`:
 2. Prepend `history` to the new user `Message` and construct an `AdapterRequest` with resolved `ToolDefinition`s.
 3. Call `adapter.generateStream` (or fall back to `generate`) and forward `text_delta` chunks as `AgentEvent`.
 4. Collect `tool_call` chunks. When the turn ends with tool calls, emit all `tool_call_started` events.
-5. Execute all tool calls **concurrently** using `Promise.all`. Each tool receives a `ToolContext` containing the runner's `AbortSignal` and, when registered, an `onEvent` callback that forwards child events to the `onToolEvent` handler on `RunBuilder`.
-6. Emit all `tool_call_completed` events in original call order.
-7. Append assistant tool-call message and one user tool-result message per result to the internal history.
-8. Repeat from step 3 until the model returns a text-only turn.
-9. Emit `{ type: 'done', output }`.
+5. For each tool whose definition has `requiresApproval: true`, consult the active `ApprovalHandler` (`RunBuilder._approvalHandler ?? AgentRunner.approvalHandler`). On `{ type: 'reject', result }` the call is skipped and `result` (or `APPROVAL_CANCELLED_RESULT`) is used as the synthetic tool result. Tools without `requiresApproval: true` and runs without a handler skip this step.
+6. Execute approved tool calls **concurrently** using `Promise.all`. Each tool receives a `ToolContext` containing the runner's `AbortSignal`, the active `approvalHandler` (when set), and — when registered — an `onEvent` callback that forwards child events to the `onToolEvent` handler on `RunBuilder`.
+7. Emit all `tool_call_completed` events in original call order.
+8. Append assistant tool-call message and one user tool-result message per result to the internal history.
+9. Repeat from step 3 until the model returns a text-only turn.
+10. Emit `{ type: 'done', output }`.
 
 ### `RunBuilder` (`src/runner.ts`)
 
@@ -272,6 +314,12 @@ export class RunBuilder {
    * is undefined.
    */
   forwardTo(parentContext: ToolContext): this;
+
+  /**
+   * Attach an ApprovalHandler that gates `requiresApproval` tools for this run.
+   * Overrides the runner-level default (AgentRunner.approvalHandler).
+   */
+  withApprovalHandler(handler: ApprovalHandler): this;
 
   runStream(input: string): AsyncIterable<AgentEvent>;
   run(input: string): Promise<AgentResult>;
@@ -306,6 +354,11 @@ The runner remains stateless; the caller owns and extends the history. For the c
 ### `Conversation` (`src/conversation.ts`)
 
 ```typescript
+export interface ConversationOptions {
+  /** Approval handler attached to every Conversation.runStream call. */
+  approvalHandler?: ApprovalHandler;
+}
+
 export class Conversation {
   /** Full conversation history, updated automatically after each completed turn.
    *  Mutate directly to trim or compress history before the next turn. */
@@ -316,7 +369,7 @@ export class Conversation {
 }
 ```
 
-Created via `AgentRunner.conversation(agent)` — not constructed directly by callers.
+Created via `AgentRunner.conversation(agent, options?)` — not constructed directly by callers. When `options.approvalHandler` is supplied, every turn is gated by that handler, and the handler propagates through `ToolContext.approvalHandler` into any sub-agent run started via `createAgentTool`. UI layers (e.g. `@mast-ai/react-ui`'s `<AgentProvider>`) attach a handler here once and rely on `ToolContext` propagation for sub-agents.
 
 `Conversation` wraps a `RunBuilder` pair and automatically appends the updated history after each completed turn. History is taken from the `done` event's `history` field, which includes the full turn: user message, any tool call/result pairs, and the final assistant message.
 
@@ -375,12 +428,13 @@ The returned tool's `call(args, context)`:
 1. Builds the child input via `options.buildInput(args)`.
 2. Calls `runner.runBuilder(agent).forwardTo(context).signal(context.signal).runStream(input)`.
 3. `forwardTo(context)` automatically forwards every non-`done` child event to `context.onEvent`.
-4. Returns the `done.output` string as the tool result.
-5. Throws `AgentError` if the stream ends without a `done` event.
+4. When `context.approvalHandler` is set and the child runner has no `approvalHandler` of its own, calls `RunBuilder.withApprovalHandler(context.approvalHandler)` so the parent's approval surface gates the sub-agent's flagged tool calls. A child runner that defines its own `approvalHandler` wins — the explicit child policy is _not_ overridden.
+5. Returns the `done.output` string as the tool result.
+6. Throws `AgentError` if the stream ends without a `done` event.
 
 `done` events are filtered because they carry the child's full conversation `history`, which must not leak to parent UI consumers registered via `RunBuilder.onToolEvent` (see [Tool Event Streaming](./tool-event-streaming/PLAN.md#consumer-integration)).
 
-Because `runner` and `agent` are passed in separately, the child can use a different adapter, registry, instructions, or tool allowlist than the parent — true decoupling between parent and child execution modes.
+Because `runner` and `agent` are passed in separately, the child can use a different adapter, registry, instructions, or tool allowlist than the parent — true decoupling between parent and child execution modes. Approval policy is the one cross-cutting concern that travels with the run rather than the runner: a parent UI's handler reaches the child by default, with opt-out via the child runner's own handler.
 
 **Usage pattern (hybrid parent → on-device child):**
 

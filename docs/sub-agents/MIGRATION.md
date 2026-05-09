@@ -72,7 +72,9 @@ re-run your tests.
 + "@mast-ai/react-ui": "0.7.0",
 ```
 
-(Replace versions with the actual release. See PLAN.md §"Release strategy".)
+The architecture lands in `@mast-ai/*` v0.7.0 — see the
+[v0.7.0 release notes](https://github.com/andreban/mast-ai/releases/tag/v0.7.0)
+for the full changelog.
 
 What you get for free: any `createAgentTool`-mediated sub-agent in your app
 now correctly fires `onApprovalRequired` for child tool calls flagged
@@ -299,7 +301,7 @@ After upgrading, confirm:
 
 ## 9. Rolling back
 
-If you need to revert, pin both packages to the previous release together:
+If you need to revert from v0.7.0, pin both packages to v0.6.0 together:
 
 ```json
 {
@@ -312,7 +314,9 @@ If you need to revert, pin both packages to the previous release together:
 
 Mixing major-feature mismatched versions across `@mast-ai/*` is unsupported —
 the lockstep release policy means consumers always upgrade or downgrade
-the entire family together.
+the entire family together. See the
+[v0.7.0 release notes](https://github.com/andreban/mast-ai/releases/tag/v0.7.0)
+for the full set of changes you are reverting.
 
 ---
 

@@ -986,14 +986,20 @@ per-app.
 
 ### 9.2 Mechanism: `onApprovalRequired` callback
 
-`AgentProvider` pauses the run before executing any tool whose effective approval flag
-is `true` and calls `onApprovalRequired`. The consuming app renders its own confirmation
-UI and returns:
+Approval is enforced inside `@mast-ai/core`'s `AgentRunner`: before invoking any tool
+whose `ToolDefinition.requiresApproval` is `true`, the runner consults the `ApprovalHandler`
+attached to the active run and waits for an `ApprovalResponse` (`approve` or `reject`).
+`<AgentProvider>` builds that handler from `onApprovalRequired` (and `approvalOverride`)
+and attaches it once via `runner.conversation(agent, { approvalHandler })`. The user's
+`AgentRunner` is used directly — no shadow runner or registry wrap is constructed.
 
-- `true` — proceed with the tool call as normal
-- `false` — cancel the tool call; the runner receives a synthetic "user cancelled" result and the UI marks the call as `'cancelled'`
-- `string` — skip execution and inject this string as the tool result directly; the UI marks the call as `'cancelled'`
-- `INLINE_APPROVAL` — defer to the inline approval queue (see §9.3)
+The consuming app renders its own confirmation UI inside `onApprovalRequired` and
+returns:
+
+- `true` — proceed with the tool call as normal (handler resolves with `{ type: 'approve' }`).
+- `false` — cancel the tool call; the runner receives the default `APPROVAL_CANCELLED_RESULT` string as the synthetic tool result and the UI marks the call as `'cancelled'`.
+- `string` — skip execution and inject this string as the tool result directly; the UI marks the call as `'cancelled'` (semantic change from earlier releases — see [`MIGRATION.md` §4](../sub-agents/MIGRATION.md#4-onapprovalrequired-callbacks-that-return-a-string)).
+- `INLINE_APPROVAL` — defer to the inline approval queue (see §9.3).
 
 ```tsx
 <AgentProvider
@@ -1011,18 +1017,34 @@ While `onApprovalRequired` (or the inline queue) is pending, the matching
 indicator. The flag is cleared in a `try/finally` so it always resets, including when
 the callback throws.
 
+**Sub-agent propagation.** Because the handler is attached at the run level (via
+`Conversation`) and threaded into `ToolContext.approvalHandler` by the runner,
+`createAgentTool` automatically forwards it to child runs. A `requiresApproval: true`
+tool registered on the child surfaces approvals to the same `<AgentProvider>` UI as the
+parent's, even when the child uses an independent `AgentRunner` with a different adapter
+or registry. A child runner that sets its own `approvalHandler` opts out of inheritance
+and enforces its own policy.
+
 ### 9.3 Inline approval queue
 
 Returning `INLINE_APPROVAL` from `onApprovalRequired` enqueues a `PendingApproval`
 handle on `useAgent().pendingApprovals` and pauses the runner until the consumer
-calls `approve()` or `reject()`:
+calls `approve()` or `reject()`. The handler bridge translates the resolved value
+into the runner's `ApprovalResponse` (`approve()` → `{ type: 'approve' }`,
+`reject()` → `{ type: 'reject' }`, `reject(result)` → `{ type: 'reject', result }`):
 
 ```typescript
 interface PendingApproval {
   toolName: string;
   args: unknown;
-  approve: () => void; // resolves with `true`
-  reject: (result?: string) => void; // resolves with `false`, or with the string
+  /** Approve and run the tool normally. */
+  approve: () => void;
+  /**
+   * Reject the call. With no argument the runner receives the default cancelled
+   * result; with a string the runner receives that string as the tool result.
+   * In both cases the UI marks the call as `'cancelled'`.
+   */
+  reject: (result?: string) => void;
 }
 ```
 
