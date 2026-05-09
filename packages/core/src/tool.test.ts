@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect, vi } from 'vitest';
-import { ToolRegistry, ToolRegistryView, type ToolProvider } from './tool.js';
+import {
+  ToolRegistry,
+  ToolRegistryView,
+  ApprovalResponse,
+  APPROVAL_CANCELLED_RESULT,
+  type ApprovalHandler,
+  type ApprovalRequest,
+  type ToolContext,
+  type ToolProvider,
+} from './tool.js';
 import type { Tool, ToolDefinition } from './tool.js';
 
 function makeTool(name: string, scope: 'read' | 'write'): Tool {
@@ -217,6 +226,72 @@ describe('ToolRegistry events', () => {
 
     expect(a).toHaveBeenCalledTimes(1);
     expect(b).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ApprovalResponse', () => {
+  it('approve() returns the approve variant', () => {
+    const decision = ApprovalResponse.approve();
+    expect(decision).toEqual({ type: 'approve' });
+  });
+
+  it('reject() returns the reject variant with no result', () => {
+    const decision = ApprovalResponse.reject();
+    expect(decision).toEqual({ type: 'reject', result: undefined });
+  });
+
+  it('reject(result) carries the custom result string', () => {
+    const decision = ApprovalResponse.reject('Disabled in sandbox.');
+    expect(decision).toEqual({ type: 'reject', result: 'Disabled in sandbox.' });
+  });
+
+  it('narrows correctly in a switch on type', () => {
+    const decisions: ApprovalResponse[] = [
+      ApprovalResponse.approve(),
+      ApprovalResponse.reject(),
+      ApprovalResponse.reject('custom'),
+    ];
+
+    const labels = decisions.map((decision) => {
+      switch (decision.type) {
+        case 'approve':
+          return 'approve';
+        case 'reject':
+          return decision.result ?? APPROVAL_CANCELLED_RESULT;
+      }
+    });
+
+    expect(labels).toEqual(['approve', APPROVAL_CANCELLED_RESULT, 'custom']);
+  });
+
+  it('APPROVAL_CANCELLED_RESULT is the documented default string', () => {
+    expect(APPROVAL_CANCELLED_RESULT).toBe('User cancelled the tool call.');
+  });
+
+  it('ApprovalHandler conforms to the documented shape', async () => {
+    const handler: ApprovalHandler = {
+      async requestApproval(request: ApprovalRequest): Promise<ApprovalResponse> {
+        return request.name === 'safe' ? ApprovalResponse.approve() : ApprovalResponse.reject();
+      },
+    };
+
+    await expect(handler.requestApproval({ name: 'safe', args: {} })).resolves.toEqual({
+      type: 'approve',
+    });
+    await expect(handler.requestApproval({ name: 'risky', args: {} })).resolves.toEqual({
+      type: 'reject',
+      result: undefined,
+    });
+  });
+
+  it('ToolContext accepts an approvalHandler', () => {
+    const handler: ApprovalHandler = {
+      async requestApproval() {
+        return ApprovalResponse.approve();
+      },
+    };
+    const ctx: ToolContext = { approvalHandler: handler };
+    expect(ctx.approvalHandler).toBe(handler);
   });
 });
 
