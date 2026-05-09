@@ -4,13 +4,6 @@
 import type { ReactNode } from 'react';
 
 /**
- * The rendered state of a single tool invocation within an assistant turn.
- *
- * Created when a `tool_call_started` event is received and updated as the tool
- * executes. For tools that run sub-agents, `subThinking` and `subText` accumulate
- * live output streamed via {@link AgentRunner}'s `onToolEvent` callback.
- */
-/**
  * Outcome of a completed tool call.
  *
  * - `success`: tool returned normally
@@ -19,6 +12,15 @@ import type { ReactNode } from 'react';
  */
 export type ToolCallStatus = 'success' | 'error' | 'cancelled';
 
+/**
+ * The rendered state of a single tool invocation within an assistant turn.
+ *
+ * Created when a `tool_call_started` event is received and updated as the tool
+ * executes. For tools that run sub-agents, `nestedContentBlocks` accumulates the
+ * sub-agent's interleaved thinking and tool calls in source order, and
+ * `subText` accumulates the sub-agent's final text response. Both are streamed
+ * via {@link AgentRunner}'s `onToolEvent` callback.
+ */
 export interface ToolEventEntry {
   /**
    * Stable identifier for this tool invocation. Generated when the
@@ -43,13 +45,6 @@ export interface ToolEventEntry {
   result?: unknown;
 
   /**
-   * Accumulated thinking text streamed from a sub-agent running inside this tool.
-   * Populated incrementally via `onToolEvent` → `thinking` deltas.
-   * `undefined` for tools that are not sub-agents.
-   */
-  subThinking?: string;
-
-  /**
    * Accumulated text streamed from a sub-agent running inside this tool.
    * Populated incrementally via `onToolEvent` → `text_delta` deltas.
    * `undefined` for tools that are not sub-agents.
@@ -57,17 +52,21 @@ export interface ToolEventEntry {
   subText?: string;
 
   /**
-   * Tool calls fired by a sub-agent running inside this tool's execution.
-   * Populated incrementally via `onToolEvent` → `tool_call_started` /
-   * `tool_call_completed` events forwarded from the child runner.
-   * `undefined` when the tool is not a sub-agent or has not yet emitted
-   * any nested tool calls.
+   * Ordered content blocks produced by a sub-agent running inside this tool.
+   * Each `thinking` delta forwarded via `onToolEvent` is accumulated into the
+   * last {@link ThinkingEntry} block, or starts a new one when the previous
+   * block is a tool call. Each `tool_call_started` event appends a new
+   * {@link ToolEventEntry}. The ordering faithfully reflects the sequence in
+   * which the sub-agent emitted thinking and tool calls, mirroring the
+   * top-level {@link ConversationEntry.contentBlocks} pattern.
    *
-   * Currently scoped to a single level of nesting. The state machine routes
-   * grandchild events back to the outermost matching parent; deeper
-   * disambiguation is a future extension.
+   * Because each `ToolEventEntry` in the array can itself carry its own
+   * `nestedContentBlocks`, this nests recursively for sub-sub-agents.
+   *
+   * `undefined` when the tool is not a sub-agent or has not yet emitted any
+   * nested events.
    */
-  nestedToolEvents?: ToolEventEntry[];
+  nestedContentBlocks?: ContentBlock[];
 
   /**
    * `true` while the tool is executing; `false` once `tool_call_completed` is received.

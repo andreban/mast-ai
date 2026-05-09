@@ -54,31 +54,31 @@ function formatJson(value: unknown): string {
  * Displays a single tool invocation with live streaming of sub-agent output.
  *
  * The block itself is collapsible: the header (status icon + tool name) is the
- * click target and the body — sub-output, nested events, args, result —
- * collapses behind it. By default the block stays open while
+ * click target and the body — sub-agent content blocks, sub-text, args, result
+ * — collapses behind it. By default the block stays open while
  * `entry.isStreaming` is `true` and collapses on completion; pass
  * `defaultOpen={true}` or `defaultOpen={false}` to override.
  *
- * Three rendering modes:
+ * Rendering modes:
  *
- * - **Streaming** (`entry.isStreaming === true`): spinner icon next to the
- *   tool name; if `subThinking` is present, it renders inside a `<ThinkingBlock>`
- *   that auto-expands while streaming; if `subText` is present, it renders as
- *   live text below.
- * - **Completed** (`entry.isStreaming === false`): check mark icon; sub-agent
- *   output (if any) remains visible but collapsed by default; `result` is
- *   accessible inside a `<details>` element as formatted JSON.
- * - **Plain tool** (no `subThinking` and no `subText`): the spinner-to-check
- *   transition plus collapsible `args` and `result`. No sub-agent slots are
- *   rendered.
+ * - **Streaming** (`entry.isStreaming === true`): spinner icon next to the tool
+ *   name; `nestedContentBlocks` (if any) render in source order — thinking
+ *   blocks expand while streaming and nested tool calls appear at their
+ *   original position relative to the thinking; if `subText` is present, it
+ *   renders as live text below the nested content.
+ * - **Completed** (`entry.isStreaming === false`): check mark icon; the
+ *   sub-agent's content blocks remain visible but thinking blocks collapse by
+ *   default; `result` is accessible inside a `<details>` element as formatted
+ *   JSON.
+ * - **Plain tool** (no `nestedContentBlocks` and no `subText`): the spinner-to-
+ *   check transition plus collapsible `args` and `result`. No sub-agent slots
+ *   are rendered.
  *
- * When `entry.nestedToolEvents` is non-empty, each nested tool call is rendered
- * recursively inside the parent block so a sub-agent's tool calls appear
- * indented beneath the sub-agent's narration. When the block is rendered inside
- * an `<AssistantMessage>`, that parent publishes its approval-aware renderer
- * via the `NestedToolRenderContext`, so an inline approval card surfaces on
- * sub-agent tool calls at any nesting depth. Standalone usage (no provider in
- * scope) falls back to a bare recursive `<ToolCallBlock>`.
+ * Each `ToolEventEntry` inside `nestedContentBlocks` is rendered through the
+ * `NestedToolRenderContext` when the block is mounted under an
+ * `<AssistantMessage>`, so an inline approval card surfaces on sub-agent tool
+ * calls at any nesting depth. Standalone usage (no provider in scope) falls
+ * back to a bare recursive `<ToolCallBlock>`.
  *
  * The outer block, args, and result expand/collapse all use native
  * `<details>/<summary>` so the component is keyboard-accessible without
@@ -114,8 +114,8 @@ export function ToolCallBlock({
   const getToolLabel = useContext(ToolLabelContext);
   const renderNested = useContext(NestedToolRenderContext);
   const rootClass = ['mast-tool-call-block', className].filter(Boolean).join(' ');
-  const hasSubAgentOutput = entry.subThinking !== undefined || entry.subText !== undefined;
-  const nestedToolEvents = entry.nestedToolEvents ?? [];
+  const nestedContentBlocks = entry.nestedContentBlocks ?? [];
+  const lastBlockIndex = nestedContentBlocks.length - 1;
   const statusIcon = pickStatusIcon(entry, icons);
   const argsText = formatJson(entry.args);
   const resultText = formatJson(entry.result);
@@ -149,33 +149,35 @@ export function ToolCallBlock({
       </summary>
 
       <div className="mast-tool-call-block-body">
-        {hasSubAgentOutput ? (
-          <div className="mast-tool-call-block-sub-output">
-            {entry.subThinking !== undefined ? (
-              <ThinkingBlock
-                content={entry.subThinking}
-                isStreaming={entry.isStreaming}
-                className="mast-tool-call-block-sub-thinking"
-                open={entry.isStreaming ? true : undefined}
-              />
-            ) : null}
-            {entry.subText !== undefined ? (
-              <div className="mast-tool-call-block-sub-text" data-testid="mast-tool-call-sub-text">
-                {entry.subText}
-              </div>
-            ) : null}
+        {nestedContentBlocks.length > 0 ? (
+          <div className="mast-tool-call-block-nested" data-testid="mast-tool-call-nested">
+            {nestedContentBlocks.map((block, i) => {
+              if (block.type === 'thinking') {
+                // Only the trailing thinking block of a still-streaming parent
+                // is actively growing — earlier ones are fixed.
+                const isLast = i === lastBlockIndex;
+                return (
+                  <ThinkingBlock
+                    key={block.id}
+                    content={block.content}
+                    isStreaming={entry.isStreaming && isLast}
+                    className="mast-tool-call-block-sub-thinking"
+                    open={entry.isStreaming && isLast ? true : undefined}
+                  />
+                );
+              }
+              return renderNested ? (
+                <Fragment key={block.id}>{renderNested(block)}</Fragment>
+              ) : (
+                <ToolCallBlock key={block.id} entry={block} />
+              );
+            })}
           </div>
         ) : null}
 
-        {nestedToolEvents.length > 0 ? (
-          <div className="mast-tool-call-block-nested" data-testid="mast-tool-call-nested">
-            {nestedToolEvents.map((nested) =>
-              renderNested ? (
-                <Fragment key={nested.id}>{renderNested(nested)}</Fragment>
-              ) : (
-                <ToolCallBlock key={nested.id} entry={nested} />
-              ),
-            )}
+        {entry.subText !== undefined ? (
+          <div className="mast-tool-call-block-sub-text" data-testid="mast-tool-call-sub-text">
+            {entry.subText}
           </div>
         ) : null}
 

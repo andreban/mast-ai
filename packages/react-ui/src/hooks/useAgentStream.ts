@@ -64,7 +64,8 @@ function updateToolEvent(
  * Returns a new array where the first nested `ToolEventEntry` (under the
  * parent identified by `parentToolName`) that matches `childName` and is
  * still streaming is replaced by the result of `updater`. All other entries
- * and tool events are unchanged.
+ * and content blocks are unchanged. Thinking entries inside
+ * `nestedContentBlocks` are skipped during the search.
  */
 function updateNestedToolEvent(
   entries: ConversationEntry[],
@@ -75,54 +76,55 @@ function updateNestedToolEvent(
 ): ConversationEntry[] {
   return updateToolEvent(entries, entryId, parentToolName, (parent) => {
     let patched = false;
-    const nested = (parent.nestedToolEvents ?? []).map((n) => {
-      if (!patched && n.name === childName && n.isStreaming) {
+    const blocks = (parent.nestedContentBlocks ?? []).map((b) => {
+      if (patched || b.type === 'thinking') return b;
+      if (b.name === childName && b.isStreaming) {
         patched = true;
-        return updater(n);
+        return updater(b);
       }
-      return n;
+      return b;
     });
-    return { ...parent, nestedToolEvents: nested };
+    return { ...parent, nestedContentBlocks: blocks };
   });
 }
 
 /**
- * Recursively walks `nestedToolEvents` looking for the deepest streaming
+ * Recursively walks a `ContentBlock[]` looking for the deepest streaming
  * `ToolEventEntry` whose `name` matches `toolName`, replacing it with the
- * result of `updater`. Returns `{ events, patched }` so callers can detect
- * whether a match was found and avoid creating a fresh array when nothing
- * changed.
+ * result of `updater`. Thinking entries are skipped. Returns
+ * `{ blocks, patched }` so callers can detect whether a match was found and
+ * avoid creating a fresh array when nothing changed.
  *
  * "Deepest first" matches the runtime semantics of the approval handler:
  * `notifyAwaiting(name, true)` always refers to the currently-suspended
  * tool, which is the most deeply nested one with that name still running.
  */
 function patchToolEventsByName(
-  events: ToolEventEntry[],
+  blocks: ContentBlock[],
   toolName: string,
   updater: (t: ToolEventEntry) => ToolEventEntry,
-): { events: ToolEventEntry[]; patched: boolean } {
+): { blocks: ContentBlock[]; patched: boolean } {
   let patched = false;
-  const next = events.map((event) => {
-    if (patched) return event;
-    if (event.nestedToolEvents && event.nestedToolEvents.length > 0) {
-      const r = patchToolEventsByName(event.nestedToolEvents, toolName, updater);
+  const next = blocks.map((block) => {
+    if (patched || block.type === 'thinking') return block;
+    if (block.nestedContentBlocks && block.nestedContentBlocks.length > 0) {
+      const r = patchToolEventsByName(block.nestedContentBlocks, toolName, updater);
       if (r.patched) {
         patched = true;
-        return { ...event, nestedToolEvents: r.events };
+        return { ...block, nestedContentBlocks: r.blocks };
       }
     }
-    if (event.name === toolName && event.isStreaming) {
+    if (block.name === toolName && block.isStreaming) {
       patched = true;
-      return updater(event);
+      return updater(block);
     }
-    return event;
+    return block;
   });
-  return { events: patched ? next : events, patched };
+  return { blocks: patched ? next : blocks, patched };
 }
 
 /**
- * Like {@link updateToolEvent} but walks `nestedToolEvents` recursively so
+ * Like {@link updateToolEvent} but walks `nestedContentBlocks` recursively so
  * that approval-state setters can target tool calls fired by sub-agents.
  *
  * Used by `setToolAwaitingApproval` and `setToolStatus`, which receive only a
@@ -136,24 +138,32 @@ function updateToolEventDeep(
   updater: (t: ToolEventEntry) => ToolEventEntry,
 ): ConversationEntry[] {
   return updateEntry(entries, entryId, (entry) => {
-    let patched = false;
-    const contentBlocks: ContentBlock[] = entry.contentBlocks.map((block) => {
-      if (patched || block.type === 'thinking') return block;
-      if (block.nestedToolEvents && block.nestedToolEvents.length > 0) {
-        const r = patchToolEventsByName(block.nestedToolEvents, toolName, updater);
-        if (r.patched) {
-          patched = true;
-          return { ...block, nestedToolEvents: r.events };
-        }
-      }
-      if (block.name === toolName && block.isStreaming) {
-        patched = true;
-        return updater(block);
-      }
-      return block;
-    });
-    return patched ? { ...entry, contentBlocks } : entry;
+    const r = patchToolEventsByName(entry.contentBlocks, toolName, updater);
+    return r.patched ? { ...entry, contentBlocks: r.blocks } : entry;
   });
+}
+
+/**
+ * Appends a single `thinking` delta to the last block of `blocks`. If the last
+ * block is already a `ThinkingEntry`, its content grows; otherwise (the array
+ * is empty or the last block is a tool call) a new `ThinkingEntry` is pushed.
+ * Preserves source-order interleaving of thinking and tool-call blocks.
+ */
+function appendThinkingDelta(blocks: ContentBlock[], delta: string): ContentBlock[] {
+  const lastBlock = blocks.at(-1);
+  if (lastBlock?.type === 'thinking') {
+    return blocks.map((b, i) =>
+      i === blocks.length - 1
+        ? { ...(b as ThinkingEntry), content: (b as ThinkingEntry).content + delta }
+        : b,
+    );
+  }
+  const newBlock: ThinkingEntry = {
+    id: crypto.randomUUID(),
+    type: 'thinking',
+    content: delta,
+  };
+  return [...blocks, newBlock];
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +254,7 @@ export interface UseAgentStreamReturn {
   /**
    * Sets the `awaitingApproval` flag on the deepest matching streaming
    * `ToolEventEntry` (by `name`) within the most recent assistant entry.
-   * The traversal walks `nestedToolEvents` recursively so sub-agent tool
+   * The traversal walks `nestedContentBlocks` recursively so sub-agent tool
    * calls are reachable.
    *
    * Used by the approval proxy in `AgentProvider` to surface "awaiting human
@@ -255,7 +265,7 @@ export interface UseAgentStreamReturn {
 
   /**
    * Sets the `status` field on the deepest matching streaming `ToolEventEntry`
-   * (by `name`). The traversal walks `nestedToolEvents` recursively so
+   * (by `name`). The traversal walks `nestedContentBlocks` recursively so
    * sub-agent tool calls are reachable. Used by the approval proxy to mark a
    * call as `'cancelled'` before the runner emits `tool_call_completed` so
    * the eventual completion event preserves the cancellation rather than
@@ -288,11 +298,11 @@ export interface UseAgentStreamReturn {
  * |-------|--------|
  * | `sendMessage(text)` | Append user entry; append assistant entry with `isStreaming: true` |
  * | `text_delta` | Append delta to last assistant entry's `text` |
- * | `thinking` | Append delta to last assistant entry's `thinking` |
- * | `tool_call_started` | Push new `ToolEventEntry` with `isStreaming: true` |
- * | `onToolEvent` → `thinking` | Append delta to matching `ToolEventEntry.subThinking` |
+ * | `thinking` | Append delta to last `ThinkingEntry` in `contentBlocks`, or push a new one |
+ * | `tool_call_started` | Push new `ToolEventEntry` onto `contentBlocks` with `isStreaming: true` |
+ * | `onToolEvent` → `thinking` | Append delta to last `ThinkingEntry` in matching `ToolEventEntry.nestedContentBlocks`, or push a new one |
  * | `onToolEvent` → `text_delta` | Append delta to matching `ToolEventEntry.subText` |
- * | `onToolEvent` → `tool_call_started` | Push new nested `ToolEventEntry` onto parent's `nestedToolEvents` |
+ * | `onToolEvent` → `tool_call_started` | Push new nested `ToolEventEntry` onto parent's `nestedContentBlocks` |
  * | `onToolEvent` → `tool_call_completed` | Set `result` and `isStreaming: false` on matching nested entry |
  * | `onToolEvent` → `done` | Ignored |
  * | `tool_call_completed` | Set `result` and `isStreaming: false` on matching entry |
@@ -401,10 +411,11 @@ export function useAgentStream(
             controller.signal,
             (toolName, event: AgentEvent) => {
               if (event.type === 'thinking') {
+                const delta = event.delta;
                 setEntries((prev) =>
                   updateToolEvent(prev, assistantId, toolName, (t) => ({
                     ...t,
-                    subThinking: (t.subThinking ?? '') + event.delta,
+                    nestedContentBlocks: appendThinkingDelta(t.nestedContentBlocks ?? [], delta),
                   })),
                 );
               } else if (event.type === 'text_delta') {
@@ -425,7 +436,7 @@ export function useAgentStream(
                 setEntries((prev) =>
                   updateToolEvent(prev, assistantId, toolName, (t) => ({
                     ...t,
-                    nestedToolEvents: [...(t.nestedToolEvents ?? []), nested],
+                    nestedContentBlocks: [...(t.nestedContentBlocks ?? []), nested],
                   })),
                 );
               } else if (event.type === 'tool_call_completed') {
@@ -459,25 +470,10 @@ export function useAgentStream(
             } else if (event.type === 'thinking') {
               const delta = event.delta;
               setEntries((prev) =>
-                updateEntry(prev, assistantId, (e) => {
-                  const lastBlock = e.contentBlocks.at(-1);
-                  if (lastBlock?.type === 'thinking') {
-                    // Append to the current thinking block.
-                    const contentBlocks: ContentBlock[] = e.contentBlocks.map((b, i) =>
-                      i === e.contentBlocks.length - 1
-                        ? { ...(b as ThinkingEntry), content: (b as ThinkingEntry).content + delta }
-                        : b,
-                    );
-                    return { ...e, contentBlocks };
-                  }
-                  // Start a new thinking block (first delta, or after a tool call).
-                  const newBlock: ThinkingEntry = {
-                    id: crypto.randomUUID(),
-                    type: 'thinking',
-                    content: delta,
-                  };
-                  return { ...e, contentBlocks: [...e.contentBlocks, newBlock] };
-                }),
+                updateEntry(prev, assistantId, (e) => ({
+                  ...e,
+                  contentBlocks: appendThinkingDelta(e.contentBlocks, delta),
+                })),
               );
             } else if (event.type === 'tool_call_started') {
               const toolEvent: ToolEventEntry = {

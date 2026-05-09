@@ -41,7 +41,7 @@ export interface AssistantMessageProps {
   /**
    * Replaces the default tool-call renderer. Called once per top-level tool
    * event in `entry.contentBlocks` and once per nested tool event reached
-   * through `nestedToolEvents` (so sub-agent tool calls flow through the
+   * through `nestedContentBlocks` (so sub-agent tool calls flow through the
    * same slot).
    *
    * Receives the tool event and, when the call is awaiting an inline

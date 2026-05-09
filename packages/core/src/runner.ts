@@ -67,8 +67,8 @@ export class RunBuilder {
    * Forwards every non-`done` event yielded by this run to
    * `parentContext.onEvent`. Intended for tools that internally run a
    * sub-agent: chain this so the parent runner's UI can populate
-   * `subThinking` / `subText` / `nestedToolEvents` on the parent's tool
-   * entry without manual forwarding boilerplate.
+   * `nestedContentBlocks` / `subText` on the parent's tool entry without
+   * manual forwarding boilerplate.
    *
    * `done` events are filtered out to avoid leaking child conversation
    * history to the parent's consumers. If `parentContext.onEvent` is
@@ -249,6 +249,16 @@ export class AgentRunner {
             yield { type: 'thinking', delta: chunk.delta };
           } else if (chunk.type === 'tool_call') {
             toolCalls.push(chunk.toolCall);
+            // Emit tool_call_started inline so consumers observe
+            // thinking/tool_call interleaving in source order. Suppress for
+            // unregistered names to preserve hallucinated-tool hiding.
+            if (this.registry.getTool(chunk.toolCall.name)) {
+              yield {
+                type: 'tool_call_started',
+                name: chunk.toolCall.name,
+                args: chunk.toolCall.args,
+              };
+            }
           }
         }
       } else {
@@ -259,18 +269,18 @@ export class AgentRunner {
         }
         if (response.toolCalls) {
           toolCalls.push(...response.toolCalls);
+          // Non-streaming path: source order between text and tool calls is
+          // unrecoverable, so emit started events here in the order returned
+          // by the adapter. Same hallucinated-tool suppression as above.
+          for (const call of response.toolCalls) {
+            if (this.registry.getTool(call.name)) {
+              yield { type: 'tool_call_started', name: call.name, args: call.args };
+            }
+          }
         }
       }
 
       if (toolCalls.length > 0) {
-        // Emit tool_call_started only for registered tools so hallucinated
-        // calls never appear in the UI.
-        for (const call of toolCalls) {
-          if (this.registry.getTool(call.name)) {
-            yield { type: 'tool_call_started', name: call.name, args: call.args };
-          }
-        }
-
         const toolResults = await Promise.all(
           toolCalls.map(async (call) => {
             const tool = this.registry.getTool(call.name);
