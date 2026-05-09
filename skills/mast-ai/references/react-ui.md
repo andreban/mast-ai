@@ -162,14 +162,14 @@ interface PendingApproval {
   toolName: string;
   args: unknown;
   approve: () => void;
-  reject: () => void;
-  respondWith: (result: unknown) => void; // skip execution, inject custom result
+  reject: (result?: string) => void; // omit `result` for the default cancelled string;
+  // pass a string to inject it as the tool result. UI status is `'cancelled'` either way.
 }
 ```
 
 Three rendering entry points:
 
-- **`renderApproval`** (narrow): replaces only the approval card. Called once per tool event with a pending approval handle; non-approval events fall through to `renderToolCall` or the default `<ToolCallBlock>`. Use this when you only want to customise the approval prompt (e.g. render `Rename "Old" to "New"?` instead of the raw arg JSON). Compose `<InlineApproval entry approve reject respondWith />` inside the slot as the fallback for tools you have not customised.
+- **`renderApproval`** (narrow): replaces only the approval card. Called once per tool event with a pending approval handle; non-approval events fall through to `renderToolCall` or the default `<ToolCallBlock>`. Use this when you only want to customise the approval prompt (e.g. render `Rename "Old" to "New"?` instead of the raw arg JSON). Compose `<InlineApproval entry approve reject />` inside the slot as the fallback for tools you have not customised.
 - **`renderToolCall`** (full): receives `(entry, approval?)` for every tool event. Use this when the approval card and the rest of the tool-call rendering should both be customised together.
 - **`<InlineApproval>`** (default): used automatically for any awaiting entry when neither slot is provided.
 

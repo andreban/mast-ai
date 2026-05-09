@@ -375,7 +375,6 @@ describe('<MessageList>', () => {
       args: { foo: 'bar' },
       approve: expect.any(Function),
       reject: expect.any(Function),
-      respondWith: expect.any(Function),
     });
   });
 

@@ -249,13 +249,13 @@ export interface ConversationEntry {
 The `useAgentStream` internal hook builds and maintains a `ConversationEntry[]` from
 the `AgentEvent` stream emitted by `AgentRunner`. `status` is derived as:
 
-- `'cancelled'` — set by the approval proxy when the user rejects the call.
+- `'cancelled'` — set by the approval handler when the user rejects the call.
 - `'error'` — set when `tool_call_completed.error` is `true` (tool threw or was missing).
 - `'success'` — set otherwise.
 
-A `'cancelled'` status set by the proxy is preserved when the runner emits the
-final `tool_call_completed` event so the synthetic cancelled result does not
-get reclassified as success.
+A `'cancelled'` status set by the approval handler is preserved when the runner
+emits the final `tool_call_completed` event so the synthetic cancelled result
+does not get reclassified as success.
 
 `contentBlocks` replaces the former separate `thinking` string and `toolEvents` array.
 Each `thinking` delta is appended to the last `ThinkingEntry` in `contentBlocks`, or
@@ -760,8 +760,9 @@ interface UseAgentReturn {
   /**
    * Tool calls awaiting an inline approval decision. Populated when
    * onApprovalRequired resolves to INLINE_APPROVAL. Each entry exposes
-   * approve(), reject(), and respondWith() callbacks; the runner is paused
-   * until one is called.
+   * approve() and reject() callbacks; the runner is paused until one is
+   * called. `reject(result)` accepts an optional string that the model sees
+   * as the tool result (the UI status is `'cancelled'` either way).
    */
   pendingApprovals: PendingApproval[];
   /**
@@ -777,8 +778,7 @@ interface PendingApproval {
   toolName: string;
   args: unknown;
   approve: () => void;
-  reject: () => void;
-  respondWith: (result: string) => void;
+  reject: (result?: string) => void;
 }
 
 function useAgent(): UseAgentReturn;
@@ -949,8 +949,8 @@ maintains `ConversationEntry[]` as follows:
 | `onToolEvent` → `text_delta`          | Mutate matching `ToolEventEntry`: append `delta` to `subText`                                                                                                                   |
 | `onToolEvent` → `tool_call_started`   | Mutate matching parent `ToolEventEntry`: push `{ id, type: 'tool_call_started', name, args, isStreaming: true }` onto `nestedToolEvents`                                        |
 | `onToolEvent` → `tool_call_completed` | Mutate matching nested `ToolEventEntry` (under the parent): set `result`, `isStreaming: false`, `status` from `event.error`                                                     |
-| Approval proxy notifies               | Mutate matching `ToolEventEntry` in `contentBlocks`: set `awaitingApproval` to `true`/`false`                                                                                   |
-| Approval proxy cancels                | Mutate matching `ToolEventEntry` in `contentBlocks`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                                            |
+| Approval handler notifies             | Mutate matching `ToolEventEntry` in `contentBlocks`: set `awaitingApproval` to `true`/`false`                                                                                   |
+| Approval handler cancels              | Mutate matching `ToolEventEntry` in `contentBlocks`: set `status: 'cancelled'` (sticky across `tool_call_completed`)                                                            |
 | `tool_call_completed`                 | Mutate matching `ToolEventEntry` in `contentBlocks`: set `result`, `isStreaming: false`, `status` from `event.error` (preserving an existing `'cancelled'`)                     |
 | `done`                                | Mutate last entry: set `text = output`, `isStreaming = false`                                                                                                                   |
 | Error / cancel                        | Mutate last entry: set `isStreaming = false`; optionally append error text                                                                                                      |
@@ -991,8 +991,8 @@ is `true` and calls `onApprovalRequired`. The consuming app renders its own conf
 UI and returns:
 
 - `true` — proceed with the tool call as normal
-- `false` — cancel the tool call; the runner receives a synthetic "user cancelled" result
-- `string` — skip execution and inject this string as the tool result directly
+- `false` — cancel the tool call; the runner receives a synthetic "user cancelled" result and the UI marks the call as `'cancelled'`
+- `string` — skip execution and inject this string as the tool result directly; the UI marks the call as `'cancelled'`
 - `INLINE_APPROVAL` — defer to the inline approval queue (see §9.3)
 
 ```tsx
@@ -1015,15 +1015,14 @@ the callback throws.
 
 Returning `INLINE_APPROVAL` from `onApprovalRequired` enqueues a `PendingApproval`
 handle on `useAgent().pendingApprovals` and pauses the runner until the consumer
-calls `approve()`, `reject()`, or `respondWith(result)`:
+calls `approve()` or `reject()`:
 
 ```typescript
 interface PendingApproval {
   toolName: string;
   args: unknown;
   approve: () => void; // resolves with `true`
-  reject: () => void; // resolves with `false`
-  respondWith: (result: string) => void; // resolves with the string
+  reject: (result?: string) => void; // resolves with `false`, or with the string
 }
 ```
 
@@ -1052,7 +1051,7 @@ slots entirely — the library uses it as the default for any awaiting entry wit
 a handle.
 
 When `reset()` is called while approvals are pending, the library calls `reject()`
-on each so their proxies finish and the run terminates cleanly.
+on each so the underlying handler invocations finish and the run terminates cleanly.
 
 ### 9.4 Runtime override: `approvalOverride`
 
@@ -1062,21 +1061,22 @@ tool definitions:
 ```tsx
 // A sandbox that suppresses approval for normally-sensitive tools:
 <AgentProvider approvalOverride={['!delete_file']} ... />
-
-// A high-trust workflow that adds approval to a third-party tool it didn't define:
-<AgentProvider approvalOverride={['third_party_tool']} ... />
 ```
 
-Names prefixed with `!` suppress approval even when the tool has `requiresApproval: true`.
-Unprefixed names add approval even when the tool does not.
+Names prefixed with `!` suppress approval even when the tool has
+`requiresApproval: true`. The unprefixed `add` form is no longer enforced —
+runner-level gating consults the handler only for tools whose definition has
+`requiresApproval: true`, so the handler has no opportunity to opt in for
+non-flagged tools. Apps that need approval on a tool they did not author
+should set `requiresApproval: true` on the tool's definition at registration
+time.
 
 The effective approval decision for a tool named `name` is:
 
 ```
-overrideSet = new Set(approvalOverride.filter(s => !s.startsWith('!')))
 suppressSet = new Set(approvalOverride.filter(s => s.startsWith('!')).map(s => s.slice(1)))
 
-needsApproval = (toolDef.requiresApproval || overrideSet.has(name)) && !suppressSet.has(name)
+needsApproval = toolDef.requiresApproval === true && !suppressSet.has(name)
 ```
 
 `onApprovalRequired` is not called when `needsApproval` is false. When the prop
@@ -1142,13 +1142,15 @@ to verify manually. Tests use a mock `AgentRunner` that yields a scripted sequen
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Tool with `requiresApproval: true`          | `onApprovalRequired` is called before tool executes                                                                        |
 | Callback returns `false`                    | Tool call is cancelled; runner receives synthetic "user cancelled" result                                                  |
-| Callback returns a string                   | Injected as the tool result; tool does not execute                                                                         |
-| `approvalOverride` adds a name              | Unlisted tool triggers approval                                                                                            |
+| Callback returns a string                   | Injected as the tool result; tool does not execute; UI marks the call `'cancelled'`                                        |
 | `approvalOverride` suppresses with `!`      | Tool with `requiresApproval: true` executes without prompting                                                              |
 | No `onApprovalRequired` provided            | Tools with `requiresApproval: true` enqueue an inline approval handle on `useAgent().pendingApprovals` (default behaviour) |
 | `awaitingApproval` flag                     | Set while the callback is pending; cleared on resolve, reject, or throw                                                    |
 | `INLINE_APPROVAL` exposes `PendingApproval` | Handle appears on `useAgent().pendingApprovals` while waiting                                                              |
-| `approve()` / `reject()` / `respondWith()`  | Resolve the proxy and remove the handle from the queue                                                                     |
+| `approve()` / `reject(result?)`             | Resolve the underlying handler and remove the handle from the queue                                                        |
+| Sub-agent approval propagation              | A `createAgentTool`-mediated child fires `onApprovalRequired` for its own flagged tools (issue #128 regression)            |
+| Independent runner inherits                 | A child on its own `AgentRunner` with no handler of its own surfaces approvals to the parent provider                      |
+| Isolated child handler wins                 | A child runner whose `approvalHandler` is set is consulted instead of the parent provider's handler                        |
 | `reset()` while pending                     | Rejects in-flight approvals so the run terminates                                                                          |
 | Tool call status                            | `'success'` on normal return; `'error'` when `tool_call_completed.error` is true; `'cancelled'` when the user rejects      |
 

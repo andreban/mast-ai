@@ -1,15 +1,15 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Tool, ToolContext, ToolDefinition, ToolProvider } from '@mast-ai/core';
-import type { ToolCallStatus, ToolEventEntry } from './types.js';
+import { ApprovalResponse, type ApprovalHandler, type ToolDefinition } from '@mast-ai/core';
+import type { ToolCallStatus } from './types.js';
 
 /**
  * Sentinel value returned from {@link OnApprovalRequired} to defer the
- * decision to the inline approval queue. The proxy enqueues a
+ * decision to the inline approval queue. The approval handler enqueues a
  * {@link PendingApproval} handle on `useAgent().pendingApprovals` and waits
  * for the consumer (or the built-in `<InlineApproval>` slot) to call
- * `approve()`, `reject()`, or `respondWith(...)`.
+ * `approve()` or `reject()`.
  *
  * @example
  * ```tsx
@@ -28,15 +28,14 @@ export const INLINE_APPROVAL: unique symbol = Symbol.for('@mast-ai/react-ui.INLI
  *
  * - `true` — proceed with the tool call as normal
  * - `false` — cancel; the runner receives a synthetic "user cancelled" result
- * - `string` — skip execution and inject the string directly as the tool result
+ *   and the UI marks the call as `'cancelled'`
+ * - `string` — skip execution and inject the string as the tool result; the
+ *   UI marks the call as `'cancelled'`
  * - {@link INLINE_APPROVAL} — defer to the inline approval queue
  */
 export type OnApprovalRequired = (
-  toolCall: ToolEventEntry,
+  toolCall: import('./types.js').ToolEventEntry,
 ) => Promise<boolean | string | typeof INLINE_APPROVAL>;
-
-/** Synthetic tool result returned when an approval resolves to `false`. */
-export const APPROVAL_CANCELLED_RESULT = 'User cancelled the tool call.';
 
 /**
  * A live handle for a tool call that is waiting on the inline approval queue.
@@ -50,10 +49,12 @@ export interface PendingApproval {
   args: unknown;
   /** Approve the call — proceed with normal tool execution. */
   approve: () => void;
-  /** Reject the call — runner receives the synthetic cancelled result. */
-  reject: () => void;
-  /** Skip execution and inject `result` as the tool result. */
-  respondWith: (result: string) => void;
+  /**
+   * Reject the call. With no argument the runner receives the default
+   * cancelled result; with a string the runner receives that string as the
+   * tool result. In both cases the UI marks the call as `'cancelled'`.
+   */
+  reject: (result?: string) => void;
 }
 
 /**
@@ -85,89 +86,95 @@ export function computeNeedsApproval(
   return (def.requiresApproval === true || added) && !suppressed;
 }
 
-/** Hooks the proxy uses to drive React state during an approval. */
-export interface ApprovalProxyHooks {
+/**
+ * Default `OnApprovalRequired` used when the host app omits the prop.
+ * Returning `INLINE_APPROVAL` for every call honours `requiresApproval: true`
+ * by default: the call is enqueued on `useAgent().pendingApprovals` (and
+ * rendered inline by the bundled `<InlineApproval>` slot) instead of executing
+ * silently.
+ */
+export const DEFAULT_ON_APPROVAL_REQUIRED: OnApprovalRequired = async () => INLINE_APPROVAL;
+
+/** React-side hooks the {@link createApprovalHandler} factory uses to drive UI state. */
+export interface ApprovalHandlerHooks {
   /** Called with `true` when waiting starts and `false` when a decision is reached. */
   notifyAwaiting?: (name: string, awaiting: boolean) => void;
   /** Called when a decision sets the final tool-call status (e.g. cancelled). */
   setStatus?: (name: string, status: ToolCallStatus) => void;
   /**
    * Pushes a pending approval onto the queue and returns a promise that
-   * resolves once the consumer calls `approve`, `reject`, or `respondWith`.
+   * resolves once the consumer calls `approve()` (with `true`), `reject()`
+   * (with `false`), or `reject(result)` (with the result string).
    */
   enqueueInline?: (toolName: string, args: unknown) => Promise<boolean | string>;
 }
 
-class ApprovalProxyTool implements Tool {
-  constructor(
-    private readonly inner: Tool,
-    private readonly onApprovalRequired: OnApprovalRequired,
-    private readonly hooks: ApprovalProxyHooks,
-  ) {}
-
-  definition(): ToolDefinition {
-    return this.inner.definition();
-  }
-
-  async call(args: unknown, context: ToolContext): Promise<unknown> {
-    const def = this.inner.definition();
-    this.hooks.notifyAwaiting?.(def.name, true);
-    let decision: boolean | string;
-    try {
-      const initial = await this.onApprovalRequired({
-        id: '',
-        type: 'tool_call_started',
-        name: def.name,
-        args,
-        isStreaming: true,
-      });
-      if (initial === INLINE_APPROVAL) {
-        if (!this.hooks.enqueueInline) {
-          // No queue wired; treat as approved so the run does not deadlock.
-          decision = true;
-        } else {
-          decision = await this.hooks.enqueueInline(def.name, args);
-        }
-      } else {
-        decision = initial;
-      }
-    } finally {
-      this.hooks.notifyAwaiting?.(def.name, false);
-    }
-    if (decision === false) {
-      this.hooks.setStatus?.(def.name, 'cancelled');
-      return APPROVAL_CANCELLED_RESULT;
-    }
-    if (typeof decision === 'string') return decision;
-    return this.inner.call(args, context);
-  }
-}
-
 /**
- * Wraps a {@link ToolProvider} so that tools whose effective approval flag is
- * `true` are intercepted: the wrapper invokes {@link OnApprovalRequired} before
- * delegating to the underlying tool. Tools that do not require approval are
- * returned unchanged.
+ * Builds an {@link ApprovalHandler} that bridges the runner's per-run gating
+ * contract with the React-side approval UI surface (callback prop, override
+ * prop, inline queue resolver, awaiting/status setters).
  *
- * The two `get*` parameters are read on every `getTool` call so that React
- * prop changes are picked up without rebuilding the wrapper.
+ * The handler is consulted by the runner only for tools whose
+ * `requiresApproval` flag is `true`. For those tools the handler:
+ *
+ * 1. Honours the `approvalOverride` `!`-prefix suppression by approving
+ *    immediately without consulting the consumer callback. The handler does
+ *    not enforce the unprefixed `add` form because the runner does not call
+ *    the handler for tools whose definition has `requiresApproval: false` —
+ *    so there is no opportunity for the handler to opt in.
+ * 2. Invokes the consumer callback (or the default), translating its
+ *    `boolean | string | INLINE_APPROVAL` return into an
+ *    {@link ApprovalResponse} the runner understands.
+ * 3. Routes `INLINE_APPROVAL` returns through the queue resolver so consumers
+ *    can render an inline confirmation card.
+ *
+ * All inputs are read through getters so the same handler instance can stay
+ * attached to the conversation across React renders without rebuilding.
+ *
+ * The handler is intentionally registry-agnostic: it does not look up tool
+ * definitions, so it works uniformly for parent-agent tool calls and for
+ * sub-agent tool calls (which live in a different registry). The runner has
+ * already applied the `requiresApproval` gate by the time `requestApproval`
+ * is called.
  */
-export function withApprovalProxy(
-  provider: ToolProvider,
+export function createApprovalHandler(
   getCallback: () => OnApprovalRequired | undefined,
   getApprovalOverride: () => readonly string[] | undefined,
-  hooks: ApprovalProxyHooks = {},
-): ToolProvider {
+  hooks: ApprovalHandlerHooks = {},
+): ApprovalHandler {
   return {
-    getTools: () => provider.getTools(),
-    getTool: (name) => {
-      const tool = provider.getTool(name);
-      if (!tool) return undefined;
-      const def = tool.definition();
-      if (!computeNeedsApproval(def, getApprovalOverride())) return tool;
-      const callback = getCallback();
-      if (!callback) return tool;
-      return new ApprovalProxyTool(tool, callback, hooks);
+    async requestApproval({ name, args }) {
+      const override = getApprovalOverride();
+      // `!name` in the override list short-circuits to approve, matching the
+      // suppression rule in `computeNeedsApproval`.
+      if (override?.includes(`!${name}`)) {
+        return ApprovalResponse.approve();
+      }
+
+      hooks.notifyAwaiting?.(name, true);
+      try {
+        const callback = getCallback() ?? DEFAULT_ON_APPROVAL_REQUIRED;
+        const initial = await callback({
+          id: '',
+          type: 'tool_call_started',
+          name,
+          args,
+          isStreaming: true,
+        });
+        let resolved: boolean | string;
+        if (initial === INLINE_APPROVAL) {
+          // No queue wired — fall through to approve so the run does not deadlock.
+          resolved = hooks.enqueueInline ? await hooks.enqueueInline(name, args) : true;
+        } else {
+          resolved = initial;
+        }
+        if (resolved === true) return ApprovalResponse.approve();
+        // false or string both reject; the UI status is uniformly 'cancelled'.
+        hooks.setStatus?.(name, 'cancelled');
+        return ApprovalResponse.reject(resolved === false ? undefined : resolved);
+      } finally {
+        hooks.notifyAwaiting?.(name, false);
+      }
     },
   };
 }
