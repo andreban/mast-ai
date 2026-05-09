@@ -15,6 +15,71 @@ export interface ToolDefinition {
   requiresApproval?: boolean;
 }
 
+/** A request from the runner asking the consumer to gate a tool call. */
+export interface ApprovalRequest {
+  /** Name of the tool whose call is being requested. */
+  name: string;
+  /** Arguments the model passed to the tool. */
+  args: unknown;
+}
+
+/**
+ * Decision returned by an {@link ApprovalHandler}. Two variants — the
+ * fundamental question is whether the tool runs.
+ *
+ * - `approve` — proceed with normal tool execution.
+ * - `reject` — skip execution. The model sees `result` as the tool result, or
+ *   {@link APPROVAL_CANCELLED_RESULT} when omitted. UI status is always
+ *   `'cancelled'` for rejected calls.
+ *
+ * Substituting a synthetic result on rejection is expressed as
+ * `{ type: 'reject', result }`.
+ */
+export type ApprovalResponse = { type: 'approve' } | { type: 'reject'; result?: string };
+
+/**
+ * Helper constructors. Optional ergonomic sugar; handlers may also return the
+ * literal shape directly.
+ *
+ * @example
+ * async requestApproval({ name }) {
+ *   if (isAutoApproved(name)) return ApprovalResponse.approve();
+ *   if (name === 'sandboxed_only') return ApprovalResponse.reject('Disabled in sandbox.');
+ *   return ApprovalResponse.reject();
+ * }
+ */
+export const ApprovalResponse = {
+  approve(): ApprovalResponse {
+    return { type: 'approve' };
+  },
+  reject(result?: string): ApprovalResponse {
+    return { type: 'reject', result };
+  },
+};
+
+/**
+ * Default tool result used when an {@link ApprovalHandler} rejects a call
+ * without supplying its own `result` string. Visible to the model as the tool
+ * output for the cancelled call.
+ */
+export const APPROVAL_CANCELLED_RESULT = 'User cancelled the tool call.';
+
+/**
+ * Decides whether to proceed with a tool call flagged `requiresApproval`.
+ *
+ * Modeled as an interface (rather than a bare function type) so future
+ * extensions, such as a `dispose()` lifecycle hook or observers for awaiting
+ * state, can be added without breaking existing implementations.
+ */
+export interface ApprovalHandler {
+  /**
+   * Called by the runner before invoking any tool whose definition has
+   * `requiresApproval: true`. Resolve with the {@link ApprovalResponse}
+   * dictating what happens next.
+   */
+  requestApproval(request: ApprovalRequest): Promise<ApprovalResponse>;
+}
+
 /** Runtime context passed to every {@link Tool.call} invocation. */
 export interface ToolContext {
   /** Forwarded from the runner; allows long-running tools to be cancelled. */
@@ -26,6 +91,13 @@ export interface ToolContext {
    * to avoid leaking child conversation history to the parent's consumers.
    */
   onEvent?: (event: AgentEvent) => void;
+  /**
+   * The approval handler attached to the currently-running run. Tools that
+   * internally start sub-agent runs should forward this to the child's
+   * `RunBuilder.withApprovalHandler` unless the child runner already has its
+   * own handler configured. Set by `AgentRunner` when invoking tools.
+   */
+  approvalHandler?: ApprovalHandler;
 }
 
 /**
