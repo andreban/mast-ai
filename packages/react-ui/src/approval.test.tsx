@@ -821,7 +821,9 @@ describe('AgentProvider — approval flow', () => {
       const delegate = lastTurn?.contentBlocks.find(
         (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'delegate',
       );
-      return delegate?.nestedToolEvents?.find((n) => n.name === 'sensitive');
+      return delegate?.nestedContentBlocks?.find(
+        (b): b is ToolEventEntry => b.type !== 'thinking' && b.name === 'sensitive',
+      );
     }
 
     it('marks the nested entry as awaitingApproval while the inline queue is pending', async () => {

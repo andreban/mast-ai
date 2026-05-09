@@ -1069,10 +1069,13 @@ rule is described in [`SPEC.md` §9.4](./SPEC.md#94-runtime-override-approvalove
 ## 11. Nested sub-agent tool calls
 
 Tools that internally run another agent (built with `createAgentTool` from
-`@mast-ai/core`) emit `tool_call_started` / `tool_call_completed` events for
-the nested calls they fire. `useAgentStream` routes those events into
-`ToolEventEntry.nestedToolEvents`, and `<ToolCallBlock>` renders them
-recursively under the parent block.
+`@mast-ai/core`) emit `thinking`, `tool_call_started`, and `tool_call_completed`
+events for everything the sub-agent does. `useAgentStream` routes those events
+into `ToolEventEntry.nestedContentBlocks` — an array of `ContentBlock`s that
+interleaves `ThinkingEntry` blocks with nested `ToolEventEntry` entries in the
+order they arrived. `<ToolCallBlock>` renders the array in that order, so
+sub-agent reasoning that wraps around its tool calls displays as separate
+thinking blocks flanking each call rather than a single merged block.
 
 This is automatic — no extra wiring is needed in the consumer. The only
 requirement is that the sub-agent tool be built with `createAgentTool` so the
@@ -1166,7 +1169,8 @@ export function createInvokeWriterTool(runner: AgentRunner, agent: AgentConfig):
 `forwardTo(context)`:
 
 - Forwards every non-`done` child event to `context.onEvent`, populating
-  `subThinking` / `subText` / `nestedToolEvents` on the parent's tool entry.
+  `nestedContentBlocks` (sub-agent thinking + tool calls in source order) and
+  `subText` on the parent's tool entry.
 - Filters `done` events automatically (they carry the child's full history,
   which must not leak to the parent runner's consumer).
 - Is a no-op when `context.onEvent` is undefined.

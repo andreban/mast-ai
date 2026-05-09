@@ -120,9 +120,8 @@ interface ToolEventEntry {
   name: string;
   args?: unknown;
   result?: unknown;
-  subThinking?: string; // accumulated sub-agent thinking
   subText?: string; // accumulated sub-agent text
-  nestedToolEvents?: ToolEventEntry[]; // tool calls fired by a sub-agent
+  nestedContentBlocks?: ContentBlock[]; // sub-agent thinking + tool calls in source order
   isStreaming: boolean;
   awaitingApproval?: boolean;
   status?: 'success' | 'error' | 'cancelled';
@@ -179,9 +178,9 @@ Three rendering entry points:
 
 ## Nested Sub-Agent Tool Calls
 
-Tools built with `createAgentTool` from `@mast-ai/core` automatically forward their child tool events. `useAgentStream` routes child `tool_call_started` / `tool_call_completed` into `ToolEventEntry.nestedToolEvents`, and `<ToolCallBlock>` renders them recursively. No extra wiring is needed in the consumer.
+Tools built with `createAgentTool` from `@mast-ai/core` automatically forward their child events. `useAgentStream` routes child `thinking`, `tool_call_started`, and `tool_call_completed` events into `ToolEventEntry.nestedContentBlocks` — an interleaved array of `ThinkingEntry` and `ToolEventEntry` blocks in source order. `<ToolCallBlock>` renders the array in that order. No extra wiring is needed in the consumer.
 
-For custom tools that wrap a sub-agent (where `createAgentTool` is too prescriptive), chain `RunBuilder.forwardTo(context)` on the sub-agent run so the parent's `subThinking` / `subText` / `nestedToolEvents` populate without manual forwarding boilerplate. Forgetting to forward is a silent UX failure.
+For custom tools that wrap a sub-agent (where `createAgentTool` is too prescriptive), chain `RunBuilder.forwardTo(context)` on the sub-agent run so the parent's `nestedContentBlocks` and `subText` populate without manual forwarding boilerplate. Forgetting to forward is a silent UX failure.
 
 Currently scoped to a single level: grandchild events route back to the outermost matching parent.
 

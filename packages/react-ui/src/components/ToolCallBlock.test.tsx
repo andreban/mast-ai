@@ -5,7 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ToolEventEntry } from '../types.js';
+import type { ThinkingEntry, ToolEventEntry } from '../types.js';
 import { ToolCallBlock } from './ToolCallBlock.js';
 import { NestedToolRenderContext, ToolLabelContext } from './ToolLabelContext.js';
 
@@ -19,6 +19,10 @@ function makeEntry(overrides: Partial<ToolEventEntry> = {}): ToolEventEntry {
   };
 }
 
+function thinkingBlock(content: string, id = 'think'): ThinkingEntry {
+  return { id, type: 'thinking', content };
+}
+
 describe('<ToolCallBlock>', () => {
   afterEach(() => {
     cleanup();
@@ -26,14 +30,19 @@ describe('<ToolCallBlock>', () => {
 
   describe('streaming sub-agent state', () => {
     it('renders the spinner icon while streaming', () => {
-      render(<ToolCallBlock entry={makeEntry({ subThinking: '', subText: '' })} />);
+      render(<ToolCallBlock entry={makeEntry({ nestedContentBlocks: [], subText: '' })} />);
       const status = screen.getByTestId('mast-tool-call-status');
       expect(status.querySelector('svg.mast-spin')).not.toBeNull();
     });
 
-    it('renders subThinking inside an auto-expanded ThinkingBlock while streaming', () => {
+    it('renders a sub-agent thinking block from nestedContentBlocks expanded while streaming', () => {
       render(
-        <ToolCallBlock entry={makeEntry({ subThinking: 'sub-agent reasoning', subText: '' })} />,
+        <ToolCallBlock
+          entry={makeEntry({
+            nestedContentBlocks: [thinkingBlock('sub-agent reasoning')],
+            subText: '',
+          })}
+        />,
       );
       const summary = screen.getByText('Thinking Process');
       const details = summary.closest('details');
@@ -42,10 +51,13 @@ describe('<ToolCallBlock>', () => {
       expect(screen.getByText('sub-agent reasoning')).toBeDefined();
     });
 
-    it('renders subText as live content below the thinking block', () => {
+    it('renders subText as live content below the nested content', () => {
       render(
         <ToolCallBlock
-          entry={makeEntry({ subThinking: 'thoughts', subText: 'streaming output' })}
+          entry={makeEntry({
+            nestedContentBlocks: [thinkingBlock('thoughts')],
+            subText: 'streaming output',
+          })}
         />,
       );
       const subText = screen.getByTestId('mast-tool-call-sub-text');
@@ -55,7 +67,11 @@ describe('<ToolCallBlock>', () => {
     it('omits the result section while still streaming', () => {
       render(
         <ToolCallBlock
-          entry={makeEntry({ subThinking: 'x', subText: 'y', result: 'should-not-show' })}
+          entry={makeEntry({
+            nestedContentBlocks: [thinkingBlock('x')],
+            subText: 'y',
+            result: 'should-not-show',
+          })}
         />,
       );
       expect(screen.queryByText('Result')).toBeNull();
@@ -68,7 +84,7 @@ describe('<ToolCallBlock>', () => {
       name: 'demo_tool',
       args: { foo: 'bar' },
       result: { ok: true, value: 42 },
-      subThinking: 'final thoughts',
+      nestedContentBlocks: [thinkingBlock('final thoughts')],
       subText: 'final answer',
       isStreaming: false,
     };
@@ -80,7 +96,7 @@ describe('<ToolCallBlock>', () => {
       expect(container.querySelector('svg.mast-spin')).toBeNull();
     });
 
-    it('keeps subThinking visible but collapses it by default', () => {
+    it('keeps nested thinking visible but collapses it by default once completed', () => {
       render(<ToolCallBlock entry={completed} />);
       const details = screen.getByText('Thinking Process').closest('details');
       expect(details).not.toBeNull();
@@ -119,6 +135,7 @@ describe('<ToolCallBlock>', () => {
       expect(status.querySelector('svg.mast-spin')).not.toBeNull();
       expect(screen.queryByText('Thinking Process')).toBeNull();
       expect(screen.queryByTestId('mast-tool-call-sub-text')).toBeNull();
+      expect(screen.queryByTestId('mast-tool-call-nested')).toBeNull();
     });
 
     it('shows the check icon when completed and no sub-agent slots', () => {
@@ -162,13 +179,13 @@ describe('<ToolCallBlock>', () => {
     });
   });
 
-  describe('nested tool events', () => {
-    it('does not render the nested container when nestedToolEvents is undefined', () => {
+  describe('nested content blocks', () => {
+    it('does not render the nested container when nestedContentBlocks is undefined', () => {
       const { container } = render(<ToolCallBlock entry={makeEntry()} />);
       expect(container.querySelector('.mast-tool-call-block-nested')).toBeNull();
     });
 
-    it('renders nested entries recursively', () => {
+    it('renders nested tool entries recursively', () => {
       const nestedCompleted: ToolEventEntry = {
         id: 'nested-1',
         type: 'tool_call_completed',
@@ -186,7 +203,7 @@ describe('<ToolCallBlock>', () => {
         result: 'outer_result',
         isStreaming: false,
         status: 'success',
-        nestedToolEvents: [nestedCompleted],
+        nestedContentBlocks: [nestedCompleted],
       };
       const { container } = render(<ToolCallBlock entry={parent} />);
       const nestedContainer = container.querySelector('.mast-tool-call-block-nested');
@@ -197,6 +214,81 @@ describe('<ToolCallBlock>', () => {
       expect(screen.getByText('inner_tool')).toBeDefined();
     });
 
+    it('interleaves thinking blocks and tool entries in source order', () => {
+      const parent: ToolEventEntry = {
+        id: 'parent',
+        type: 'tool_call_completed',
+        name: 'agent_tool',
+        args: {},
+        result: 'outer',
+        isStreaming: false,
+        status: 'success',
+        nestedContentBlocks: [
+          thinkingBlock('first thought', 't1'),
+          {
+            id: 'nested-a',
+            type: 'tool_call_completed',
+            name: 'inner_a',
+            args: {},
+            result: 'a',
+            isStreaming: false,
+            status: 'success',
+          },
+          thinkingBlock('second thought', 't2'),
+          {
+            id: 'nested-b',
+            type: 'tool_call_completed',
+            name: 'inner_b',
+            args: {},
+            result: 'b',
+            isStreaming: false,
+            status: 'success',
+          },
+        ],
+      };
+      const { container } = render(<ToolCallBlock entry={parent} defaultOpen />);
+      const nestedContainer = container.querySelector('.mast-tool-call-block-nested')!;
+      // Each child element is one rendered block — assert sequence by class.
+      const sequence = Array.from(nestedContainer.children).map((el) => {
+        if (el.classList.contains('mast-tool-call-block-sub-thinking')) return 'thinking';
+        if (el.matches('[data-mast-tool-call-block]')) {
+          return `tool:${el.getAttribute('data-tool-name')}`;
+        }
+        return el.tagName.toLowerCase();
+      });
+      expect(sequence).toEqual(['thinking', 'tool:inner_a', 'thinking', 'tool:inner_b']);
+    });
+
+    it('only marks the trailing thinking block as streaming while the parent is in flight', () => {
+      const parent: ToolEventEntry = {
+        id: 'parent',
+        type: 'tool_call_started',
+        name: 'agent_tool',
+        args: {},
+        isStreaming: true,
+        nestedContentBlocks: [
+          thinkingBlock('first', 't1'),
+          {
+            id: 'nested-a',
+            type: 'tool_call_completed',
+            name: 'inner_a',
+            args: {},
+            result: 'a',
+            isStreaming: false,
+            status: 'success',
+          },
+          thinkingBlock('second', 't2'),
+        ],
+      };
+      const { container } = render(<ToolCallBlock entry={parent} defaultOpen />);
+      const thinkingDetails = Array.from(
+        container.querySelectorAll('details.mast-tool-call-block-sub-thinking'),
+      );
+      expect(thinkingDetails).toHaveLength(2);
+      expect((thinkingDetails[0] as HTMLDetailsElement).open).toBe(false);
+      expect((thinkingDetails[1] as HTMLDetailsElement).open).toBe(true);
+    });
+
     it('forwards the ToolLabelContext resolver to nested entries', () => {
       const parent: ToolEventEntry = {
         id: 'parent',
@@ -204,7 +296,7 @@ describe('<ToolCallBlock>', () => {
         name: 'invoke_writer',
         args: {},
         isStreaming: true,
-        nestedToolEvents: [
+        nestedContentBlocks: [
           {
             id: 'nested-1',
             type: 'tool_call_completed',
@@ -236,25 +328,24 @@ describe('<ToolCallBlock>', () => {
       expect(screen.queryByText('delegate_to_skill')).toBeNull();
     });
 
-    it('routes nested entries through NestedToolRenderContext when one is provided', () => {
+    it('routes nested tool entries through NestedToolRenderContext when one is provided', () => {
       const renderNested = vi.fn((entry: ToolEventEntry) => (
         <span data-testid={`custom-${entry.name}`}>{entry.name}</span>
       ));
+      const nestedTool: ToolEventEntry = {
+        id: 'nested-a',
+        type: 'tool_call_started',
+        name: 'inner_a',
+        args: {},
+        isStreaming: true,
+      };
       const parent: ToolEventEntry = {
         id: 'parent',
         type: 'tool_call_started',
         name: 'agent_tool',
         args: {},
         isStreaming: true,
-        nestedToolEvents: [
-          {
-            id: 'nested-a',
-            type: 'tool_call_started',
-            name: 'inner_a',
-            args: {},
-            isStreaming: true,
-          },
-        ],
+        nestedContentBlocks: [nestedTool],
       };
       render(
         <NestedToolRenderContext.Provider value={renderNested}>
@@ -265,7 +356,7 @@ describe('<ToolCallBlock>', () => {
       // The bare recursive ToolCallBlock should NOT have rendered for the
       // nested entry — only the top-level parent block exists.
       expect(screen.queryAllByTestId('mast-tool-call-status')).toHaveLength(1);
-      expect(renderNested).toHaveBeenCalledWith(parent.nestedToolEvents![0]);
+      expect(renderNested).toHaveBeenCalledWith(nestedTool);
     });
 
     it('falls back to bare recursive ToolCallBlock when no NestedToolRenderContext is provided', () => {
@@ -275,7 +366,7 @@ describe('<ToolCallBlock>', () => {
         name: 'agent_tool',
         args: {},
         isStreaming: true,
-        nestedToolEvents: [
+        nestedContentBlocks: [
           {
             id: 'nested-a',
             type: 'tool_call_completed',
@@ -295,14 +386,14 @@ describe('<ToolCallBlock>', () => {
       expect(nestedBlocks[0].getAttribute('data-tool-name')).toBe('inner_a');
     });
 
-    it('renders multiple nested entries in order', () => {
+    it('renders multiple nested tool entries in order', () => {
       const parent: ToolEventEntry = {
         id: 'parent',
         type: 'tool_call_started',
         name: 'agent_tool',
         args: {},
         isStreaming: true,
-        nestedToolEvents: [
+        nestedContentBlocks: [
           {
             id: 'nested-a',
             type: 'tool_call_completed',

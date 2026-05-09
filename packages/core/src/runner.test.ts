@@ -112,6 +112,107 @@ describe('hallucinated tool calls', () => {
   });
 });
 
+describe('event ordering within a single LLM turn', () => {
+  it('interleaves thinking and tool_call_started in source order from the adapter', async () => {
+    let turn = 0;
+    const adapter: LlmAdapter = {
+      generate: vi.fn(),
+      generateStream: (_request: AdapterRequest) =>
+        (async function* () {
+          if (turn++ === 0) {
+            // Mimic Gemini emitting thought → functionCall → thought →
+            // functionCall in a single response stream.
+            yield { type: 'thinking' as const, delta: 'first thought' };
+            yield {
+              type: 'tool_call' as const,
+              toolCall: { id: '1', name: 'tool_a', args: {} },
+            };
+            yield { type: 'thinking' as const, delta: 'second thought' };
+            yield {
+              type: 'tool_call' as const,
+              toolCall: { id: '2', name: 'tool_b', args: {} },
+            };
+          } else {
+            yield { type: 'text_delta' as const, delta: 'done' };
+          }
+        })(),
+    };
+
+    const registry = new ToolRegistry();
+    for (const name of ['tool_a', 'tool_b']) {
+      registry.register({
+        definition: () => ({ name, description: name, parameters: {}, scope: 'read' as const }),
+        call: async () => `${name}-result`,
+      });
+    }
+
+    const runner = new AgentRunner(adapter, registry);
+    const types: string[] = [];
+    for await (const event of runner.runStream(agent, 'go')) {
+      types.push(event.type === 'tool_call_started' ? `start:${event.name}` : event.type);
+    }
+
+    // Within turn 1, expect interleaving: thinking → start tool_a →
+    // thinking → start tool_b. Completed events follow in original order
+    // after Promise.all resolves. Turn 2 yields the final text_delta + done.
+    expect(types).toEqual([
+      'thinking',
+      'start:tool_a',
+      'thinking',
+      'start:tool_b',
+      'tool_call_completed',
+      'tool_call_completed',
+      'text_delta',
+      'done',
+    ]);
+  });
+
+  it('still suppresses inline tool_call_started for hallucinated tools', async () => {
+    let turn = 0;
+    const adapter: LlmAdapter = {
+      generate: vi.fn(),
+      generateStream: (_request: AdapterRequest) =>
+        (async function* () {
+          if (turn++ === 0) {
+            yield { type: 'thinking' as const, delta: 'thought' };
+            yield {
+              type: 'tool_call' as const,
+              toolCall: { id: '1', name: 'real_tool', args: {} },
+            };
+            yield {
+              type: 'tool_call' as const,
+              toolCall: { id: '2', name: 'ghost_tool', args: {} },
+            };
+          } else {
+            yield { type: 'text_delta' as const, delta: 'done' };
+          }
+        })(),
+    };
+
+    const registry = new ToolRegistry();
+    registry.register({
+      definition: () => ({
+        name: 'real_tool',
+        description: 'A real tool',
+        parameters: {},
+        scope: 'read' as const,
+      }),
+      call: async () => 'ok',
+    });
+
+    const runner = new AgentRunner(adapter, registry);
+    const events: AgentEvent[] = [];
+    for await (const event of runner.runStream(agent, 'go')) {
+      events.push(event);
+    }
+
+    const startedNames = events
+      .filter((e) => e.type === 'tool_call_started')
+      .map((e) => (e as { name: string }).name);
+    expect(startedNames).toEqual(['real_tool']);
+  });
+});
+
 describe('provider_metadata round-trip', () => {
   it('copies provider_metadata from tool call onto matching tool_result message', async () => {
     const turnRequests: AdapterRequest[] = [];
