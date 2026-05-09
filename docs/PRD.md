@@ -16,7 +16,7 @@ Existing agent frameworks are server-centric, which presents three major hurdles
 
 - **Client-Led Orchestration:** Shift the agentic "think-act" loop to the browser.
 - **Environment Agnostic Inference:** Allow the client to use any backend (Python, Go, Rust, Ruby) for LLM reasoning.
-- **Recursive Sub-Agents:** Enable agents to call other agents as tools. Each sub-agent may run in any execution mode — client-side, server-side, or hybrid — independently of its parent.
+- **Recursive Sub-Agents:** Enable agents to call other agents as tools. Each sub-agent may run in any execution mode — client-side, server-side, or hybrid — independently of its parent. Approval policy travels with the _run_, not the runner: a sub-agent invoked from a parent run inherits the parent's `ApprovalHandler` through `ToolContext`, so flagged tool calls inside an independent child runner still surface to the parent's UI unless the child runner declares its own handler.
 - **Native Tool Integration:** Provide a seamless way to wrap TypeScript functions and Browser APIs as agent tools.
 - **Automatic History Management:** Provide a `Conversation` abstraction that tracks conversation history automatically across turns, so developers building multi-turn chatbots do not need to maintain a `Message[]` array manually.
 
