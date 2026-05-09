@@ -1,6 +1,6 @@
 {
   "name": "@mast-ai/google-genai",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
-    "@mast-ai/core": "^0.7.0"
+    "@mast-ai/core": "^0.7.1"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
