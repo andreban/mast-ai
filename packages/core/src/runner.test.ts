@@ -4,10 +4,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { AgentRunner } from './runner.js';
 import { AgentError } from './error.js';
-import { ToolRegistry } from './tool.js';
+import { APPROVAL_CANCELLED_RESULT, ApprovalResponse, ToolRegistry } from './tool.js';
 import type { LlmAdapter, AdapterRequest, AdapterStreamChunk } from './adapter/index.js';
 import type { AgentConfig, AgentEvent } from './types.js';
-import type { ToolContext } from './tool.js';
+import type { ApprovalHandler, Tool, ToolContext, ToolDefinition } from './tool.js';
 
 function streamingAdapter(chunks: AdapterStreamChunk[]): LlmAdapter {
   return {
@@ -249,5 +249,255 @@ describe('RunBuilder.forwardTo', () => {
         }
       })(),
     ).rejects.toBeInstanceOf(AgentError);
+  });
+});
+
+describe('approval gating', () => {
+  function singleCallThenDoneAdapter(
+    toolName: string,
+    args: unknown = {},
+    finalText = 'done',
+  ): LlmAdapter {
+    let turn = 0;
+    return {
+      generate: vi.fn(),
+      generateStream: (_request: AdapterRequest) =>
+        (async function* () {
+          if (turn++ === 0) {
+            yield {
+              type: 'tool_call' as const,
+              toolCall: { id: '1', name: toolName, args },
+            };
+          } else {
+            yield { type: 'text_delta' as const, delta: finalText };
+          }
+        })(),
+    };
+  }
+
+  function approvalTool(
+    name: string,
+    options: {
+      requiresApproval?: boolean;
+      result?: string;
+      onCall?: (args: unknown, ctx: ToolContext) => void;
+    } = {},
+  ): Tool {
+    return {
+      definition: (): ToolDefinition => ({
+        name,
+        description: `${name} tool`,
+        parameters: {},
+        scope: 'write',
+        requiresApproval: options.requiresApproval ?? false,
+      }),
+      call: vi.fn(async (args: unknown, ctx: ToolContext) => {
+        options.onCall?.(args, ctx);
+        return options.result ?? 'ok';
+      }),
+    };
+  }
+
+  function runnerWithTool(adapter: LlmAdapter, tool: Tool): AgentRunner {
+    const registry = new ToolRegistry();
+    registry.register(tool);
+    return new AgentRunner(adapter, registry);
+  }
+
+  async function drain(stream: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
+    const events: AgentEvent[] = [];
+    for await (const event of stream) events.push(event);
+    return events;
+  }
+
+  it('does not call the handler for tools with requiresApproval: false', async () => {
+    const handler: ApprovalHandler = { requestApproval: vi.fn() };
+    const tool = approvalTool('safe_tool', { requiresApproval: false });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('safe_tool'), tool);
+    runner.approvalHandler = handler;
+
+    await drain(runner.runStream(agent, 'go'));
+
+    expect(handler.requestApproval).not.toHaveBeenCalled();
+    expect(tool.call).toHaveBeenCalledTimes(1);
+  });
+
+  it('executes ungated when requiresApproval is true but no handler is attached', async () => {
+    const tool = approvalTool('risky_tool', { requiresApproval: true, result: 'ran' });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+
+    const events = await drain(runner.runStream(agent, 'go'));
+
+    expect(tool.call).toHaveBeenCalledTimes(1);
+    const completed = events.find((e) => e.type === 'tool_call_completed');
+    expect(completed).toMatchObject({ name: 'risky_tool', result: 'ran', error: false });
+  });
+
+  it('runs the tool when the handler returns approve', async () => {
+    const handler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+    };
+    const tool = approvalTool('risky_tool', { requiresApproval: true, result: 'ran' });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool', { x: 1 }), tool);
+    runner.approvalHandler = handler;
+
+    const events = await drain(runner.runStream(agent, 'go'));
+
+    expect(handler.requestApproval).toHaveBeenCalledWith({ name: 'risky_tool', args: { x: 1 } });
+    expect(tool.call).toHaveBeenCalledTimes(1);
+    expect(events.find((e) => e.type === 'tool_call_completed')).toMatchObject({
+      name: 'risky_tool',
+      result: 'ran',
+      error: false,
+    });
+  });
+
+  it('skips the tool and returns the default cancelled result on reject() with no result', async () => {
+    const handler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.reject()),
+    };
+    const tool = approvalTool('risky_tool', { requiresApproval: true });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+    runner.approvalHandler = handler;
+
+    const events = await drain(runner.runStream(agent, 'go'));
+
+    expect(tool.call).not.toHaveBeenCalled();
+    expect(events.find((e) => e.type === 'tool_call_completed')).toMatchObject({
+      name: 'risky_tool',
+      result: APPROVAL_CANCELLED_RESULT,
+      error: false,
+    });
+  });
+
+  it('skips the tool and returns the supplied result on reject(result)', async () => {
+    const handler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.reject('Disabled in sandbox.')),
+    };
+    const tool = approvalTool('risky_tool', { requiresApproval: true });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+    runner.approvalHandler = handler;
+
+    const events = await drain(runner.runStream(agent, 'go'));
+
+    expect(tool.call).not.toHaveBeenCalled();
+    expect(events.find((e) => e.type === 'tool_call_completed')).toMatchObject({
+      name: 'risky_tool',
+      result: 'Disabled in sandbox.',
+      error: false,
+    });
+  });
+
+  it('per-run handler set via RunBuilder.withApprovalHandler overrides the runner default', async () => {
+    const runnerHandler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+    };
+    const perRunHandler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.reject()),
+    };
+    const tool = approvalTool('risky_tool', { requiresApproval: true });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+    runner.approvalHandler = runnerHandler;
+
+    await drain(runner.runBuilder(agent).withApprovalHandler(perRunHandler).runStream('go'));
+
+    expect(perRunHandler.requestApproval).toHaveBeenCalledTimes(1);
+    expect(runnerHandler.requestApproval).not.toHaveBeenCalled();
+    expect(tool.call).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the runner's default handler when no per-run handler is attached", async () => {
+    const runnerHandler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+    };
+    const tool = approvalTool('risky_tool', { requiresApproval: true });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+    runner.approvalHandler = runnerHandler;
+
+    await drain(runner.runStream(agent, 'go'));
+
+    expect(runnerHandler.requestApproval).toHaveBeenCalledTimes(1);
+    expect(tool.call).toHaveBeenCalledTimes(1);
+  });
+
+  it('per-run override only applies to that builder; subsequent runs use the runner default', async () => {
+    const runnerHandler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+    };
+    const perRunHandler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.reject()),
+    };
+
+    const adapter: LlmAdapter = {
+      generate: vi.fn(),
+      // Each call to generateStream is a fresh adapter cycle: tool call -> done.
+      generateStream: (() => {
+        let turn = 0;
+        return (_request: AdapterRequest) =>
+          (async function* () {
+            if (turn++ % 2 === 0) {
+              yield {
+                type: 'tool_call' as const,
+                toolCall: { id: String(turn), name: 'risky_tool', args: {} },
+              };
+            } else {
+              yield { type: 'text_delta' as const, delta: 'done' };
+            }
+          })();
+      })(),
+    };
+
+    const tool = approvalTool('risky_tool', { requiresApproval: true });
+    const registry = new ToolRegistry();
+    registry.register(tool);
+    const runner = new AgentRunner(adapter, registry);
+    runner.approvalHandler = runnerHandler;
+
+    await drain(runner.runBuilder(agent).withApprovalHandler(perRunHandler).runStream('go'));
+    await drain(runner.runStream(agent, 'go'));
+
+    expect(perRunHandler.requestApproval).toHaveBeenCalledTimes(1);
+    expect(runnerHandler.requestApproval).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the active handler to ToolContext.approvalHandler when invoking tool.call', async () => {
+    const handler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+    };
+
+    let receivedCtx: ToolContext | undefined;
+    const tool = approvalTool('risky_tool', {
+      requiresApproval: true,
+      onCall: (_args, ctx) => {
+        receivedCtx = ctx;
+      },
+    });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('risky_tool'), tool);
+    runner.approvalHandler = handler;
+
+    await drain(runner.runStream(agent, 'go'));
+
+    expect(receivedCtx?.approvalHandler).toBe(handler);
+  });
+
+  it('passes the handler to ToolContext even for tools that do not require approval', async () => {
+    const handler: ApprovalHandler = {
+      requestApproval: vi.fn().mockResolvedValue(ApprovalResponse.approve()),
+    };
+
+    let receivedCtx: ToolContext | undefined;
+    const tool = approvalTool('safe_tool', {
+      requiresApproval: false,
+      onCall: (_args, ctx) => {
+        receivedCtx = ctx;
+      },
+    });
+    const runner = runnerWithTool(singleCallThenDoneAdapter('safe_tool'), tool);
+    runner.approvalHandler = handler;
+
+    await drain(runner.runStream(agent, 'go'));
+
+    expect(handler.requestApproval).not.toHaveBeenCalled();
+    expect(receivedCtx?.approvalHandler).toBe(handler);
   });
 });
