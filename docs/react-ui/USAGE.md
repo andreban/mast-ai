@@ -1581,6 +1581,40 @@ Class-based tools follow the same pattern: pass the setter and the ref into
 the constructor and read or write through them inside `call`. The `useMemo`
 factory function is the natural place to instantiate them.
 
+### 15.1 Always use functional React state setters
+
+When an LLM generates a batch of tool calls (e.g., calling `delete_task` three times consecutively within the same response step), `MAST` executes those tool calls within the same React render cycle. 
+
+If your state mutation callbacks rely on the static render closure, consecutive tool calls will execute against stale state and overwrite previous mutations in the batch:
+
+```tsx
+// ❌ VULNERABLE (Negative): Reads stale closure state during batch tool calls
+function App() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  const deleteTask = (id: string) => {
+    // If the LLM calls deleteTask('1') and deleteTask('2') in the same turn,
+    // the second call still sees the `tasks` array from before '1' was removed!
+    setTasks(tasks.filter(t => t.id !== id));
+  };
+}
+```
+
+To make your tools 100% immune to batch execution race conditions, **you must use functional state updates** (or an atomic dispatch store like Redux/Zustand) so each mutation queued by `MAST` correctly receives and updates the freshest state:
+
+```tsx
+// 🔒 SECURE (Positive): Guaranteed atomic mutations during batch tool execution
+function App() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  const deleteTask = (id: string) => {
+    // React queues each mutation and passes the absolutely latest previous state
+    setTasks(prevTasks => prevTasks.filter(t => t.id !== id));
+  };
+}
+```
+
+
 ---
 
 ## See also
