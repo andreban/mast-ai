@@ -120,11 +120,12 @@ export class RunBuilder {
 
   /**
    * Subscribe to events emitted by tools that run sub-agents.
-   * toolName identifies which tool fired the event.
-   * Use this instead of the convenience methods when you need real-time
-   * visibility into sub-agent execution.
+   * toolName identifies which tool fired the event and toolCallId which call
+   * of it (the ToolCall.id), so parallel calls to the same tool can be told
+   * apart. Use this instead of the convenience methods when you need
+   * real-time visibility into sub-agent execution.
    */
-  onToolEvent(handler: (toolName: string, event: AgentEvent) => void): this;
+  onToolEvent(handler: (toolName: string, event: AgentEvent, toolCallId: string) => void): this;
 
   /**
    * For tools that internally run a sub-agent: chain this on the sub-agent's
@@ -148,10 +149,13 @@ export class RunBuilder {
 // Usage — subscribing to sub-agent events
 runner
   .runBuilder(agent)
-  .onToolEvent((toolName, event) => {
-    if (event.type === 'text_delta') updateSkillPanel(toolName, event.delta);
+  .onToolEvent((toolName, event, toolCallId) => {
+    if (event.type === 'text_delta') updateSkillPanel(toolCallId, toolName, event.delta);
   })
   .runStream(input);
+
+// tool_call_started / tool_call_completed events carry the same id
+// (event.id), so pair a completion with its start by id, not by name.
 
 // Usage — inside a custom tool that wraps a sub-agent
 async call(args, context: ToolContext): Promise<string> {
