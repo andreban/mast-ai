@@ -657,3 +657,107 @@ describe('approval gating', () => {
     expect(tool.call).not.toHaveBeenCalled();
   });
 });
+
+describe('tool call ids', () => {
+  function twoTurnAdapter(firstTurn: AdapterStreamChunk[]): LlmAdapter {
+    let turn = 0;
+    return {
+      generate: vi.fn(),
+      generateStream: (_request: AdapterRequest) =>
+        (async function* () {
+          if (turn++ === 0) {
+            for (const chunk of firstTurn) yield chunk;
+          } else {
+            yield { type: 'text_delta' as const, delta: 'done' };
+          }
+        })(),
+    };
+  }
+
+  function echoTool(name: string, onCall?: (args: unknown, ctx?: ToolContext) => void): Tool {
+    return {
+      definition: () => ({ name, description: name, parameters: {}, scope: 'read' as const }),
+      call: async (args: unknown, ctx?: ToolContext) => {
+        onCall?.(args, ctx);
+        return `${name}:${(args as { n: number }).n}`;
+      },
+    };
+  }
+
+  it('tags started and completed events of parallel same-name calls with their call id', async () => {
+    const adapter = twoTurnAdapter([
+      { type: 'tool_call', toolCall: { id: 'c1', name: 'move', args: { n: 1 } } },
+      { type: 'tool_call', toolCall: { id: 'c2', name: 'move', args: { n: 2 } } },
+      { type: 'tool_call', toolCall: { id: 'c3', name: 'move', args: { n: 3 } } },
+    ]);
+    const registry = new ToolRegistry();
+    registry.register(echoTool('move'));
+
+    const events: AgentEvent[] = [];
+    for await (const event of new AgentRunner(adapter, registry).runStream(agent, 'go')) {
+      events.push(event);
+    }
+
+    const started = events.filter((e) => e.type === 'tool_call_started');
+    const completed = events.filter((e) => e.type === 'tool_call_completed');
+    expect(started.map((e) => e.id)).toEqual(['c1', 'c2', 'c3']);
+    expect(completed).toEqual([
+      { type: 'tool_call_completed', id: 'c1', name: 'move', result: 'move:1', error: false },
+      { type: 'tool_call_completed', id: 'c2', name: 'move', result: 'move:2', error: false },
+      { type: 'tool_call_completed', id: 'c3', name: 'move', result: 'move:3', error: false },
+    ]);
+  });
+
+  it('tags started events with the call id on the non-streaming generate path', async () => {
+    const generate = vi
+      .fn()
+      .mockResolvedValueOnce({
+        toolCalls: [
+          { id: 'g1', name: 'move', args: { n: 1 } },
+          { id: 'g2', name: 'move', args: { n: 2 } },
+        ],
+      })
+      .mockResolvedValueOnce({ text: 'done' });
+    const registry = new ToolRegistry();
+    registry.register(echoTool('move'));
+
+    const events: AgentEvent[] = [];
+    for await (const event of new AgentRunner({ generate }, registry).runStream(agent, 'go')) {
+      events.push(event);
+    }
+
+    expect(
+      events.filter((e) => e.type === 'tool_call_started' || e.type === 'tool_call_completed'),
+    ).toMatchObject([
+      { type: 'tool_call_started', id: 'g1' },
+      { type: 'tool_call_started', id: 'g2' },
+      { type: 'tool_call_completed', id: 'g1', result: 'move:1' },
+      { type: 'tool_call_completed', id: 'g2', result: 'move:2' },
+    ]);
+  });
+
+  it('passes the call id to onToolEvent for sub-agent events', async () => {
+    const adapter = twoTurnAdapter([
+      { type: 'tool_call', toolCall: { id: 's1', name: 'sub', args: { n: 1 } } },
+      { type: 'tool_call', toolCall: { id: 's2', name: 'sub', args: { n: 2 } } },
+    ]);
+    const registry = new ToolRegistry();
+    registry.register(
+      echoTool('sub', (args, ctx) =>
+        ctx?.onEvent?.({ type: 'text_delta', delta: `child ${(args as { n: number }).n}` }),
+      ),
+    );
+    const onToolEvent = vi.fn();
+
+    const stream = new AgentRunner(adapter, registry)
+      .runBuilder(agent)
+      .onToolEvent(onToolEvent)
+      .runStream('go');
+    for await (const _event of stream) {
+      // drain
+    }
+
+    expect(onToolEvent).toHaveBeenCalledWith('sub', { type: 'text_delta', delta: 'child 1' }, 's1');
+    expect(onToolEvent).toHaveBeenCalledWith('sub', { type: 'text_delta', delta: 'child 2' }, 's2');
+  });
+});

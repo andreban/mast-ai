@@ -35,7 +35,7 @@ export class Conversation {
   private buildStream(
     input: string,
     signal?: AbortSignal,
-    onToolEvent?: (toolName: string, event: AgentEvent) => void,
+    onToolEvent?: (toolName: string, event: AgentEvent, toolCallId: string) => void,
   ) {
     const builder = this.runner.runBuilder(this.agent).history([...this.history]);
     if (signal) builder.signal(signal);
@@ -64,7 +64,7 @@ export class Conversation {
   runStream(
     input: string,
     signal?: AbortSignal,
-    onToolEvent?: (toolName: string, event: AgentEvent) => void,
+    onToolEvent?: (toolName: string, event: AgentEvent, toolCallId: string) => void,
   ): AsyncIterable<AgentEvent> {
     return this._streamWithHistoryUpdate(input, signal, onToolEvent);
   }
@@ -72,7 +72,7 @@ export class Conversation {
   private async *_streamWithHistoryUpdate(
     input: string,
     signal?: AbortSignal,
-    onToolEvent?: (toolName: string, event: AgentEvent) => void,
+    onToolEvent?: (toolName: string, event: AgentEvent, toolCallId: string) => void,
   ): AsyncIterable<AgentEvent> {
     let capturedHistory: Message[] | null = null;
 

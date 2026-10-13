@@ -17,7 +17,7 @@ type StreamExecutor = (
   input: string,
   history: Message[],
   signal?: AbortSignal,
-  onToolEvent?: (toolName: string, event: AgentEvent) => void,
+  onToolEvent?: (toolName: string, event: AgentEvent, toolCallId: string) => void,
   approvalHandler?: ApprovalHandler,
 ) => AsyncIterable<AgentEvent>;
 
@@ -30,7 +30,7 @@ type StreamExecutor = (
 export class RunBuilder {
   private _history: Message[] = [];
   private _signal?: AbortSignal;
-  private _onToolEvent?: (toolName: string, event: AgentEvent) => void;
+  private _onToolEvent?: (toolName: string, event: AgentEvent, toolCallId: string) => void;
   private _forwardContext?: ToolContext;
   /** @internal Read by {@link AgentRunner} to resolve the per-run handler. */
   _approvalHandler?: ApprovalHandler;
@@ -54,11 +54,13 @@ export class RunBuilder {
 
   /**
    * Register a callback that receives events emitted by tools running
-   * sub-agents. `toolName` identifies which tool fired the event.
+   * sub-agents. `toolName` identifies which tool fired the event and
+   * `toolCallId` which call of it (the {@link ToolCall.id}), so events from
+   * parallel calls to the same tool can be told apart.
    * Note: convenience methods on {@link AgentRunner} do not surface tool
    * events — use `runBuilder().onToolEvent(...).runStream()` for that.
    */
-  onToolEvent(handler: (toolName: string, event: AgentEvent) => void): this {
+  onToolEvent(handler: (toolName: string, event: AgentEvent, toolCallId: string) => void): this {
     this._onToolEvent = handler;
     return this;
   }
@@ -198,7 +200,7 @@ export class AgentRunner {
     input: string,
     history: Message[],
     signal?: AbortSignal,
-    onToolEvent?: (toolName: string, event: AgentEvent) => void,
+    onToolEvent?: (toolName: string, event: AgentEvent, toolCallId: string) => void,
     approvalHandler?: ApprovalHandler,
   ): AsyncIterable<AgentEvent> {
     // Use the explicit tool list when provided; otherwise expose all registered tools.
@@ -255,6 +257,7 @@ export class AgentRunner {
             if (this.registry.getTool(chunk.toolCall.name)) {
               yield {
                 type: 'tool_call_started',
+                id: chunk.toolCall.id,
                 name: chunk.toolCall.name,
                 args: chunk.toolCall.args,
               };
@@ -274,7 +277,7 @@ export class AgentRunner {
           // by the adapter. Same hallucinated-tool suppression as above.
           for (const call of response.toolCalls) {
             if (this.registry.getTool(call.name)) {
-              yield { type: 'tool_call_started', name: call.name, args: call.args };
+              yield { type: 'tool_call_started', id: call.id, name: call.name, args: call.args };
             }
           }
         }
@@ -310,7 +313,9 @@ export class AgentRunner {
             try {
               const result = await tool.call(call.args, {
                 signal,
-                onEvent: onToolEvent ? (event) => onToolEvent(call.name, event) : undefined,
+                onEvent: onToolEvent
+                  ? (event) => onToolEvent(call.name, event, call.id)
+                  : undefined,
                 approvalHandler,
               });
               return { call, result, error: false as const, hallucinated: false as const };
@@ -330,7 +335,7 @@ export class AgentRunner {
         for (const { call, result, error, hallucinated } of toolResults) {
           // Suppress completed events for hallucinated calls — they had no started event.
           if (!hallucinated) {
-            yield { type: 'tool_call_completed', name: call.name, result, error };
+            yield { type: 'tool_call_completed', id: call.id, name: call.name, result, error };
           }
           resultMessages.push({
             role: 'user',
