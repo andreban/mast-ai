@@ -148,16 +148,20 @@ async function handleSend() {
   const childBlocks = new Map<string, HTMLElement>();
 
   try {
-    const stream = conversation.runStream(text, controller.signal, (toolName, event) => {
-      if (event.type === 'text_delta' || event.type === 'thinking') {
-        let body = childBlocks.get(toolName);
-        if (!body) {
-          body = appendChildBlock(toolName);
-          childBlocks.set(toolName, body);
+    const stream = conversation.runStream(
+      text,
+      controller.signal,
+      (toolName, event, toolCallId) => {
+        if (event.type === 'text_delta' || event.type === 'thinking') {
+          let body = childBlocks.get(toolCallId);
+          if (!body) {
+            body = appendChildBlock(toolName);
+            childBlocks.set(toolCallId, body);
+          }
+          body.textContent += event.delta;
         }
-        body.textContent += event.delta;
-      }
-    });
+      },
+    );
 
     for await (const event of stream) {
       if (event.type === 'text_delta') {
@@ -167,8 +171,8 @@ async function handleSend() {
         appendSystemMessage(`Calling ${event.name}(${JSON.stringify(event.args)})`, 'tool');
       } else if (event.type === 'tool_call_completed') {
         appendSystemMessage(`Result: ${JSON.stringify(event.result)}`, 'tool');
-        // Reset so the next tool invocation gets a fresh block.
-        childBlocks.delete(event.name);
+        // Call ids can repeat across turns, so free the finished call's block.
+        if (event.id) childBlocks.delete(event.id);
       }
     }
   } catch (error) {
