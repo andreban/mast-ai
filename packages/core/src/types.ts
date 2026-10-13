@@ -49,8 +49,25 @@ export interface Message {
  * Events emitted by the AgentRunner during execution.
  */
 export type AgentEvent =
-  | { type: 'tool_call_started'; name: string; args: unknown }
-  | { type: 'tool_call_completed'; name: string; result: unknown; error?: boolean }
+  | {
+      type: 'tool_call_started';
+      /**
+       * The originating {@link ToolCall.id}. Always set by `AgentRunner`; pair a
+       * `tool_call_completed` with its `tool_call_started` by this id rather than
+       * by `name`, which repeats when the model issues parallel calls to one tool.
+       */
+      id?: string;
+      name: string;
+      args: unknown;
+    }
+  | {
+      type: 'tool_call_completed';
+      /** The originating {@link ToolCall.id}; matches the `tool_call_started` id. */
+      id?: string;
+      name: string;
+      result: unknown;
+      error?: boolean;
+    }
   | { type: 'text_delta'; delta: string }
   | { type: 'thinking'; delta: string }
   | { type: 'done'; output: string; history: Message[] };
