@@ -56,10 +56,23 @@ pub enum UrpMessageContent {
 pub struct UrpToolCall {
     pub id: String,
     pub name: String,
-    #[serde(default)]
+    // Required by the URP spec. Deliberately has no `#[serde(default)]` so a
+    // client that omits (or misnames) the field fails loudly with a 422
+    // instead of silently degrading the model's context.
     pub arguments: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider_metadata: Option<Value>,
+}
+
+impl From<agent_rig::model::ToolCall> for UrpToolCall {
+    fn from(tc: agent_rig::model::ToolCall) -> Self {
+        Self {
+            id: tc.id,
+            name: tc.name,
+            arguments: tc.args,
+            provider_metadata: tc.provider_metadata,
+        }
+    }
 }
 
 #[derive(Serialize, Debug)]

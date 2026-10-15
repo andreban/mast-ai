@@ -111,6 +111,36 @@ describe('UrpAdapter provider_metadata round-trip', () => {
     expect(JSON.stringify(captured)).not.toContain('"args"');
   });
 
+  it('emits an empty object for tool calls whose args are undefined', async () => {
+    let captured: UrpRequest | undefined;
+    const transport: UrpTransport = {
+      send: async (req): Promise<UrpResponse> => {
+        captured = req;
+        return { tool_calls: [] };
+      },
+    };
+
+    const adapter = new UrpAdapter(transport);
+    await adapter.generate({
+      ...baseRequest,
+      messages: [
+        {
+          role: 'assistant',
+          content: {
+            type: 'tool_calls',
+            calls: [{ id: 'call_1', name: 'get_time', args: undefined }],
+          },
+        },
+      ],
+    });
+
+    expect(captured!.messages[0].content).toEqual({
+      type: 'tool_calls',
+      calls: [{ id: 'call_1', name: 'get_time', arguments: {} }],
+    });
+    expect(JSON.stringify(captured)).toContain('"arguments":{}');
+  });
+
   it('keeps tool_calls mapping when a system prompt is injected', async () => {
     let captured: UrpRequest | undefined;
     const transport: UrpTransport = {

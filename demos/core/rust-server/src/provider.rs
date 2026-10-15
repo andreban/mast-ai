@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{UrpMessageContent, UrpRequest, UrpResponse, UrpStreamChunk, UrpToolCall};
+use crate::types::{UrpMessageContent, UrpRequest, UrpResponse, UrpStreamChunk};
 use agent_rig::model::{
     LlmModel, Message, MessageContent, ModelRequest, ModelStreamChunk, Role, ToolCall,
 };
@@ -108,12 +108,7 @@ async fn handle_streaming(
                 Ok(ModelStreamChunk::TextDelta(delta)) => UrpStreamChunk::TextDelta { delta },
                 Ok(ModelStreamChunk::Thinking(delta)) => UrpStreamChunk::Thinking { delta },
                 Ok(ModelStreamChunk::ToolCall(tc)) => UrpStreamChunk::ToolCall {
-                    tool_call: UrpToolCall {
-                        id: tc.id,
-                        name: tc.name,
-                        arguments: tc.args,
-                        provider_metadata: tc.provider_metadata,
-                    },
+                    tool_call: tc.into(),
                 },
                 Err(e) => {
                     eprintln!("Stream error: {:?}", e);
@@ -147,16 +142,7 @@ async fn handle_non_streaming(
 
     Ok(Json(UrpResponse {
         text_content: response.text,
-        tool_calls: response
-            .tool_calls
-            .into_iter()
-            .map(|tc| UrpToolCall {
-                id: tc.id,
-                name: tc.name,
-                arguments: tc.args,
-                provider_metadata: tc.provider_metadata,
-            })
-            .collect(),
+        tool_calls: response.tool_calls.into_iter().map(Into::into).collect(),
         usage_metrics: None,
     })
     .into_response())

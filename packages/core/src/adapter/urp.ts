@@ -53,7 +53,9 @@ function toUrpMessage({ role, content }: Message): UrpMessage {
     content: {
       type: 'tool_calls',
       calls: content.calls.map((tc) => {
-        const call: UrpToolCall = { id: tc.id, name: tc.name, arguments: tc.args };
+        // `arguments` is required on the wire; never let an undefined `args`
+        // (e.g. a zero-parameter call from another adapter) drop the key.
+        const call: UrpToolCall = { id: tc.id, name: tc.name, arguments: tc.args ?? {} };
         if (tc.provider_metadata !== undefined) {
           call.provider_metadata = tc.provider_metadata;
         }

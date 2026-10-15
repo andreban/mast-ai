@@ -613,16 +613,19 @@ export interface UrpMessage {
 
 ```typescript
 export interface UrpTransport {
-  send(request: UrpRequest): Promise<UrpResponse>;
+  send(request: UrpRequest, signal?: AbortSignal): Promise<UrpResponse>;
+  /** Optional. When absent, `UrpAdapter.generateStream` falls back to `send`. */
+  sendStream?(request: UrpRequest, signal?: AbortSignal): AsyncIterable<UrpStreamChunk>;
 }
 
 export class UrpAdapter implements LlmAdapter {
   constructor(transport: UrpTransport);
   generate(request: AdapterRequest): Promise<AdapterResponse>;
+  generateStream(request: AdapterRequest): AsyncIterable<AdapterStreamChunk>;
 }
 ```
 
-`UrpAdapter` translates `AdapterRequest` → `UrpRequest`, calls `transport.send`, then translates `UrpResponse` → `AdapterResponse`. It does not implement `generateStream`; streaming over URP is deferred to the roadmap.
+`UrpAdapter` translates `AdapterRequest` → `UrpRequest`, calls `transport.send` (or `transport.sendStream` when `stream: true`), then translates `UrpResponse` / `UrpStreamChunk` → `AdapterResponse` / `AdapterStreamChunk`. `generateStream` yields `text_delta`, `thinking` and `tool_call` chunks as the transport delivers them; when the transport has no `sendStream`, it falls back to a single `generate` call and replays the result as chunks. `HttpTransport` (`src/transport/http.ts`) implements both methods over JSON and server-sent events.
 
 ---
 
@@ -959,9 +962,8 @@ The core bundle (`index.ts` tree, excluding `worker/agent-worker.ts`) must remai
 
 The following capabilities are planned but not yet implemented:
 
-1. **Streaming over URP.** `UrpAdapter` does not implement `generateStream`; the backend emits the full response in one shot. A streaming variant using server-sent events (SSE) or WebSocket framing would enable incremental `text_delta` events in hybrid mode.
-2. **`PromptApiAdapter` streaming with tools.** Currently falls back to non-streaming when tools are present, because the full JSON response must be parsed to distinguish text from tool calls. A future approach could use `session.promptStreaming()` and buffer until a structural boundary is detected.
-3. **Stateful `PromptApiAdapter` session option.** The current design creates and destroys a session per `generate()` call. An opt-in stateful mode that reuses a single session across turns (using `session.append()` to add tool results) would reduce per-turn latency on-device by avoiding context re-processing.
-4. **Structured output enforcement.** `AgentConfig.outputSchema` is forwarded to adapters but only `UrpAdapter` and `PromptApiAdapter` enforce it. A post-processing validation step (using `ajv`) would give consistent behaviour across all adapters and catch cases where the model ignores the schema.
-5. **WorkerAgentRunner configuration API.** The current design initialises the worker with a single adapter config. A richer API would allow hot-swapping the adapter or registry without restarting the worker.
-6. **Resumable runs.** Serialising a mid-loop `RunBuilder` state (history snapshot + pending tool call IDs) to JSON would allow a run interrupted by a page reload to be resumed in a new session.
+1. **`PromptApiAdapter` streaming with tools.** Currently falls back to non-streaming when tools are present, because the full JSON response must be parsed to distinguish text from tool calls. A future approach could use `session.promptStreaming()` and buffer until a structural boundary is detected.
+2. **Stateful `PromptApiAdapter` session option.** The current design creates and destroys a session per `generate()` call. An opt-in stateful mode that reuses a single session across turns (using `session.append()` to add tool results) would reduce per-turn latency on-device by avoiding context re-processing.
+3. **Structured output enforcement.** `AgentConfig.outputSchema` is forwarded to adapters but only `UrpAdapter` and `PromptApiAdapter` enforce it. A post-processing validation step (using `ajv`) would give consistent behaviour across all adapters and catch cases where the model ignores the schema.
+4. **WorkerAgentRunner configuration API.** The current design initialises the worker with a single adapter config. A richer API would allow hot-swapping the adapter or registry without restarting the worker.
+5. **Resumable runs.** Serialising a mid-loop `RunBuilder` state (history snapshot + pending tool call IDs) to JSON would allow a run interrupted by a page reload to be resumed in a new session.
