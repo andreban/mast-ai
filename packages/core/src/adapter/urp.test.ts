@@ -65,6 +65,117 @@ describe('UrpAdapter provider_metadata round-trip', () => {
     });
   });
 
+  it('serialises outgoing tool_calls messages as UrpToolCall (arguments) over the wire', async () => {
+    let captured: UrpRequest | undefined;
+    const transport: UrpTransport = {
+      send: async (req): Promise<UrpResponse> => {
+        captured = req;
+        return { tool_calls: [] };
+      },
+    };
+
+    const sentinel = { thought_signature: 'replay' };
+    const args = { q: 'hi' };
+    const adapter = new UrpAdapter(transport);
+    await adapter.generate({
+      ...baseRequest,
+      messages: [
+        { role: 'user', content: { type: 'text', text: 'search for hi' } },
+        {
+          role: 'assistant',
+          content: {
+            type: 'tool_calls',
+            calls: [
+              { id: 'call_1', name: 'search', args, provider_metadata: sentinel },
+              { id: 'call_2', name: 'search', args: { q: 'bye' } },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(captured!.messages[0]).toEqual({
+      role: 'user',
+      content: { type: 'text', text: 'search for hi' },
+    });
+    expect(captured!.messages[1]).toEqual({
+      role: 'assistant',
+      content: {
+        type: 'tool_calls',
+        calls: [
+          { id: 'call_1', name: 'search', arguments: args, provider_metadata: sentinel },
+          { id: 'call_2', name: 'search', arguments: { q: 'bye' } },
+        ],
+      },
+    });
+    expect(JSON.stringify(captured)).not.toContain('"args"');
+  });
+
+  it('emits an empty object for tool calls whose args are undefined', async () => {
+    let captured: UrpRequest | undefined;
+    const transport: UrpTransport = {
+      send: async (req): Promise<UrpResponse> => {
+        captured = req;
+        return { tool_calls: [] };
+      },
+    };
+
+    const adapter = new UrpAdapter(transport);
+    await adapter.generate({
+      ...baseRequest,
+      messages: [
+        {
+          role: 'assistant',
+          content: {
+            type: 'tool_calls',
+            calls: [{ id: 'call_1', name: 'get_time', args: undefined }],
+          },
+        },
+      ],
+    });
+
+    expect(captured!.messages[0].content).toEqual({
+      type: 'tool_calls',
+      calls: [{ id: 'call_1', name: 'get_time', arguments: {} }],
+    });
+    expect(JSON.stringify(captured)).toContain('"arguments":{}');
+  });
+
+  it('keeps tool_calls mapping when a system prompt is injected', async () => {
+    let captured: UrpRequest | undefined;
+    const transport: UrpTransport = {
+      send: async (req): Promise<UrpResponse> => {
+        captured = req;
+        return { tool_calls: [] };
+      },
+    };
+
+    const adapter = new UrpAdapter(transport);
+    await adapter.generate({
+      ...baseRequest,
+      system: 'be helpful',
+      messages: [
+        {
+          role: 'assistant',
+          content: {
+            type: 'tool_calls',
+            calls: [{ id: 'call_1', name: 'search', args: { q: 'hi' } }],
+          },
+        },
+      ],
+    });
+
+    expect(captured!.messages).toHaveLength(2);
+    expect(captured!.messages[0]).toEqual({
+      role: 'user',
+      content: { type: 'text', text: 'be helpful' },
+    });
+    expect(captured!.messages[1].content).toEqual({
+      type: 'tool_calls',
+      calls: [{ id: 'call_1', name: 'search', arguments: { q: 'hi' } }],
+    });
+  });
+
   it('forwards provider_metadata from outgoing tool_result messages over the wire', async () => {
     let captured: UrpRequest | undefined;
     const transport: UrpTransport = {

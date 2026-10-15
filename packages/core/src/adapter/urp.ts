@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LlmAdapter, AdapterRequest, AdapterResponse, AdapterStreamChunk } from './index.js';
-import type { Message } from '../types.js';
+import type { Message, MessageContent, Role } from '../types.js';
 import type { ToolDefinition } from '../tool.js';
 
 /** Wire format for a request sent over the Universal Runtime Protocol (URP). */
 export interface UrpRequest {
-  messages: Message[];
+  messages: UrpMessage[];
   available_tools: ToolDefinition[];
   configuration?: Record<string, unknown>;
   stream?: boolean;
@@ -24,6 +24,45 @@ export interface UrpToolCall {
    * `tool_result` message in the next turn.
    */
   provider_metadata?: unknown;
+}
+
+/**
+ * Message content as represented in the URP wire format.
+ *
+ * Mirrors {@link MessageContent}, except that `tool_calls` entries carry
+ * {@link UrpToolCall} objects (`arguments`) rather than internal
+ * {@link ToolCall} objects (`args`).
+ */
+export type UrpMessageContent =
+  | Exclude<MessageContent, { type: 'tool_calls' }>
+  | { type: 'tool_calls'; calls: UrpToolCall[] };
+
+/** A single conversation message as represented in the URP wire format. */
+export interface UrpMessage {
+  role: Role;
+  content: UrpMessageContent;
+}
+
+/** Converts an internal {@link Message} into its URP wire representation. */
+function toUrpMessage({ role, content }: Message): UrpMessage {
+  if (content.type !== 'tool_calls') {
+    return { role, content };
+  }
+  return {
+    role,
+    content: {
+      type: 'tool_calls',
+      calls: content.calls.map((tc) => {
+        // `arguments` is required on the wire; never let an undefined `args`
+        // (e.g. a zero-parameter call from another adapter) drop the key.
+        const call: UrpToolCall = { id: tc.id, name: tc.name, arguments: tc.args ?? {} };
+        if (tc.provider_metadata !== undefined) {
+          call.provider_metadata = tc.provider_metadata;
+        }
+        return call;
+      }),
+    },
+  };
 }
 
 /** Wire format for a non-streaming URP response. */
@@ -63,7 +102,7 @@ export class UrpAdapter implements LlmAdapter {
 
   private prepareRequest(request: AdapterRequest, stream: boolean): UrpRequest {
     const urpRequest: UrpRequest = {
-      messages: request.messages,
+      messages: request.messages.map(toUrpMessage),
       available_tools: request.tools,
       stream,
     };
@@ -76,7 +115,7 @@ export class UrpAdapter implements LlmAdapter {
     if (request.system) {
       urpRequest.messages = [
         { role: 'user', content: { type: 'text', text: request.system } },
-        ...request.messages,
+        ...urpRequest.messages,
       ];
     }
 
