@@ -147,7 +147,16 @@ async fn handle_non_streaming(
 
     Ok(Json(UrpResponse {
         text_content: response.text,
-        tool_calls: response.tool_calls,
+        tool_calls: response
+            .tool_calls
+            .into_iter()
+            .map(|tc| UrpToolCall {
+                id: tc.id,
+                name: tc.name,
+                arguments: tc.args,
+                provider_metadata: tc.provider_metadata,
+            })
+            .collect(),
         usage_metrics: None,
     })
     .into_response())

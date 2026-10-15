@@ -535,9 +535,37 @@ The URP is a language-agnostic JSON protocol that decouples the browser agent lo
 
 | Field             | Type               | Required | Notes                                                  |
 | ----------------- | ------------------ | -------- | ------------------------------------------------------ |
-| `messages`        | `Message[]`        | Yes      | Full conversation history, newest last                 |
+| `messages`        | `UrpMessage[]`     | Yes      | Full conversation history, newest last                 |
 | `available_tools` | `ToolDefinition[]` | Yes      | Metadata only — no handler code                        |
 | `configuration`   | `object`           | No       | Provider-specific parameters; backends may ignore keys |
+
+### `UrpMessage`
+
+```typescript
+export type UrpMessageContent =
+  | { type: 'text'; text: string }
+  | { type: 'tool_calls'; calls: UrpToolCall[] }
+  | { type: 'tool_result'; id: string; name: string; result: unknown; provider_metadata?: unknown };
+
+export interface UrpMessage {
+  role: Role;
+  content: UrpMessageContent;
+}
+```
+
+`UrpMessage` mirrors the internal `Message` type with one difference: `tool_calls` entries carry `UrpToolCall` objects, whose argument field is named `arguments`, rather than internal `ToolCall` objects, whose field is named `args`. `UrpAdapter` performs this mapping in both directions, so historical tool calls replayed to the server in later turns always use the wire name. A `tool_calls` message on the wire looks like:
+
+```jsonc
+{
+  "role": "assistant",
+  "content": {
+    "type": "tool_calls",
+    "calls": [
+      { "id": "call_abc123", "name": "calculator", "arguments": { "expression": "2 + 2" } },
+    ],
+  },
+}
+```
 
 ### Response Schema
 
@@ -887,7 +915,7 @@ src/
   adapter/
     index.ts              — LlmAdapter, AdapterRequest, AdapterResponse,
                             AdapterStreamChunk, ModelConfig
-    urp.ts                — UrpAdapter, UrpTransport, UrpRequest, UrpResponse, UrpToolCall
+    urp.ts                — UrpAdapter, UrpTransport, UrpRequest, UrpMessage, UrpResponse, UrpToolCall
     prompt-api.ts         — PromptApiAdapter, PromptApiAdapterOptions
   transport/
     http.ts               — HttpTransport, HttpTransportOptions

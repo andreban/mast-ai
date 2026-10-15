@@ -66,7 +66,7 @@ pub struct UrpToolCall {
 pub struct UrpResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text_content: Option<String>,
-    pub tool_calls: Vec<agent_rig::model::ToolCall>,
+    pub tool_calls: Vec<UrpToolCall>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage_metrics: Option<Value>,
 }
