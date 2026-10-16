@@ -376,8 +376,8 @@ const first = await runner.run(agent, 'My name is Alice.');
 
 // Build history; caller is responsible for maintaining it across turns.
 const history: Message[] = [
-  { role: 'user', content: { type: 'text', text: 'My name is Alice.' } },
-  { role: 'assistant', content: { type: 'text', text: first.output } },
+  { role: 'user', content: { type: 'text', content: 'My name is Alice.' } },
+  { role: 'assistant', content: { type: 'text', content: first.output } },
 ];
 
 // Second turn with history.
