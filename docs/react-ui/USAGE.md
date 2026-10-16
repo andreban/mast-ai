@@ -889,7 +889,7 @@ const onApprovalRequired: OnApprovalRequired = async (toolCall) => {
 The callback can also return:
 
 - a `string` to skip execution and inject that string as the tool result; the
-  rendered tool entry shows the cancelled status (see [`MIGRATION.md` §4](../sub-agents/MIGRATION.md#4-onapprovalrequired-callbacks-that-return-a-string)
+  rendered tool entry shows the cancelled status (see [`MIGRATION.md` §4](../archive/sub-agents/MIGRATION.md#4-onapprovalrequired-callbacks-that-return-a-string)
   for the rationale and migration tips), or
 - `INLINE_APPROVAL` to defer to the inline approval queue (next section).
 

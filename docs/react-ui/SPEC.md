@@ -1013,7 +1013,7 @@ returns:
 
 - `true` — proceed with the tool call as normal (handler resolves with `{ type: 'approve' }`).
 - `false` — cancel the tool call; the runner receives the default `APPROVAL_CANCELLED_RESULT` string as the synthetic tool result and the UI marks the call as `'cancelled'`.
-- `string` — skip execution and inject this string as the tool result directly; the UI marks the call as `'cancelled'` (semantic change from earlier releases — see [`MIGRATION.md` §4](../sub-agents/MIGRATION.md#4-onapprovalrequired-callbacks-that-return-a-string)).
+- `string` — skip execution and inject this string as the tool result directly; the UI marks the call as `'cancelled'` (semantic change from earlier releases — see [`MIGRATION.md` §4](../archive/sub-agents/MIGRATION.md#4-onapprovalrequired-callbacks-that-return-a-string)).
 - `INLINE_APPROVAL` — defer to the inline approval queue (see §9.3).
 
 ```tsx
