@@ -60,6 +60,7 @@ The kit must implement a standardized communication layer to allow any backend t
 
 - **Request Specification:** Must include `messages`, `available_tools` (metadata only), and `configuration` (temperature, max tokens).
 - **Response Specification:** Must support `text_content`, `tool_calls` (with IDs and arguments), and `usage_metrics`.
+- **History Interoperability:** The conversation `Message` JSON shape must match agent-rig's `Message`, so histories can move between a MAST client and an agent-rig backend (e.g. persisted and reloaded) without translation adapters.
 - **Transport Independence:** The protocol must be compatible with fetch (HTTP POST) and WebSockets.
 
 ---

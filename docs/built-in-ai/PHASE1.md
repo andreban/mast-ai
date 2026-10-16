@@ -46,13 +46,19 @@ export interface LlmAdapter {
 export type Role = 'user' | 'assistant';
 
 export type MessageContent =
-  | { type: 'text'; text: string }
-  | { type: 'tool_calls'; calls: ToolCall[] }
-  | { type: 'tool_result'; id: string; name: string; result: unknown };
+  | { type: 'text'; content: string }
+  | { type: 'tool_calls'; content: ToolCall[] }
+  | { type: 'tool_result'; content: ToolResult };
+
+export interface ToolResult {
+  tool_call: ToolCall;
+  result: unknown;
+}
 
 export interface Message {
   role: Role;
   content: MessageContent;
+  provider_metadata?: unknown;
 }
 ```
 

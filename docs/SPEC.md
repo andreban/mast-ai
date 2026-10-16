@@ -61,25 +61,52 @@ Out of scope for this library. The agent loop runs on the server; the browser co
 export type Role = 'user' | 'assistant';
 
 export type MessageContent =
-  | { type: 'text'; text: string }
-  | { type: 'tool_calls'; calls: ToolCall[] }
-  | {
-      type: 'tool_result';
-      id: string;
-      name: string;
-      result: unknown;
-      provider_metadata?: unknown;
-    };
+  | { type: 'text'; content: string }
+  | { type: 'tool_calls'; content: ToolCall[] }
+  | { type: 'tool_result'; content: ToolResult };
+
+export interface ToolResult {
+  tool_call: ToolCall; // the originating call, copied verbatim
+  result: unknown;
+}
 
 export interface Message {
   role: Role;
   content: MessageContent;
+  provider_metadata?: unknown; // opaque per-message provider state
 }
 ```
 
 `MessageContent` is a discriminated union. A single assistant turn that requests one or more tools uses `type: 'tool_calls'`. Each tool result is a separate user-role message with `type: 'tool_result'`. The runner inserts these automatically; callers never construct tool messages manually.
 
-`tool_result.provider_metadata` is an opaque value copied verbatim from the originating `ToolCall.provider_metadata`. MAST never inspects it; adapters and backends use it to round-trip per-call data they need on the next turn (e.g. Gemini `thoughtSignature`).
+The JSON shape is identical to agent-rig's `Message` (an adjacently tagged serde enum: `type` plus a `content` payload), so a history serialised by one library deserialises in the other without translation:
+
+```jsonc
+[
+  { "role": "user", "content": { "type": "text", "content": "Hello world" } },
+  {
+    "role": "assistant",
+    "content": {
+      "type": "tool_calls",
+      "content": [{ "id": "call_1", "name": "search_notes", "args": { "q": "x" } }],
+    },
+  },
+  {
+    "role": "user",
+    "content": {
+      "type": "tool_result",
+      "content": {
+        "tool_call": { "id": "call_1", "name": "search_notes", "args": { "q": "x" } },
+        "result": { "items": [] },
+      },
+    },
+  },
+]
+```
+
+`tool_result.content.tool_call` is the originating `ToolCall` copied verbatim, including its `args` and `provider_metadata`. Adapters read the call's `id` / `name` from it when replaying the result to the provider.
+
+`Message.provider_metadata` is an opaque, message-level value (the counterpart of `ToolCall.provider_metadata`), e.g. agent-rig's DeepSeek `reasoning_content`. MAST never inspects it; the runner keeps it on history messages unchanged and `UrpAdapter` forwards it to the server. It is omitted when unset.
 
 ### `ToolCall` (`src/types.ts`)
 
@@ -92,7 +119,7 @@ export interface ToolCall {
 }
 ```
 
-`provider_metadata` is a generic, provider-agnostic escape hatch for opaque per-call data the adapter or backend needs to see again on the next turn. Examples include Gemini's `thoughtSignature` (which thinking models require on every replayed `functionCall` / `functionResponse` part). MAST treats the value as opaque: it is not parsed, validated, or merged. The runner copies it from `ToolCall` onto the matching `tool_result` message verbatim.
+`provider_metadata` is a generic, provider-agnostic escape hatch for opaque per-call data the adapter or backend needs to see again on the next turn. Examples include Gemini's `thoughtSignature` (which thinking models require on every replayed `functionCall` / `functionResponse` part). MAST treats the value as opaque: it is not parsed, validated, or merged. The runner copies the whole `ToolCall`, metadata included, into the matching `tool_result` message verbatim.
 
 ### `AgentEvent` (`src/types.ts`)
 
@@ -349,8 +376,8 @@ const first = await runner.run(agent, 'My name is Alice.');
 
 // Build history; caller is responsible for maintaining it across turns.
 const history: Message[] = [
-  { role: 'user', content: { type: 'text', text: 'My name is Alice.' } },
-  { role: 'assistant', content: { type: 'text', text: first.output } },
+  { role: 'user', content: { type: 'text', content: 'My name is Alice.' } },
+  { role: 'assistant', content: { type: 'text', content: first.output } },
 ];
 
 // Second turn with history.
@@ -510,7 +537,7 @@ The URP is a language-agnostic JSON protocol that decouples the browser agent lo
   "messages": [
     {
       "role": "user",
-      "content": { "type": "text", "text": "What is 2 + 2?" },
+      "content": { "type": "text", "content": "What is 2 + 2?" },
     },
   ],
   "available_tools": [
@@ -543,29 +570,51 @@ The URP is a language-agnostic JSON protocol that decouples the browser agent lo
 
 ```typescript
 export type UrpMessageContent =
-  | { type: 'text'; text: string }
-  | { type: 'tool_calls'; calls: UrpToolCall[] }
-  | { type: 'tool_result'; id: string; name: string; result: unknown; provider_metadata?: unknown };
+  | { type: 'text'; content: string }
+  | { type: 'tool_calls'; content: UrpToolCall[] }
+  | { type: 'tool_result'; content: { tool_call: UrpToolCall; result: unknown } };
 
 export interface UrpMessage {
   role: Role;
   content: UrpMessageContent;
+  provider_metadata?: unknown; // omitted when unset
 }
 ```
 
-`UrpMessage` mirrors the internal `Message` type with one difference: `tool_calls` entries carry `UrpToolCall` objects, whose argument field is named `arguments`, rather than internal `ToolCall` objects, whose field is named `args`. `UrpAdapter` performs this mapping in both directions, so historical tool calls replayed to the server in later turns always use the wire name. A `tool_calls` message on the wire looks like:
+`UrpMessage` mirrors the internal `Message` type with one difference: tool calls (the entries of a `tool_calls` message and the `tool_call` nested in a `tool_result` message) are `UrpToolCall` objects, whose argument field is named `arguments`, rather than internal `ToolCall` objects, whose field is named `args`. `UrpAdapter` performs this mapping in both directions, so historical tool calls replayed to the server in later turns always use the wire name. A `tool_calls` message on the wire looks like:
 
 ```jsonc
 {
   "role": "assistant",
   "content": {
     "type": "tool_calls",
-    "calls": [
+    "content": [
       { "id": "call_abc123", "name": "calculator", "arguments": { "expression": "2 + 2" } },
     ],
   },
 }
 ```
+
+and the matching result:
+
+```jsonc
+{
+  "role": "user",
+  "content": {
+    "type": "tool_result",
+    "content": {
+      "tool_call": {
+        "id": "call_abc123",
+        "name": "calculator",
+        "arguments": { "expression": "2 + 2" },
+      },
+      "result": 4,
+    },
+  },
+}
+```
+
+A Rust backend built on agent-rig can map `UrpMessage` onto agent-rig's `Message` with an adjacently tagged serde enum and a `UrpToolCall` → `ToolCall` conversion; see `demos/core/rust-server/src/types.rs`.
 
 ### Response Schema
 

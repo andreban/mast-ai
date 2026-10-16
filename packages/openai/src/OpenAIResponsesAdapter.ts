@@ -220,10 +220,10 @@ function mapInput(messages: Message[]): ResponseInputItem[] {
       items.push({
         type: 'message',
         role: message.role,
-        content: message.content.text,
+        content: message.content.content,
       });
     } else if (message.content.type === 'tool_calls') {
-      for (const call of message.content.calls) {
+      for (const call of message.content.content) {
         items.push({
           type: 'function_call',
           call_id: call.id,
@@ -234,11 +234,11 @@ function mapInput(messages: Message[]): ResponseInputItem[] {
     } else {
       items.push({
         type: 'function_call_output',
-        call_id: message.content.id,
+        call_id: message.content.content.tool_call.id,
         output:
-          typeof message.content.result === 'string'
-            ? message.content.result
-            : JSON.stringify(message.content.result),
+          typeof message.content.content.result === 'string'
+            ? message.content.content.result
+            : JSON.stringify(message.content.content.result),
       });
     }
   }

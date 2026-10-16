@@ -236,7 +236,9 @@ interface StoredConversation {
 
 type ConversationMap = Record<string, StoredConversation>;
 
-const STORAGE_KEY = 'demo-react-ui:conversations';
+// Versioned: v2 stores `Message` in the agent-rig-aligned shape. Conversations
+// saved under the old key use the previous shape and are not replayed.
+const STORAGE_KEY = 'demo-react-ui:conversations:v2';
 
 function loadConversations(): ConversationMap {
   try {

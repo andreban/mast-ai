@@ -33,23 +33,26 @@ pub enum UrpStreamChunk {
 pub struct UrpMessage {
     pub role: String,
     pub content: UrpMessageContent,
+    // Accepted for protocol compatibility but not used by this backend: the
+    // pinned agent-rig `Message` has no message-level metadata to carry it.
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub provider_metadata: Option<Value>,
+}
+
+/// Adjacently tagged to match agent-rig's `MessageContent` wire shape.
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type", content = "content", rename_all = "snake_case")]
+pub enum UrpMessageContent {
+    Text(String),
+    ToolCalls(Vec<UrpToolCall>),
+    ToolResult(UrpToolResult),
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(tag = "type")]
-pub enum UrpMessageContent {
-    #[serde(rename = "text")]
-    Text { text: String },
-    #[serde(rename = "tool_calls")]
-    ToolCalls { calls: Vec<UrpToolCall> },
-    #[serde(rename = "tool_result")]
-    ToolResult {
-        id: String,
-        name: String,
-        result: Value,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        provider_metadata: Option<Value>,
-    },
+pub struct UrpToolResult {
+    pub tool_call: UrpToolCall,
+    pub result: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -75,6 +78,17 @@ impl From<agent_rig::model::ToolCall> for UrpToolCall {
     }
 }
 
+impl From<UrpToolCall> for agent_rig::model::ToolCall {
+    fn from(tc: UrpToolCall) -> Self {
+        Self {
+            id: tc.id,
+            name: tc.name,
+            args: tc.arguments,
+            provider_metadata: tc.provider_metadata,
+        }
+    }
+}
+
 #[derive(Serialize, Debug)]
 pub struct UrpResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -82,4 +96,51 @@ pub struct UrpResponse {
     pub tool_calls: Vec<UrpToolCall>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage_metrics: Option<Value>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserializes_adjacently_tagged_messages() {
+        let json = serde_json::json!([
+            { "role": "user", "content": { "type": "text", "content": "Hello" } },
+            {
+                "role": "assistant",
+                "content": {
+                    "type": "tool_calls",
+                    "content": [{ "id": "call_1", "name": "search", "arguments": { "q": "x" } }]
+                }
+            },
+            {
+                "role": "user",
+                "content": {
+                    "type": "tool_result",
+                    "content": {
+                        "tool_call": {
+                            "id": "call_1",
+                            "name": "search",
+                            "arguments": { "q": "x" },
+                            "provider_metadata": "sig"
+                        },
+                        "result": { "items": [] }
+                    }
+                }
+            }
+        ]);
+
+        let messages: Vec<UrpMessage> = serde_json::from_value(json).unwrap();
+
+        assert!(matches!(&messages[0].content, UrpMessageContent::Text(t) if t == "Hello"));
+        assert!(
+            matches!(&messages[1].content, UrpMessageContent::ToolCalls(c) if c[0].arguments["q"] == "x")
+        );
+        let UrpMessageContent::ToolResult(tr) = &messages[2].content else {
+            panic!("expected tool_result");
+        };
+        assert_eq!(tr.tool_call.id, "call_1");
+        assert_eq!(tr.tool_call.provider_metadata, Some(Value::from("sig")));
+        assert_eq!(tr.result["items"], serde_json::json!([]));
+    }
 }

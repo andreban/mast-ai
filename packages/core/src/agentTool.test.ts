@@ -249,7 +249,7 @@ describe('createAgentTool', () => {
 
     expect(capturedUserMessage).toEqual({
       role: 'user',
-      content: { type: 'text', text: 'built:hi' },
+      content: { type: 'text', content: 'built:hi' },
     });
   });
 });

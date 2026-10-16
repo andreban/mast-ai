@@ -219,7 +219,7 @@ export class AgentRunner {
     // Clone history and add new user message
     const currentHistory: Message[] = [
       ...history,
-      { role: 'user', content: { type: 'text', text: input } },
+      { role: 'user', content: { type: 'text', content: input } },
     ];
 
     while (true) {
@@ -339,27 +339,21 @@ export class AgentRunner {
           }
           resultMessages.push({
             role: 'user',
-            content: {
-              type: 'tool_result',
-              id: call.id,
-              name: call.name,
-              result,
-              provider_metadata: call.provider_metadata,
-            },
+            content: { type: 'tool_result', content: { tool_call: call, result } },
           });
         }
 
         // Assistant tool_calls message must precede tool result messages in history.
         currentHistory.push({
           role: 'assistant',
-          content: { type: 'tool_calls', calls: toolCalls },
+          content: { type: 'tool_calls', content: toolCalls },
         });
         currentHistory.push(...resultMessages);
 
         continue;
       }
 
-      currentHistory.push({ role: 'assistant', content: { type: 'text', text: finalOutput } });
+      currentHistory.push({ role: 'assistant', content: { type: 'text', content: finalOutput } });
       yield { type: 'done', output: finalOutput, history: currentHistory };
       return;
     }

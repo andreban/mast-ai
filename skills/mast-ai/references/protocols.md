@@ -11,7 +11,7 @@ URP is used by remote reasoning engines (e.g., Rust, Python servers) to communic
   "messages": [
     {
       "role": "user",
-      "content": { "type": "text", "text": "What is 2 + 2?" }
+      "content": { "type": "text", "content": "What is 2 + 2?" }
     }
   ],
   "available_tools": [

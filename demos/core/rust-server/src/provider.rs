@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{UrpMessageContent, UrpRequest, UrpResponse, UrpStreamChunk};
+use crate::types::{UrpMessageContent, UrpRequest, UrpResponse, UrpStreamChunk, UrpToolResult};
 use agent_rig::model::{
     LlmModel, Message, MessageContent, ModelRequest, ModelStreamChunk, Role, ToolCall,
 };
@@ -40,7 +40,7 @@ fn build_model_request(payload: UrpRequest) -> Result<(ModelRequest, bool), (Sta
             "user" => Role::User,
             "assistant" => Role::Assistant,
             "system" => {
-                if let UrpMessageContent::Text { text } = msg.content {
+                if let UrpMessageContent::Text(text) = msg.content {
                     system_prompt = Some(text);
                 }
                 continue;
@@ -54,34 +54,26 @@ fn build_model_request(payload: UrpRequest) -> Result<(ModelRequest, bool), (Sta
         };
 
         match msg.content {
-            UrpMessageContent::Text { text } => {
+            UrpMessageContent::Text(text) => {
                 rig_messages.push(Message {
                     role,
                     content: MessageContent::Text(text),
                 });
             }
-            UrpMessageContent::ToolCalls { calls } => {
-                let rig_calls = calls
-                    .into_iter()
-                    .map(|c| ToolCall {
-                        id: c.id,
-                        name: c.name,
-                        args: c.arguments,
-                        provider_metadata: c.provider_metadata,
-                    })
-                    .collect();
+            UrpMessageContent::ToolCalls(calls) => {
+                let rig_calls = calls.into_iter().map(ToolCall::from).collect();
                 rig_messages.push(Message {
                     role,
                     content: MessageContent::ToolCalls(rig_calls),
                 });
             }
-            UrpMessageContent::ToolResult {
-                id,
-                name,
-                result,
-                provider_metadata,
-            } => {
-                rig_messages.push(Message::tool_result(id, name, result, provider_metadata));
+            UrpMessageContent::ToolResult(UrpToolResult { tool_call, result }) => {
+                rig_messages.push(Message::tool_result(
+                    tool_call.id,
+                    tool_call.name,
+                    result,
+                    tool_call.provider_metadata,
+                ));
             }
         }
     }

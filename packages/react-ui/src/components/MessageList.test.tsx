@@ -29,42 +29,41 @@ import { MessageList } from './MessageList.js';
 // jsdom shims for @tanstack/react-virtual
 //
 // `@tanstack/virtual-core` measures the scroll element via `offsetWidth` /
-// `offsetHeight` (which are 0 in jsdom) and scrolls via `Element.scrollTo`
-// (which is not implemented). Without overriding both, the virtualizer treats
-// the viewport as 0×0 and renders no items, and the auto-scroll-to-bottom
-// effect is a silent no-op. The shims are scoped to the test suite and
-// restored afterwards so they do not affect other component tests.
+// `offsetHeight` (<= 3.19.5) or `clientWidth` / `clientHeight` (>= 3.19.6),
+// all of which are 0 in jsdom, and scrolls via `Element.scrollTo` (which is
+// not implemented). Without overriding these, the virtualizer treats the
+// viewport as 0×0 and renders no items, and the auto-scroll-to-bottom effect
+// is a silent no-op. The shims are scoped to the test suite and restored
+// afterwards so they do not affect other component tests.
 // ---------------------------------------------------------------------------
 
-const offsetHeightDescriptor = Object.getOwnPropertyDescriptor(
-  HTMLElement.prototype,
-  'offsetHeight',
+const viewportSize = { offsetHeight: 80, offsetWidth: 400, clientHeight: 80, clientWidth: 400 };
+const sizeDescriptors = Object.keys(viewportSize).map(
+  (prop) => [prop, Object.getOwnPropertyDescriptor(HTMLElement.prototype, prop)] as const,
 );
-const offsetWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
 const originalScrollTo = HTMLElement.prototype.scrollTo;
 
 function installVirtualizerShims() {
-  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
-    configurable: true,
-    get() {
-      return 80;
-    },
-  });
-  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
-    configurable: true,
-    get() {
-      return 400;
-    },
-  });
+  for (const [prop, value] of Object.entries(viewportSize)) {
+    Object.defineProperty(HTMLElement.prototype, prop, {
+      configurable: true,
+      get() {
+        return value;
+      },
+    });
+  }
   HTMLElement.prototype.scrollTo = vi.fn() as unknown as HTMLElement['scrollTo'];
 }
 
 function restoreVirtualizerShims() {
-  if (offsetHeightDescriptor) {
-    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeightDescriptor);
-  }
-  if (offsetWidthDescriptor) {
-    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidthDescriptor);
+  for (const [prop, descriptor] of sizeDescriptors) {
+    if (descriptor) {
+      Object.defineProperty(HTMLElement.prototype, prop, descriptor);
+    } else {
+      // jsdom defines `clientHeight` / `clientWidth` on `Element.prototype`;
+      // removing the own override restores that inherited getter.
+      delete (HTMLElement.prototype as unknown as Record<string, unknown>)[prop];
+    }
   }
   if (originalScrollTo) {
     HTMLElement.prototype.scrollTo = originalScrollTo;

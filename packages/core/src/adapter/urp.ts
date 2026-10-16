@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LlmAdapter, AdapterRequest, AdapterResponse, AdapterStreamChunk } from './index.js';
-import type { Message, MessageContent, Role } from '../types.js';
+import type { Message, MessageContent, Role, ToolCall } from '../types.js';
 import type { ToolDefinition } from '../tool.js';
 
 /** Wire format for a request sent over the Universal Runtime Protocol (URP). */
@@ -29,40 +29,56 @@ export interface UrpToolCall {
 /**
  * Message content as represented in the URP wire format.
  *
- * Mirrors {@link MessageContent}, except that `tool_calls` entries carry
+ * Mirrors {@link MessageContent}, except that tool calls (both in
+ * `tool_calls` messages and nested in `tool_result` messages) are
  * {@link UrpToolCall} objects (`arguments`) rather than internal
  * {@link ToolCall} objects (`args`).
  */
 export type UrpMessageContent =
-  | Exclude<MessageContent, { type: 'tool_calls' }>
-  | { type: 'tool_calls'; calls: UrpToolCall[] };
+  | Extract<MessageContent, { type: 'text' }>
+  | { type: 'tool_calls'; content: UrpToolCall[] }
+  | { type: 'tool_result'; content: { tool_call: UrpToolCall; result: unknown } };
 
 /** A single conversation message as represented in the URP wire format. */
 export interface UrpMessage {
   role: Role;
   content: UrpMessageContent;
+  /** Opaque per-message provider state; see {@link Message.provider_metadata}. */
+  provider_metadata?: unknown;
+}
+
+/** Converts an internal {@link ToolCall} into its URP wire representation. */
+function toUrpToolCall(tc: ToolCall): UrpToolCall {
+  // `arguments` is required on the wire; never let an undefined `args`
+  // (e.g. a zero-parameter call from another adapter) drop the key.
+  const call: UrpToolCall = { id: tc.id, name: tc.name, arguments: tc.args ?? {} };
+  if (tc.provider_metadata !== undefined) {
+    call.provider_metadata = tc.provider_metadata;
+  }
+  return call;
 }
 
 /** Converts an internal {@link Message} into its URP wire representation. */
-function toUrpMessage({ role, content }: Message): UrpMessage {
-  if (content.type !== 'tool_calls') {
-    return { role, content };
+function toUrpMessage({ role, content, provider_metadata }: Message): UrpMessage {
+  let urpContent: UrpMessageContent;
+  if (content.type === 'tool_calls') {
+    urpContent = { type: 'tool_calls', content: content.content.map(toUrpToolCall) };
+  } else if (content.type === 'tool_result') {
+    urpContent = {
+      type: 'tool_result',
+      content: {
+        tool_call: toUrpToolCall(content.content.tool_call),
+        result: content.content.result,
+      },
+    };
+  } else {
+    urpContent = content;
   }
-  return {
-    role,
-    content: {
-      type: 'tool_calls',
-      calls: content.calls.map((tc) => {
-        // `arguments` is required on the wire; never let an undefined `args`
-        // (e.g. a zero-parameter call from another adapter) drop the key.
-        const call: UrpToolCall = { id: tc.id, name: tc.name, arguments: tc.args ?? {} };
-        if (tc.provider_metadata !== undefined) {
-          call.provider_metadata = tc.provider_metadata;
-        }
-        return call;
-      }),
-    },
-  };
+  const message: UrpMessage = { role, content: urpContent };
+  if (provider_metadata !== undefined) {
+    message.provider_metadata = provider_metadata;
+  }
+  return message;
 }
 
 /** Wire format for a non-streaming URP response. */
@@ -114,7 +130,7 @@ export class UrpAdapter implements LlmAdapter {
     // URP has no dedicated system field; inject instructions as a leading user message.
     if (request.system) {
       urpRequest.messages = [
-        { role: 'user', content: { type: 'text', text: request.system } },
+        { role: 'user', content: { type: 'text', content: request.system } },
         ...urpRequest.messages,
       ];
     }

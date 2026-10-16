@@ -261,14 +261,14 @@ export class OpenAIChatCompletionsAdapter implements LlmAdapter {
 
 function mapMessage(message: Message): ChatCompletionMessageParam[] {
   if (message.content.type === 'text') {
-    return [{ role: message.role, content: message.content.text }];
+    return [{ role: message.role, content: message.content.content }];
   }
   if (message.content.type === 'tool_calls') {
     return [
       {
         role: 'assistant',
         content: null,
-        tool_calls: message.content.calls.map((call) => ({
+        tool_calls: message.content.content.map((call) => ({
           id: call.id,
           type: 'function',
           function: {
@@ -283,11 +283,11 @@ function mapMessage(message: Message): ChatCompletionMessageParam[] {
   return [
     {
       role: 'tool',
-      tool_call_id: message.content.id,
+      tool_call_id: message.content.content.tool_call.id,
       content:
-        typeof message.content.result === 'string'
-          ? message.content.result
-          : JSON.stringify(message.content.result),
+        typeof message.content.content.result === 'string'
+          ? message.content.content.result
+          : JSON.stringify(message.content.content.result),
     },
   ];
 }

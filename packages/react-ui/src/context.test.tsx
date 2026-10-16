@@ -176,11 +176,11 @@ describe('useAgent', () => {
 
   const userMessage = (text: string): Message => ({
     role: 'user',
-    content: { type: 'text', text },
+    content: { type: 'text', content: text },
   });
   const assistantMessage = (text: string): Message => ({
     role: 'assistant',
-    content: { type: 'text', text },
+    content: { type: 'text', content: text },
   });
 
   it('onConversationChange fires after a `done` event with the latest history and entries', async () => {
