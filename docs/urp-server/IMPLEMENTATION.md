@@ -30,7 +30,7 @@ When the browser needs the LLM to generate the next response, it sends a JSON pa
       "role": "user",
       "content": {
         "type": "text",
-        "text": "What is the weather in London?"
+        "content": "What is the weather in London?"
       }
     }
   ],
@@ -131,13 +131,13 @@ The next request your server sees will look like this:
   "messages": [
     {
       "role": "user",
-      "content": { "type": "text", "text": "What is the weather in London?" }
+      "content": { "type": "text", "content": "What is the weather in London?" }
     },
     {
       "role": "assistant",
       "content": {
         "type": "tool_calls",
-        "calls": [
+        "content": [
           { "id": "call_abc123", "name": "get_weather", "arguments": { "location": "London" } }
         ]
       }
@@ -146,9 +146,14 @@ The next request your server sees will look like this:
       "role": "user",
       "content": {
         "type": "tool_result",
-        "id": "call_abc123",
-        "name": "get_weather",
-        "result": { "temp": "15C", "condition": "Cloudy" }
+        "content": {
+          "tool_call": {
+            "id": "call_abc123",
+            "name": "get_weather",
+            "arguments": { "location": "London" }
+          },
+          "result": { "temp": "15C", "condition": "Cloudy" }
+        }
       }
     }
   ],

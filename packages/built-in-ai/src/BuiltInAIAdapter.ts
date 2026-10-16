@@ -47,7 +47,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
       const text = await session.prompt(input, { signal: request.signal });
       this.cachedHistory = [
         ...request.messages,
-        { role: 'assistant', content: { type: 'text', text } },
+        { role: 'assistant', content: { type: 'text', content: text } },
       ];
       return { text, toolCalls: [] };
     } catch (err) {
@@ -82,7 +82,7 @@ export class BuiltInAIAdapter implements LlmAdapter {
       }
       this.cachedHistory = [
         ...request.messages,
-        { role: 'assistant', content: { type: 'text', text: fullText } },
+        { role: 'assistant', content: { type: 'text', content: fullText } },
       ];
     } catch (err) {
       this.invalidateCache();
@@ -178,7 +178,7 @@ function buildInitialPrompts(
 
 function messageToString(message: Message): string {
   if (message.content.type === 'text') {
-    return message.content.text;
+    return message.content.content;
   }
   // tool_calls and tool_result have no text representation for the Prompt API
   return '';

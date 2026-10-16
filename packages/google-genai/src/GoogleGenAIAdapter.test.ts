@@ -51,7 +51,7 @@ describe('GoogleGenAIAdapter', () => {
 
   it('should generate text response', async () => {
     const response = await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -87,7 +87,7 @@ describe('GoogleGenAIAdapter', () => {
     });
 
     const response = await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Call tool' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Call tool' } }],
       tools: [{ name: 'testTool', description: 'desc', parameters: {}, scope: 'read' as const }],
     });
 
@@ -104,7 +104,7 @@ describe('GoogleGenAIAdapter', () => {
 
     await adapter.generate({
       system: 'You are terse.',
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -121,7 +121,7 @@ describe('GoogleGenAIAdapter', () => {
     })();
 
     await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -146,7 +146,7 @@ describe('GoogleGenAIAdapter', () => {
     });
 
     const response = await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -167,7 +167,7 @@ describe('GoogleGenAIAdapter', () => {
     );
 
     await adapterWithNative.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [{ name: 'testTool', description: 'desc', parameters: {}, scope: 'read' as const }],
     });
 
@@ -192,7 +192,7 @@ describe('GoogleGenAIAdapter', () => {
     );
 
     await adapterWithNative.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -207,7 +207,7 @@ describe('GoogleGenAIAdapter', () => {
     })();
 
     await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -227,7 +227,7 @@ describe('GoogleGenAIAdapter', () => {
 
     await expect(
       adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       }),
     ).rejects.toThrow('No candidate returned from Gemini');
@@ -257,7 +257,7 @@ describe('GoogleGenAIAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -281,7 +281,7 @@ describe('GoogleGenAIAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -311,7 +311,7 @@ describe('GoogleGenAIAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [{ name: 'read', description: 'reads', parameters: {}, scope: 'read' as const }],
       });
 
@@ -337,7 +337,7 @@ describe('GoogleGenAIAdapter', () => {
       );
 
       await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -370,7 +370,7 @@ describe('GoogleGenAIAdapter', () => {
       );
 
       for await (const _chunk of adapterWithNative.generateStream({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [{ name: 'read', description: 'reads', parameters: {}, scope: 'read' as const }],
       })) {
         void _chunk;
@@ -399,7 +399,7 @@ describe('GoogleGenAIAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 

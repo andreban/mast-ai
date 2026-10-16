@@ -80,12 +80,12 @@ describe('UrpAdapter provider_metadata round-trip', () => {
     await adapter.generate({
       ...baseRequest,
       messages: [
-        { role: 'user', content: { type: 'text', text: 'search for hi' } },
+        { role: 'user', content: { type: 'text', content: 'search for hi' } },
         {
           role: 'assistant',
           content: {
             type: 'tool_calls',
-            calls: [
+            content: [
               { id: 'call_1', name: 'search', args, provider_metadata: sentinel },
               { id: 'call_2', name: 'search', args: { q: 'bye' } },
             ],
@@ -96,13 +96,13 @@ describe('UrpAdapter provider_metadata round-trip', () => {
 
     expect(captured!.messages[0]).toEqual({
       role: 'user',
-      content: { type: 'text', text: 'search for hi' },
+      content: { type: 'text', content: 'search for hi' },
     });
     expect(captured!.messages[1]).toEqual({
       role: 'assistant',
       content: {
         type: 'tool_calls',
-        calls: [
+        content: [
           { id: 'call_1', name: 'search', arguments: args, provider_metadata: sentinel },
           { id: 'call_2', name: 'search', arguments: { q: 'bye' } },
         ],
@@ -128,7 +128,7 @@ describe('UrpAdapter provider_metadata round-trip', () => {
           role: 'assistant',
           content: {
             type: 'tool_calls',
-            calls: [{ id: 'call_1', name: 'get_time', args: undefined }],
+            content: [{ id: 'call_1', name: 'get_time', args: undefined }],
           },
         },
       ],
@@ -136,7 +136,7 @@ describe('UrpAdapter provider_metadata round-trip', () => {
 
     expect(captured!.messages[0].content).toEqual({
       type: 'tool_calls',
-      calls: [{ id: 'call_1', name: 'get_time', arguments: {} }],
+      content: [{ id: 'call_1', name: 'get_time', arguments: {} }],
     });
     expect(JSON.stringify(captured)).toContain('"arguments":{}');
   });
@@ -159,7 +159,7 @@ describe('UrpAdapter provider_metadata round-trip', () => {
           role: 'assistant',
           content: {
             type: 'tool_calls',
-            calls: [{ id: 'call_1', name: 'search', args: { q: 'hi' } }],
+            content: [{ id: 'call_1', name: 'search', args: { q: 'hi' } }],
           },
         },
       ],
@@ -168,11 +168,11 @@ describe('UrpAdapter provider_metadata round-trip', () => {
     expect(captured!.messages).toHaveLength(2);
     expect(captured!.messages[0]).toEqual({
       role: 'user',
-      content: { type: 'text', text: 'be helpful' },
+      content: { type: 'text', content: 'be helpful' },
     });
     expect(captured!.messages[1].content).toEqual({
       type: 'tool_calls',
-      calls: [{ id: 'call_1', name: 'search', arguments: { q: 'hi' } }],
+      content: [{ id: 'call_1', name: 'search', arguments: { q: 'hi' } }],
     });
   });
 
@@ -194,17 +194,63 @@ describe('UrpAdapter provider_metadata round-trip', () => {
           role: 'user',
           content: {
             type: 'tool_result',
-            id: 'call_1',
-            name: 'search',
-            result: 'ok',
-            provider_metadata: sentinel,
+            content: {
+              tool_call: {
+                id: 'call_1',
+                name: 'search',
+                args: { q: 'hi' },
+                provider_metadata: sentinel,
+              },
+              result: 'ok',
+            },
           },
         },
       ],
     });
 
-    const sent = captured!.messages[0];
-    expect(sent.content.type).toBe('tool_result');
-    expect((sent.content as { provider_metadata?: unknown }).provider_metadata).toBe(sentinel);
+    expect(captured!.messages[0].content).toEqual({
+      type: 'tool_result',
+      content: {
+        tool_call: {
+          id: 'call_1',
+          name: 'search',
+          arguments: { q: 'hi' },
+          provider_metadata: sentinel,
+        },
+        result: 'ok',
+      },
+    });
+    expect(JSON.stringify(captured)).not.toContain('"args"');
+  });
+
+  it('forwards message-level provider_metadata over the wire', async () => {
+    let captured: UrpRequest | undefined;
+    const transport: UrpTransport = {
+      send: async (req): Promise<UrpResponse> => {
+        captured = req;
+        return { tool_calls: [] };
+      },
+    };
+
+    const sentinel = { deepseek: { reasoning_content: 'because' } };
+    const adapter = new UrpAdapter(transport);
+    await adapter.generate({
+      ...baseRequest,
+      messages: [
+        { role: 'user', content: { type: 'text', content: 'hi' } },
+        {
+          role: 'assistant',
+          content: { type: 'text', content: 'hello' },
+          provider_metadata: sentinel,
+        },
+      ],
+    });
+
+    expect(captured!.messages[0]).not.toHaveProperty('provider_metadata');
+    expect(captured!.messages[1]).toEqual({
+      role: 'assistant',
+      content: { type: 'text', content: 'hello' },
+      provider_metadata: sentinel,
+    });
   });
 });

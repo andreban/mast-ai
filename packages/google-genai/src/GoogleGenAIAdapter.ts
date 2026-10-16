@@ -197,9 +197,9 @@ export class GoogleGenAIAdapter implements LlmAdapter {
       const parts: Part[] = [];
 
       if (m.content.type === 'text') {
-        parts.push({ text: m.content.text });
+        parts.push({ text: m.content.content });
       } else if (m.content.type === 'tool_calls') {
-        m.content.calls.forEach((call) => {
+        m.content.content.forEach((call) => {
           const callWithSignature = call as ToolCall & {
             thoughtSignature?: string;
           };
@@ -216,9 +216,9 @@ export class GoogleGenAIAdapter implements LlmAdapter {
       } else if (m.content.type === 'tool_result') {
         parts.push({
           functionResponse: {
-            id: m.content.id,
-            name: m.content.name,
-            response: { result: m.content.result },
+            id: m.content.content.tool_call.id,
+            name: m.content.content.tool_call.name,
+            response: { result: m.content.content.result },
           },
         });
       }

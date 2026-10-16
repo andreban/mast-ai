@@ -26,23 +26,38 @@ export interface ToolCall {
  * Discriminated union of possible message content types.
  */
 export type MessageContent =
-  | { type: 'text'; text: string }
-  | { type: 'tool_calls'; calls: ToolCall[] }
-  | {
-      type: 'tool_result';
-      id: string;
-      name: string;
-      result: unknown;
-      /** Copied verbatim from the originating tool call. */
-      provider_metadata?: unknown;
-    };
+  | { type: 'text'; content: string }
+  | { type: 'tool_calls'; content: ToolCall[] }
+  | { type: 'tool_result'; content: ToolResult };
+
+/**
+ * The payload of a `tool_result` message: the originating tool call and the
+ * value its tool returned.
+ */
+export interface ToolResult {
+  /**
+   * The originating tool call, copied verbatim (including `provider_metadata`)
+   * from the preceding `tool_calls` message.
+   */
+  tool_call: ToolCall;
+  result: unknown;
+}
 
 /**
  * A single message in a conversation history.
+ *
+ * The JSON shape matches agent-rig's `Message`, so histories serialise and
+ * deserialise across the two libraries without translation.
  */
 export interface Message {
   role: Role;
   content: MessageContent;
+  /**
+   * Opaque provider state attached to an assistant turn (e.g. agent-rig's
+   * DeepSeek `reasoning_content`). MAST round-trips it unchanged in history
+   * and never inspects it.
+   */
+  provider_metadata?: unknown;
 }
 
 /**

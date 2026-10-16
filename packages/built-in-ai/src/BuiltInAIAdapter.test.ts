@@ -45,7 +45,7 @@ describe('BuiltInAIAdapter', () => {
   describe('generate', () => {
     it('returns text response', async () => {
       const response = await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -55,7 +55,7 @@ describe('BuiltInAIAdapter', () => {
 
     it('always returns empty toolCalls', async () => {
       const response = await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [
           { name: 'myTool', description: 'does stuff', parameters: {}, scope: 'read' as const },
         ],
@@ -67,7 +67,7 @@ describe('BuiltInAIAdapter', () => {
     it('warns when tools are passed', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [{ name: 't', description: 'd', parameters: {}, scope: 'read' as const }],
       });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('tool calling is not supported'));
@@ -78,7 +78,7 @@ describe('BuiltInAIAdapter', () => {
 
       await expect(
         adapter.generate({
-          messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+          messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
           tools: [],
         }),
       ).rejects.toThrow('not supported in this browser');
@@ -91,7 +91,7 @@ describe('BuiltInAIAdapter', () => {
 
       await expect(
         adapter.generate({
-          messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+          messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
           tools: [],
         }),
       ).rejects.toThrow('unavailable on this device');
@@ -102,7 +102,7 @@ describe('BuiltInAIAdapter', () => {
 
       await expect(
         adapter.generate({
-          messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+          messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
           tools: [],
         }),
       ).rejects.toThrow('downloading');
@@ -113,7 +113,7 @@ describe('BuiltInAIAdapter', () => {
 
       await expect(
         adapter.generate({
-          messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+          messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
           tools: [],
         }),
       ).rejects.toThrow('context window');
@@ -122,7 +122,7 @@ describe('BuiltInAIAdapter', () => {
     it('includes system prompt in initialPrompts', async () => {
       await adapter.generate({
         system: 'You are terse.',
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -133,9 +133,9 @@ describe('BuiltInAIAdapter', () => {
     it('maps history messages into initialPrompts', async () => {
       await adapter.generate({
         messages: [
-          { role: 'user', content: { type: 'text', text: 'Hello' } },
-          { role: 'assistant', content: { type: 'text', text: 'Hi there' } },
-          { role: 'user', content: { type: 'text', text: 'How are you?' } },
+          { role: 'user', content: { type: 'text', content: 'Hello' } },
+          { role: 'assistant', content: { type: 'text', content: 'Hi there' } },
+          { role: 'user', content: { type: 'text', content: 'How are you?' } },
         ],
         tools: [],
       });
@@ -151,7 +151,7 @@ describe('BuiltInAIAdapter', () => {
       mockCreate.mockResolvedValue(session);
 
       await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'What time is it?' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'What time is it?' } }],
         tools: [],
       });
 
@@ -163,15 +163,15 @@ describe('BuiltInAIAdapter', () => {
       mockCreate.mockResolvedValue(session);
 
       await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hello' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hello' } }],
         tools: [],
       });
 
       await adapter.generate({
         messages: [
-          { role: 'user', content: { type: 'text', text: 'Hello' } },
-          { role: 'assistant', content: { type: 'text', text: 'response text' } },
-          { role: 'user', content: { type: 'text', text: 'Follow up' } },
+          { role: 'user', content: { type: 'text', content: 'Hello' } },
+          { role: 'assistant', content: { type: 'text', content: 'response text' } },
+          { role: 'user', content: { type: 'text', content: 'Follow up' } },
         ],
         tools: [],
       });
@@ -182,12 +182,12 @@ describe('BuiltInAIAdapter', () => {
 
     it('creates a new session when history diverges', async () => {
       await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hello' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hello' } }],
         tools: [],
       });
 
       await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Totally different' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Totally different' } }],
         tools: [],
       });
 
@@ -200,12 +200,12 @@ describe('BuiltInAIAdapter', () => {
       mockCreate.mockResolvedValueOnce(session1).mockResolvedValueOnce(session2);
 
       await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'First' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'First' } }],
         tools: [],
       });
 
       await adapter.generate({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Different' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Different' } }],
         tools: [],
       });
 
@@ -224,7 +224,7 @@ describe('BuiltInAIAdapter', () => {
 
     it('yields text_delta chunks from the stream', async () => {
       const chunks = await collect({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -246,7 +246,7 @@ describe('BuiltInAIAdapter', () => {
       mockCreate.mockResolvedValue(session);
 
       const chunks = await collect({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -259,7 +259,7 @@ describe('BuiltInAIAdapter', () => {
     it('warns when tools are passed', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       await collect({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [{ name: 't', description: 'd', parameters: {}, scope: 'read' as const }],
       });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('tool calling is not supported'));

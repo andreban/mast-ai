@@ -105,10 +105,12 @@ describe('hallucinated tool calls', () => {
     // Second request's history should contain a tool_result for ghost_tool.
     const secondRequest = turnRequests[1];
     const toolResultMsg = secondRequest.messages.find(
-      (m) => m.content.type === 'tool_result' && m.content.name === 'ghost_tool',
+      (m) => m.content.type === 'tool_result' && m.content.content.tool_call.name === 'ghost_tool',
     );
     expect(toolResultMsg).toBeDefined();
-    expect((toolResultMsg!.content as { result: string }).result).toContain('ghost_tool');
+    expect((toolResultMsg!.content as { content: { result: string } }).content.result).toContain(
+      'ghost_tool',
+    );
   });
 });
 
@@ -262,14 +264,91 @@ describe('provider_metadata round-trip', () => {
     const secondRequest = turnRequests[1];
     const toolCallsMsg = secondRequest.messages.find((m) => m.content.type === 'tool_calls');
     expect(toolCallsMsg).toBeDefined();
-    const calls = (toolCallsMsg!.content as { calls: { provider_metadata?: unknown }[] }).calls;
+    const calls = (toolCallsMsg!.content as { content: { provider_metadata?: unknown }[] }).content;
     expect(calls[0].provider_metadata).toBe(sentinel);
 
     const toolResultMsg = secondRequest.messages.find((m) => m.content.type === 'tool_result');
     expect(toolResultMsg).toBeDefined();
-    expect((toolResultMsg!.content as { provider_metadata?: unknown }).provider_metadata).toBe(
-      sentinel,
-    );
+    const resultContent = toolResultMsg!.content as {
+      content: { tool_call: { provider_metadata?: unknown } };
+    };
+    expect(resultContent.content.tool_call.provider_metadata).toBe(sentinel);
+  });
+});
+
+describe('history wire format', () => {
+  it('serialises history in the agent-rig Message JSON shape', async () => {
+    let callCount = 0;
+    const adapter: LlmAdapter = {
+      generate: vi.fn(),
+      generateStream: (_request: AdapterRequest) =>
+        (async function* () {
+          if (callCount++ === 0) {
+            yield {
+              type: 'tool_call' as const,
+              toolCall: { id: 'call_1', name: 'search_notes', args: { q: 'x' } },
+            };
+          } else {
+            yield { type: 'text_delta' as const, delta: 'Found nothing' };
+          }
+        })(),
+    };
+
+    const registry = new ToolRegistry();
+    registry.register({
+      definition: () => ({
+        name: 'search_notes',
+        description: 'Search notes',
+        parameters: {},
+        scope: 'read' as const,
+      }),
+      call: async () => ({ items: [] }),
+    });
+
+    const runner = new AgentRunner(adapter, registry);
+    let history: unknown;
+    for await (const event of runner.runStream(agent, 'Hello world')) {
+      if (event.type === 'done') history = event.history;
+    }
+
+    const call = { id: 'call_1', name: 'search_notes', args: { q: 'x' } };
+    expect(JSON.parse(JSON.stringify(history))).toEqual([
+      { role: 'user', content: { type: 'text', content: 'Hello world' } },
+      { role: 'assistant', content: { type: 'tool_calls', content: [call] } },
+      {
+        role: 'user',
+        content: { type: 'tool_result', content: { tool_call: call, result: { items: [] } } },
+      },
+      { role: 'assistant', content: { type: 'text', content: 'Found nothing' } },
+    ]);
+  });
+
+  it('round-trips message-level provider_metadata in history', async () => {
+    const requests: AdapterRequest[] = [];
+    const adapter: LlmAdapter = {
+      generate: vi.fn(),
+      generateStream: (request: AdapterRequest) =>
+        (async function* () {
+          requests.push(request);
+          yield { type: 'text_delta' as const, delta: 'ok' };
+        })(),
+    };
+
+    const sentinel = { deepseek: { reasoning_content: 'because' } };
+    const runner = new AgentRunner(adapter, new ToolRegistry());
+    const history = [
+      { role: 'user' as const, content: { type: 'text' as const, content: 'hi' } },
+      {
+        role: 'assistant' as const,
+        content: { type: 'text' as const, content: 'hello' },
+        provider_metadata: sentinel,
+      },
+    ];
+    for await (const _ of runner.runBuilder(agent).history(history).runStream('again')) {
+      // drain
+    }
+
+    expect(requests[0].messages[1].provider_metadata).toBe(sentinel);
   });
 });
 

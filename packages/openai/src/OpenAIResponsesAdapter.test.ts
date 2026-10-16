@@ -40,7 +40,7 @@ describe('OpenAIResponsesAdapter', () => {
 
   it('should generate text response', async () => {
     const response = await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -67,7 +67,7 @@ describe('OpenAIResponsesAdapter', () => {
     });
 
     const response = await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Call tool' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Call tool' } }],
       tools: [{ name: 'testTool', description: 'desc', parameters: {}, scope: 'read' as const }],
     });
 
@@ -82,7 +82,7 @@ describe('OpenAIResponsesAdapter', () => {
 
     await adapter.generate({
       system: 'You are terse.',
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -95,7 +95,7 @@ describe('OpenAIResponsesAdapter', () => {
     const mockClient = await getMockClient();
 
     await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [
         {
           name: 'lookup',
@@ -123,17 +123,23 @@ describe('OpenAIResponsesAdapter', () => {
 
     await adapter.generate({
       messages: [
-        { role: 'user', content: { type: 'text', text: 'Compute 2+2' } },
+        { role: 'user', content: { type: 'text', content: 'Compute 2+2' } },
         {
           role: 'assistant',
           content: {
             type: 'tool_calls',
-            calls: [{ id: 'call_a', name: 'calc', args: { expr: '2+2' } }],
+            content: [{ id: 'call_a', name: 'calc', args: { expr: '2+2' } }],
           },
         },
         {
           role: 'user',
-          content: { type: 'tool_result', id: 'call_a', name: 'calc', result: { value: 4 } },
+          content: {
+            type: 'tool_result',
+            content: {
+              tool_call: { id: 'call_a', name: 'calc', args: { expr: '2+2' } },
+              result: { value: 4 },
+            },
+          },
         },
       ],
       tools: [{ name: 'calc', description: 'd', parameters: {}, scope: 'read' as const }],
@@ -160,7 +166,7 @@ describe('OpenAIResponsesAdapter', () => {
     const mockClient = await getMockClient();
 
     await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -175,7 +181,7 @@ describe('OpenAIResponsesAdapter', () => {
       reasoningSummary: false,
     });
     await off.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -190,7 +196,7 @@ describe('OpenAIResponsesAdapter', () => {
       reasoningEffort: 'high',
     });
     await adapterWithDefaults.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
     });
 
@@ -198,7 +204,7 @@ describe('OpenAIResponsesAdapter', () => {
     expect(call.reasoning).toEqual({ effort: 'high', summary: 'auto' });
 
     await adapterWithDefaults.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
       config: { reasoning_effort: 'low' },
     });
@@ -211,7 +217,7 @@ describe('OpenAIResponsesAdapter', () => {
     const mockClient = await getMockClient();
 
     await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
       outputSchema: { type: 'object', properties: { answer: { type: 'string' } } },
     });
@@ -231,7 +237,7 @@ describe('OpenAIResponsesAdapter', () => {
     const mockClient = await getMockClient();
 
     await adapter.generate({
-      messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+      messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
       tools: [],
       config: { temperature: 0.4, maxTokens: 1000, topP: 0.9 },
     });
@@ -268,7 +274,7 @@ describe('OpenAIResponsesAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -292,7 +298,7 @@ describe('OpenAIResponsesAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -316,7 +322,7 @@ describe('OpenAIResponsesAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [{ name: 'lookup', description: 'd', parameters: {}, scope: 'read' as const }],
       });
 
@@ -341,7 +347,7 @@ describe('OpenAIResponsesAdapter', () => {
       );
 
       const chunks = await collectChunks({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       });
 
@@ -357,7 +363,7 @@ describe('OpenAIResponsesAdapter', () => {
       );
 
       for await (const _chunk of adapter.generateStream({
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hi' } }],
+        messages: [{ role: 'user', content: { type: 'text', content: 'Hi' } }],
         tools: [],
       })) {
         void _chunk;
